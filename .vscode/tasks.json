@@ -1,0 +1,32 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "NEXUS: Run UI (Streamlit)",
+			"type": "shell",
+			"command": "${workspaceFolder}/nexus-env/Scripts/python.exe -m streamlit run app.py --server.port 8501 --server.address 127.0.0.1",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "NEXUS: Ingest documents",
+			"type": "shell",
+			"command": "${workspaceFolder}/nexus-env/Scripts/python.exe ingest.py",
+			"problemMatcher": []
+		},
+		{
+			"label": "NEXUS: Run tests",
+			"type": "shell",
+			"command": "${workspaceFolder}/nexus-env/Scripts/python.exe -m unittest discover -s tests -v",
+			"problemMatcher": [],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			}
+		}
+	]
+}

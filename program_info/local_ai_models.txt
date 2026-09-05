@@ -1,0 +1,71 @@
+NEXUS AI LOCAL MODEL MAP
+========================
+
+Project: CLAUDE / NEXUS AI
+Purpose: map each local AI model to the specific job it performs in this project.
+
+MODEL 1: all-MiniLM-L6-v2
+TYPE: Sentence-transformers embedding model
+JOB: Embed document chunks and user questions for retrieval
+TASKS:
+- Convert TXT, MD, PDF, and DOCX content into vector embeddings.
+- Convert each user query into embeddings for semantic matching.
+- Support the hybrid retrieval flow in ingest.py and retrieve.py.
+USED BY: ingest.py, retrieve.py, router.py
+RUNTIME: Python virtual environment in Nexus/nexus-env (CPU)
+INSTALL STATUS: installed and verified working
+VERIFICATION: SentenceTransformer('all-MiniLM-L6-v2') loaded successfully.
+
+MODEL 2: llama3.1:8b
+TYPE: Ollama text-generation model
+JOB: Generate the final answer after retrieval or direct routing
+TASKS:
+- Read the retrieved context and answer grounded questions.
+- Respond to the interactive NEXUS chatbot loop.
+- Produce the final answer in rag_pipeline.py and the browser UI.
+USED BY: rag_pipeline.py, router.py, server.py, app.py
+RUNTIME: Ollama at http://localhost:11434 (GPU acceleration when available)
+INSTALL STATUS: available on the machine; backend must be running before chat requests succeed
+VERIFICATION: the app can reach the router and UI, but the local generation request fails until Ollama is started.
+
+MODEL 3: router task classifier
+TYPE: lightweight local rule + embedding router
+JOB: Choose the best model family for a user request
+TASKS:
+- Route general/chat requests to general-purpose models.
+- Route coding queries to coding specialists.
+- Route reasoning queries to reasoning models.
+- Trigger local document retrieval when the prompt references project knowledge or personal files.
+USED BY: router.py and the browser/UI flow
+RUNTIME: Python virtual environment in Nexus/nexus-env
+INSTALL STATUS: implemented and active in the UI flow
+
+JOB TO MODEL SUMMARY
+---------------------
+- Document indexing / embedding -> all-MiniLM-L6-v2
+- Question embedding / retrieval -> all-MiniLM-L6-v2
+- Final answer generation -> llama3.1:8b
+- Query classification -> local NEXUS router
+
+SETUP COMMANDS
+--------------
+1. Activate environment:
+   Nexus\nexus-env\Scripts\activate
+2. Run indexing:
+   Nexus\nexus-env\Scripts\python.exe ingest.py
+3. Start the model pipeline:
+   Nexus\nexus-env\Scripts\python.exe rag_pipeline.py
+4. Start the browser UI:
+   Nexus\nexus-env\Scripts\python.exe server.py
+5. Start the local Ollama backend:
+   ollama serve
+6. Check installed Ollama models:
+   ollama list
+
+CURRENT DEFAULT GENERATION MODEL
+---------------------------------
+llama3.1:8b
+
+CURRENT BACKEND STATUS
+----------------------
+Ollama is installed but not currently running. The router and UI work, but generation requests fail until localhost:11434 is active.

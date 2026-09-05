@@ -261,6 +261,7 @@ class TaskRouter:
         self,
         query: str,
         available_models: list[str] | None = None,
+        force_task: str | None = None,
     ) -> dict[str, Any]:
         """Classify the query and pick the models to try, in order.
 
@@ -270,6 +271,11 @@ class TaskRouter:
         """
         classification = self.classify(query)
         task = classification["task"]
+        # An explicit override still records what the classifier *would* have
+        # said, so the UI can show that the two disagreed.
+        if force_task and force_task in self.TASKS:
+            classification = dict(classification, auto_task=task, forced=True)
+            task = force_task
         needs_rag = self._needs_rag(query)
 
         if task == "system_agent":
@@ -299,6 +305,8 @@ class TaskRouter:
             "needs_rag": needs_rag,
             "confidence": classification["confidence"],
             "scores": classification["scores"],
+            "auto_task": classification.get("auto_task", task),
+            "forced": bool(classification.get("forced")),
             "reason": (
                 f"Matched {task} intent using keyword and embedding cues; "
                 + (top["reason"] if top else "no model reachable")

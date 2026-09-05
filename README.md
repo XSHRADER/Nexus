@@ -161,6 +161,47 @@ kind of task is this."
 
 ---
 
+## The interface
+
+NEXUS makes three decisions for you on every message — which model answers,
+whether to consult your documents, and which chunks to pull. The UI is built
+so that all three are visible after the fact and overridable before it.
+
+**Four tabs.**
+
+| tab | what it's for |
+|---|---|
+| **Chat** | Answers stream in token by token. Under each one: which model answered and why, and the exact chunks that grounded it. |
+| **Documents** | Per-file chunk counts, drag-and-drop upload, and re-indexing — no CLI needed. |
+| **Retrieval lab** | Run one query through all four retrieval arms side by side and compare what each returns, with timings. No model runs; this is retrieval only. |
+| **Diagnostics** | Installed models, what's resident in VRAM, index configuration, and the last 15 routing decisions. |
+
+**Every automatic decision has an override**, and every control defaults to
+Auto, so leaving them alone reproduces the untouched behaviour exactly:
+
+| control | why you'd touch it |
+|---|---|
+| Model | Pin one instead of letting the scorer choose. Pinned models keep the rest of the chain as fallback. |
+| Task | Override the intent classifier when it reads a question wrong. |
+| Your documents | `Auto` uses the keyword gate, which can miss a question whose answer *is* in your files. `Always` forces retrieval; `Never` skips it. |
+| Retrieval depth | How many chunks reach the model. Chunks are ~240 tokens, so 10 is roughly 2,200 tokens of context. |
+| Cross-encoder reranking | Off is faster; on is sharper. The eval table above quantifies the difference. |
+| Creativity | Sampling temperature, 0 for deterministic and factual. |
+
+**Under every answer** sit two panels. *Why this model* shows the routed task,
+the estimated difficulty, and every model that was scored with its reason —
+plus anything that was skipped and the error that caused it. *Sources* lists
+each retrieved chunk with its score and, more usefully, its rank in each arm:
+`v=0 · b=10` means the vector search ranked that chunk first while BM25 put it
+tenth. Seeing both numbers is what makes hybrid retrieval legible rather than
+a claim.
+
+If an answer looks wrong, the row of buttons beneath it re-runs the same
+question on the next-best models NEXUS already scored, so comparing them costs
+one click instead of a settings change.
+
+---
+
 ## Retrieval pipeline
 
 Three stages, narrowing at each one:

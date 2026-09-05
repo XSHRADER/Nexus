@@ -84,14 +84,22 @@ def get_retriever() -> Retriever:
     return Retriever()
 
 
-def build_rag_prompt(question: str, top_k: int = DEFAULT_TOP_K) -> str:
-    """Retrieve local context and return a grounded prompt.
+def retrieve_context(
+    question: str, top_k: int = DEFAULT_TOP_K, rerank: bool = True
+) -> tuple[str, list[dict]]:
+    """Retrieve local context and return `(grounded_prompt, chunks)`.
 
-    Provider-agnostic: the engine sends this to whichever model it picked,
-    local or cloud, instead of retrieval being tied to Ollama.
+    The chunks come back alongside the prompt so a caller can show *what*
+    grounded an answer -- which file, which score, and which retrieval arm
+    found it -- instead of the user having to trust that retrieval worked.
     """
-    chunks = get_retriever().query(question, top_k=top_k)
-    return build_prompt(question, chunks)
+    chunks = get_retriever().query(question, top_k=top_k, rerank=rerank)
+    return build_prompt(question, chunks), chunks
+
+
+def build_rag_prompt(question: str, top_k: int = DEFAULT_TOP_K) -> str:
+    """Retrieve local context and return a grounded prompt."""
+    return retrieve_context(question, top_k=top_k)[0]
 
 
 def rag_query(question: str, model: str = DEFAULT_MODEL, top_k: int = DEFAULT_TOP_K) -> str:

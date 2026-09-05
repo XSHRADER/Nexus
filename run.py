@@ -17,6 +17,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Preflight is a progress report, so it has to appear as it happens. Python
+# block-buffers stdout when it isn't a terminal, which hid every check
+# behind the Streamlit banner when the output was piped or redirected.
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+except (AttributeError, ValueError):  # pragma: no cover - older/odd streams
+    pass
+
 PROJECT_DIR = Path(__file__).resolve().parent
 DOCS_DIR = PROJECT_DIR / "documents"
 OLLAMA_TAGS = "http://localhost:11434/api/tags"

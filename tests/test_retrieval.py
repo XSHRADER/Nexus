@@ -144,6 +144,21 @@ class RetrieverTests(unittest.TestCase):
     def test_empty_query_does_not_crash(self):
         self.assertIsInstance(self.retriever.query("   ", top_k=3), list)
 
+    def test_reranked_results_share_one_score_scale(self):
+        # The reranked head used to be concatenated with an un-reranked tail
+        # whose `score` was still an RRF value (~0.02) rather than a
+        # cross-encoder logit (roughly -11..+11), so `score` meant two
+        # different things inside one list.
+        hits = self.retriever.query("Chroma embeddings", top_k=3, rerank=True)
+        self.assertTrue(hits)
+        for hit in hits:
+            self.assertIsNotNone(hit["rerank_score"])
+            self.assertEqual(hit["score"], hit["rerank_score"])
+
+    def test_top_k_larger_than_corpus_is_safe(self):
+        hits = self.retriever.query("NEXUS", top_k=50)
+        self.assertLessEqual(len(hits), len(self.DOCS))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -143,22 +143,65 @@ class TaskRouter:
 
         if re.search(r"\b(plan|planning|roadmap|strategy|step[- ]by[- ]step|outline|milestones?|schedule|break (?:it|this) down|approach|walk me through|how should i (?:start|begin|build|structure))\b", text):
             scores["planning"] += 4.5
-        if re.search(r"\b(debug|fix|bug|error|traceback|exception|code|python|js|java|function|class|api|refactor|unit test|syntax)\b", text):
+
+        # A coding *request* needs an action or a failure, not merely the name
+        # of a technology. "what is an API?" and "what Python version is used?"
+        # were scoring full coding intent off the bare noun alone and going to
+        # the coder model instead of being answered as ordinary questions.
+        if re.search(
+            r"\b(debug|refactor|implement|rewrite|fix (?:this|the|my|a)|"
+            r"write (?:a |an )?(?:\w+ )?(?:function|class|script|test|query|method)|"
+            r"unit test|stack ?trace|traceback|exception|typeerror|valueerror|"
+            r"keyerror|attributeerror|indexerror|syntax error|compile|"
+            r"runtime error)\b",
+            text,
+        ):
             scores["coding"] += 4.0
-        if re.search(r"\b(compare|tradeoff|analysis|analyze|reason|decision|design|architecture|optimi[sz]e|why|how to choose|pros|cons)\b", text):
+        if re.search(r"\b(bug|crash(?:es|ed|ing)?|broken|failing|fails)\b", text):
+            scores["coding"] += 2.5
+        # Technology nouns on their own are only weak evidence.
+        if re.search(
+            r"\b(code|python|javascript|js|java|typescript|function|class|api|"
+            r"variable|regex|sql|error)\b",
+            text,
+        ):
+            scores["coding"] += 1.5
+
+        # `tradeoff\b` never matched the plural, which is how most people
+        # actually write it.
+        if re.search(r"\b(compare|tradeoffs?|trade[- ]offs?|analysis|analyze|reason|decision|design|architecture|optimi[sz]e|why|how to choose|pros|cons)\b", text):
             scores["reasoning"] += 4.0
-        if re.search(r"\b(summarize|explain|what is|who is|overview|tell me about|plain english|in simple terms)\b", text):
+
+        if re.search(
+            r"\b(summarize|explain|what is|who is|overview|tell me about|"
+            r"plain english|in simple terms|conceptually|high[- ]level)\b",
+            text,
+        ):
             scores["general"] += 3.0
+        # Questions about versions and setup are informational, not coding work.
+        if re.search(r"\b(version|release|installed|which model|what model)\b", text):
+            scores["general"] += 2.5
+
         if re.search(r"\b(image|picture|photo|chart|diagram|vision|describe the screenshot|what is in this)\b", text):
             scores["vision"] += 4.0
         if re.search(r"\b(audio|voice|speech|transcribe|listen|whisper|caption|recording|podcast)\b", text):
             scores["speech"] += 4.0
-        if re.search(r"\b(organi[sz]e|sort|tidy|arrange|declutter|categori[sz]e|clean|duplicate|duplicates|large files|disk usage|system|folder|directory|clutter|clean up|empty folders?|undo)\b", text):
+
+        # Same principle as coding: a file operation needs a verb. Bare
+        # "folder", "directory" or "system" was turning questions *about* the
+        # project into requests to act on the disk.
+        if re.search(
+            r"\b(organi[sz]e|sort|tidy|arrange|declutter|categori[sz]e|"
+            r"clean (?:up|out)|find duplicates?|duplicate files|large files|"
+            r"disk usage|empty folders?|undo)\b",
+            text,
+        ):
             scores["system_agent"] += 4.5
         # A named location on this PC is a strong signal the user means a real
         # folder ("analyze my desktop"), not a topic to talk about.
         if re.search(r"\b(desktop|downloads|my pc|this pc|hard drive|c drive)\b", text):
             scores["system_agent"] += 3.0
+
         if re.search(r"\b(should i|which is better|what would you recommend|based on the tradeoff)\b", text):
             scores["reasoning"] += 2.0
         if re.search(r"\b(project|document|readme|folder|source|knowledge base|according to|from my notes|local docs|local files|context)\b", text):

@@ -210,13 +210,21 @@ class Retriever:
 
         # --- Cross-encoder rerank ---
         if use_rerank and candidates:
-            head = candidates[: self.RERANK_CANDIDATES]
+            # Rerank at least as many as the caller asked for, so the returned
+            # list never runs past the reranked head.
+            head_n = max(self.RERANK_CANDIDATES, top_k)
+            head = candidates[:head_n]
             scores = self.cross_encoder.predict([[question, c["text"]] for c in head])
             for cand, score in zip(head, scores):
                 cand["rerank_score"] = float(score)
                 cand["score"] = float(score)
             head.sort(key=lambda c: c["score"], reverse=True)
-            candidates = head + candidates[self.RERANK_CANDIDATES :]
+            # Drop the un-reranked tail rather than appending it. Its `score` is
+            # still an RRF value (~0.02) while these are cross-encoder logits
+            # (roughly -11..+11), so keeping both made `score` meaningless
+            # across the boundary -- and any min_score threshold would have
+            # admitted every tail item while rejecting genuinely reranked ones.
+            candidates = head
 
         if min_score is not None:
             kept = [c for c in candidates if c["score"] >= min_score]

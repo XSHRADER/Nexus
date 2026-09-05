@@ -1,0 +1,113 @@
+{
+  "_comment": "Golden retrieval set for NEXUS. `sources` lists the files that answer the question (file-level recall). `answer_contains` is a distinctive string that MUST appear in the assembled top-k context for the answer to be groundable -- that metric is chunker-agnostic, so it stays comparable when the chunking scheme changes. Questions are phrased the way a user would ask, not copied from the document wording, so this measures retrieval rather than string overlap.",
+  "questions": [
+    {
+      "id": "q01",
+      "question": "Which embedding model turns my documents into vectors?",
+      "sources": ["local_ai_models.txt", "nexus_project_info.md"],
+      "answer_contains": "all-MiniLM-L6-v2"
+    },
+    {
+      "id": "q02",
+      "question": "Where does the project keep its vector index on disk?",
+      "sources": ["nexus_project_info.md", "file_and_folder_info.txt"],
+      "answer_contains": "vector_store"
+    },
+    {
+      "id": "q03",
+      "question": "What kinds of files can I put in the documents folder?",
+      "sources": ["nexus_project_info.md", "checklist.txt", "local_ai_models.txt"],
+      "answer_contains": "DOCX"
+    },
+    {
+      "id": "q04",
+      "question": "Which model actually writes the final answer?",
+      "sources": ["local_ai_models.txt", "nexus_project_info.md"],
+      "answer_contains": "llama3.1:8b"
+    },
+    {
+      "id": "q05",
+      "question": "What version of Python is this running on?",
+      "sources": ["checklist.txt", "action_log.txt"],
+      "answer_contains": "3.13.1"
+    },
+    {
+      "id": "q06",
+      "question": "Why was a separate virtual environment set up?",
+      "sources": ["action_log.txt", "checklist.txt"],
+      "answer_contains": "isolat"
+    },
+    {
+      "id": "q07",
+      "question": "What is kept inside the program_info folder?",
+      "sources": ["file_and_folder_info.txt"],
+      "answer_contains": "checklist.txt"
+    },
+    {
+      "id": "q08",
+      "question": "Is there a check that runs before generation starts?",
+      "sources": ["action_log.txt", "checklist.txt"],
+      "answer_contains": "preflight"
+    },
+    {
+      "id": "q09",
+      "question": "How does it decide which model should handle my question?",
+      "sources": ["nexus_readme.md", "local_ai_models.txt"],
+      "answer_contains": "router"
+    },
+    {
+      "id": "q10",
+      "question": "Does a model already loaded in GPU memory get preferred?",
+      "sources": ["nexus_readme.md"],
+      "answer_contains": "/api/ps"
+    },
+    {
+      "id": "q11",
+      "question": "What keyword search method is combined with the vector search?",
+      "sources": ["nexus_project_info.md", "local_ai_models.txt", "nexus_readme.md"],
+      "answer_contains": "BM25"
+    },
+    {
+      "id": "q12",
+      "question": "What is the virtual environment folder called?",
+      "sources": ["checklist.txt", "nexus_project_info.md", "local_ai_models.txt"],
+      "answer_contains": "nexus-env"
+    },
+    {
+      "id": "q13",
+      "question": "Which model is preferred for programming questions?",
+      "sources": ["nexus_readme.md"],
+      "answer_contains": "qwen2.5-coder"
+    },
+    {
+      "id": "q14",
+      "question": "Which release of Ollama was installed?",
+      "sources": ["checklist.txt", "action_log.txt"],
+      "answer_contains": "0.33.1"
+    },
+    {
+      "id": "q15",
+      "question": "How do I add new documents and get them indexed?",
+      "sources": ["nexus_project_info.md", "nexus_readme.md"],
+      "answer_contains": "ingest.py"
+    },
+    {
+      "id": "q16",
+      "question": "What database stores the embeddings?",
+      "sources": ["nexus_project_info.md", "local_ai_models.txt"],
+      "answer_contains": "Chroma"
+    },
+    {
+      "id": "q17",
+      "question": "Can it sort or organise folders on my computer?",
+      "sources": ["nexus_readme.md"],
+      "answer_contains": "Downloads"
+    },
+    {
+      "id": "q18",
+      "question": "What was done about dependencies that broke on the newer Python?",
+      "sources": ["action_log.txt", "checklist.txt"],
+      "answer_contains": "3.13"
+    }
+  ]
+}

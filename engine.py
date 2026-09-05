@@ -142,7 +142,7 @@ def answer(question: str, base_dir: Path | None = None, confirm: bool = False) -
     prompt = question
     if result["needs_rag"]:
         try:
-            prompt = build_rag_prompt(question, top_k=5)
+            prompt = build_rag_prompt(question)
         except Exception as exc:
             result["info"] = f"Local document search unavailable ({exc}); answering without it."
             result["needs_rag"] = False

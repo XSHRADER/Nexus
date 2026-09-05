@@ -19,6 +19,13 @@ from retrieve import Retriever
 OLLAMA_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "llama3.1:8b"  # swap for whichever model your router picks
 
+# Chunks are token-sized (<=240) rather than 1600 characters, so each one
+# carries roughly a quarter of what it used to. eval_rag.py measured the
+# consequence directly: at top_k=5 the model received 1096 context tokens
+# and grounded@5 fell to 0.944; at top_k=10 it gets 2190 tokens and
+# grounded@5 returns to 1.000. Retrieval depth has to follow chunk size.
+DEFAULT_TOP_K = 10
+
 SYSTEM_TEMPLATE = """You are NEXUS AI's local assistant. Answer the user's \
 question using ONLY the context below when it's relevant. If the context \
 doesn't contain the answer, say so plainly and answer from general \
@@ -77,7 +84,7 @@ def get_retriever() -> Retriever:
     return Retriever()
 
 
-def build_rag_prompt(question: str, top_k: int = 5) -> str:
+def build_rag_prompt(question: str, top_k: int = DEFAULT_TOP_K) -> str:
     """Retrieve local context and return a grounded prompt.
 
     Provider-agnostic: the engine sends this to whichever model it picked,
@@ -87,7 +94,7 @@ def build_rag_prompt(question: str, top_k: int = 5) -> str:
     return build_prompt(question, chunks)
 
 
-def rag_query(question: str, model: str = DEFAULT_MODEL, top_k: int = 5) -> str:
+def rag_query(question: str, model: str = DEFAULT_MODEL, top_k: int = DEFAULT_TOP_K) -> str:
     return ask_ollama(build_rag_prompt(question, top_k), model=model)
 
 

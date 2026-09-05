@@ -1,0 +1,8 @@
+# Mirror of ../requirements.txt -- kept here for the program_info bundle.
+chromadb==1.5.5
+sentence-transformers==5.1.2
+rank-bm25==0.2.2
+pypdf==4.3.1
+python-docx==1.1.2
+streamlit==1.62.0
+requests==2.32.3

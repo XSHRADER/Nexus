@@ -1,0 +1,22 @@
+# Secrets
+.gemini_key
+.env
+*.key
+
+# Virtualenvs
+nexus-env/
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Generated artifacts (rebuilt by `python ingest.py`)
+vector_store/
+router_logs.jsonl
+
+# OS / editor
+.DS_Store
+Thumbs.db

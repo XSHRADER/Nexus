@@ -1,0 +1,5 @@
+{
+	"python.defaultInterpreterPath": "${workspaceFolder}/nexus-env/Scripts/python.exe",
+	"python.terminal.activateEnvironment": true,
+	"python.analysis.extraPaths": ["${workspaceFolder}"]
+}

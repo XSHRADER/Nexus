@@ -136,8 +136,8 @@
       fetch('/api/status').then(r => r.json()).then(s => {
         const parts = [];
         parts.push(s.ollama && s.ollama.length ? 'Local: ' + s.ollama.length + ' model(s)' : 'Local: offline');
-        parts.push(s.gemini ? 'Gemini: ready' : 'Gemini: no key');
-        document.getElementById('statusBadge').textContent = 'Auto-selects AI · ' + parts.join(' · ');
+        if (s.loaded && s.loaded.length) parts.push('In VRAM: ' + s.loaded.join(', '));
+        document.getElementById('statusBadge').textContent = 'Auto-selects local AI · ' + parts.join(' · ');
       }).catch(() => {});
 
       function appendMessage(role, text, meta = null) {
@@ -175,7 +175,7 @@
           const meta = [
             'Task: ' + (data.task || 'unknown'),
             'Auto-picked: ' + (data.model || 'none') +
-              (data.provider === 'gemini' ? ' (cloud)' : data.provider === 'ollama' ? ' (local)' : ''),
+              (data.provider === 'ollama' ? ' (local)' : ''),
             'Difficulty: ' + Number(data.complexity || 0).toFixed(2),
             'RAG: ' + (data.needs_rag ? 'on' : 'off')
           ];

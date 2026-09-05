@@ -1,4 +1,4 @@
-# NEXUS AI -- runs CPU-only except final generation (Ollama / Gemini).
+# NEXUS AI -- fully local. CPU-only except final generation (Ollama).
 # Python 3.13 compatible pins.
 
 # Retrieval stack

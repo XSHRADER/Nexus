@@ -33,17 +33,18 @@ class ResolveInstalledTests(unittest.TestCase):
 
 
 class PlanTests(unittest.TestCase):
-    BOTH = {"ollama": ["llama3.1:8b", "qwen2.5-coder:7b", "deepseek-r1:7b", "llava:7b"],
-            "gemini": True}
+    AVAIL = {"ollama": ["llama3.1:8b", "qwen2.5-coder:7b", "deepseek-r1:7b", "llava:7b"]}
 
     def _top(self, task, query, needs_rag=False, avail=None):
-        chain = providers.plan(task, query, needs_rag, avail=avail or self.BOTH)
+        chain = providers.plan(task, query, needs_rag, avail=avail or self.AVAIL)
         return chain[0].model if chain else None
 
-    def test_planning_goes_to_gemini_pro(self):
+    def test_planning_goes_to_the_reasoning_specialist(self):
+        # deepseek-r1 is the only installed model with real planning strength,
+        # so it must outrank the general chat model despite being slower.
         self.assertEqual(
             self._top("planning", "draft a roadmap with milestones for the next month"),
-            "gemini-2.5-pro",
+            "deepseek-r1:7b",
         )
 
     def test_everyday_chat_stays_local(self):
@@ -53,21 +54,21 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(self._top("coding", "write a function to sort a list"), "qwen2.5-coder:7b")
 
     def test_rag_keeps_documents_local(self):
-        chain = providers.plan("general", "summarize my notes", needs_rag=True, avail=self.BOTH)
+        chain = providers.plan("general", "summarize my notes", needs_rag=True, avail=self.AVAIL)
         self.assertTrue(chain[0].spec.is_local)
 
     def test_only_capable_models_are_offered(self):
-        chain = providers.plan("vision", "what is in this image", avail=self.BOTH)
+        chain = providers.plan("vision", "what is in this image", avail=self.AVAIL)
         for candidate in chain:
             self.assertIn("vision", candidate.spec.strengths)
 
     def test_chain_is_ordered_best_first(self):
-        chain = providers.plan("reasoning", "compare these trade-offs", avail=self.BOTH)
+        chain = providers.plan("reasoning", "compare these trade-offs", avail=self.AVAIL)
         scores = [c.score for c in chain]
         self.assertEqual(scores, sorted(scores, reverse=True))
 
     def test_nothing_reachable(self):
-        chain = providers.plan("general", "hello", avail={"ollama": [], "gemini": False})
+        chain = providers.plan("general", "hello", avail={"ollama": []})
         self.assertEqual(chain, [])
 
 
@@ -75,7 +76,7 @@ class WarmModelTests(unittest.TestCase):
     INSTALLED = ["llama3.1:8b", "qwen2.5:7b", "mistral:7b", "qwen2.5-coder:7b"]
 
     def _avail(self, loaded):
-        return providers.availability(self.INSTALLED, False, loaded)
+        return providers.availability(self.INSTALLED, loaded)
 
     def test_resident_model_is_preferred_over_an_equal_peer(self):
         # mistral and qwen2.5 are close on general chat; the one already in
@@ -94,11 +95,6 @@ class WarmModelTests(unittest.TestCase):
         chain = providers.plan("coding", "fix this TypeError",
                                avail=self._avail(["mistral:7b"]))
         self.assertEqual(chain[0].model, "qwen2.5-coder:7b")
-
-    def test_cloud_models_are_never_warm(self):
-        avail = providers.availability(self.INSTALLED, True, ["mistral:7b"])
-        chain = providers.plan("planning", "draft a roadmap", avail=avail)
-        self.assertEqual(chain[0].model, "gemini-2.5-pro")
 
 
 if __name__ == "__main__":

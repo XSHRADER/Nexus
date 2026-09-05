@@ -1,11 +1,9 @@
-import os
 from pathlib import Path
 
 import streamlit as st
 
 import providers
 from engine import answer, apply_pending, get_router
-from gemini_client import load_saved_key, save_key
 
 PROJECT_DIR = Path(__file__).resolve().parent
 LOG_PATH = PROJECT_DIR / "router_logs.jsonl"
@@ -18,10 +16,10 @@ with st.sidebar:
     st.header("🤖 Automatic AI selection")
     st.write(
         "You don't pick a model. NEXUS reads each message, decides what kind of "
-        "task it is, and sends it to whichever AI is strongest at that — local "
-        "Ollama for quick chat, code, and anything using your own documents; "
-        "**Gemini for planning and multi-step reasoning**. If the first choice "
-        "is down it silently moves to the next one."
+        "task it is, and sends it to whichever local model is strongest at that. "
+        "Everything runs on this PC through Ollama — no API key, no network, "
+        "nothing leaves the machine. If the first choice is down it silently "
+        "moves to the next one."
     )
 
     avail = providers.availability()
@@ -29,37 +27,20 @@ with st.sidebar:
     if avail["ollama"]:
         st.success(f"Local (Ollama): {len(avail['ollama'])} model(s)")
         st.caption(", ".join(avail["ollama"]))
+        if avail.get("loaded"):
+            st.caption(f"In VRAM now: {', '.join(avail['loaded'])}")
     else:
         st.warning("Local (Ollama): not running — start it with `ollama serve`")
-    if avail["gemini"]:
-        st.success("Cloud (Gemini): connected")
-    else:
-        st.warning("Cloud (Gemini): no API key — planning tasks will stay local")
 
-    with st.expander("🔑 Gemini API key (saved once)"):
-        saved = load_saved_key() or ""
-        key_input = st.text_input(
-            "Google Gemini API Key",
-            value=saved,
-            type="password",
-            help="From Google AI Studio. Stored in .gemini_key so you only enter it once.",
-        )
-        if key_input != saved:
-            save_key(key_input)
-            os.environ["GEMINI_API_KEY"] = key_input
-            st.rerun()
-        if saved:
-            os.environ["GEMINI_API_KEY"] = saved
-
-    st.markdown("### Which AI handles what")
+    st.markdown("### Which model handles what")
     st.table(
         [
-            {"Task": "Planning / roadmaps", "Preferred": "Gemini 2.5 Pro"},
-            {"Task": "Deep reasoning", "Preferred": "Gemini 2.5 Pro → deepseek-r1"},
-            {"Task": "Coding", "Preferred": "qwen2.5-coder (local) → Gemini"},
-            {"Task": "Everyday chat", "Preferred": "llama3.1 (local)"},
+            {"Task": "Planning / roadmaps", "Preferred": "deepseek-r1 → phi4"},
+            {"Task": "Deep reasoning", "Preferred": "deepseek-r1 → phi4"},
+            {"Task": "Coding", "Preferred": "qwen2.5-coder → deepseek-coder"},
+            {"Task": "Everyday chat", "Preferred": "llama3.1 → qwen2.5"},
             {"Task": "Your documents", "Preferred": "local models (stays private)"},
-            {"Task": "Images", "Preferred": "qwen2.5vl / Gemini"},
+            {"Task": "Images", "Preferred": "qwen2.5vl → llava"},
             {"Task": "PC folder actions", "Preferred": "built-in toolkit, no model"},
         ]
     )

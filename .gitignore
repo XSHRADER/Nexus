@@ -1,5 +1,4 @@
 # Secrets
-.gemini_key
 .env
 *.key
 

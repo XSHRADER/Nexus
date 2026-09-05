@@ -15,42 +15,33 @@ class TaskRouterTests(unittest.TestCase):
         decision = self.router.route(
             "Fix this Python TypeError and explain the cause",
             available_models=["llama3.1:8b", "qwen2.5-coder:7b"],
-            gemini_ready=True,
         )
         self.assertEqual(decision["model"], "qwen2.5-coder:7b")
 
-    def test_planning_query_prefers_gemini(self):
-        # The whole point of the auto-selector: planning goes to the cloud
-        # model that is best at it, even with local models available.
+    def test_planning_prefers_the_local_reasoning_model(self):
+        # A planning prompt should reach the chain-of-thought model rather
+        # than the general chat model, even though it is slower to answer.
         decision = self.router.route(
             "Make me a step by step plan and roadmap to finish this project",
             available_models=["llama3.1:8b", "deepseek-r1:7b"],
-            gemini_ready=True,
         )
         self.assertEqual(decision["task"], "planning")
-        self.assertEqual(decision["model"], "gemini-2.5-pro")
-
-    def test_planning_falls_back_to_local_without_key(self):
-        decision = self.router.route(
-            "Make me a step by step plan and roadmap to finish this project",
-            available_models=["llama3.1:8b", "deepseek-r1:7b"],
-            gemini_ready=False,
-        )
         self.assertEqual(decision["model"], "deepseek-r1:7b")
 
-    def test_ollama_down_routes_everything_to_cloud(self):
+    def test_ollama_down_leaves_nothing_to_run(self):
+        # With no local backend there is no cloud to fall through to any more.
         decision = self.router.route(
             "Write a python function to reverse a linked list",
             available_models=[],
-            gemini_ready=True,
         )
-        self.assertEqual(decision["provider"], "gemini")
+        self.assertEqual(decision["chain"], [])
+        self.assertIsNone(decision["model"])
 
     def test_greeting_stays_general(self):
         self.assertEqual(self.router.classify("hi")["task"], "general")
 
     def test_no_backend_yields_empty_chain(self):
-        decision = self.router.route("hello there", available_models=[], gemini_ready=False)
+        decision = self.router.route("hello there", available_models=[])
         self.assertEqual(decision["chain"], [])
         self.assertIsNone(decision["model"])
 

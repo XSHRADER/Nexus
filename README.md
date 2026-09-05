@@ -147,21 +147,22 @@ kind of task is this."
 and sent to whichever AI is strongest at that job among the ones actually
 reachable right now (`providers.py` → `router.py` → `engine.py`).
 
+Every model runs on this machine through Ollama. There is no cloud provider
+and no API key anywhere in the project — NEXUS works fully offline.
+
 | Your message looks like | Goes to | Why |
 |---|---|---|
-| "make me a plan / roadmap / step-by-step" | **Gemini 2.5 Pro** | planning is where the cloud model is decisively better |
-| "compare these trade-offs, justify it" | **Gemini 2.5 Pro** → `deepseek-r1` | deep reasoning, same logic |
-| "fix this Python error" | `qwen2.5-coder` (local) → Gemini | a specialist local coder is as good and free |
-| "what is X", "hi" | `llama3.1` (local) → `gemini-flash` | fast, cheap, private |
-| anything using your `documents/` | **local models only** | your files don't leave the PC |
-| "describe this image" | `qwen2.5vl` / `llava` → Gemini | vision-capable models only |
+| "make me a plan / roadmap / step-by-step" | `deepseek-r1` → `phi4` | chain-of-thought models are the strongest planners you have locally |
+| "compare these trade-offs, justify it" | `deepseek-r1` → `phi4` | deep reasoning, same logic |
+| "fix this Python error" | `qwen2.5-coder` → `deepseek-coder` | a specialist coder beats a generalist |
+| "what is X", "hi" | `llama3.1` → `qwen2.5` | fast all-rounders for everyday chat |
+| anything using your `documents/` | local models | your files never leave the PC |
+| "describe this image" | `qwen2.5vl` → `llava` | vision-capable models only |
 | "sort my Downloads" | built-in toolkit | no model involved at all |
 
 Three things decide the pick: the routed **task**, an estimated **difficulty**
 (prompt length, planning language, multi-part questions — long/complex prompts
-pull toward higher-capability models), and **what's reachable**. Local models
-carry a preference bonus for being free and private — except on planning and
-reasoning, where that bonus is dropped so Gemini wins on merit.
+pull toward higher-capability models), and **what's actually installed**.
 
 A fourth factor is **what's already in VRAM**. Your 8GB card holds one 7B
 model at a time, so switching costs ~30s of load. The selector reads Ollama's
@@ -170,12 +171,10 @@ between two similar chat models, never enough to take a coding task away from
 the specialist coder.
 
 Nothing here fails hard. The router returns a *chain*, not one model, and the
-engine walks it: Ollama down → the same request goes to Gemini; no Gemini key →
-planning falls back to `deepseek-r1` locally; neither available → you get a
-plain message saying how to fix it, and PC folder actions keep working.
-
-The Gemini key is entered once in the sidebar and saved to `.gemini_key`
-(gitignored) — no re-pasting on every run.
+engine walks it top-down: if the best-fit model isn't pulled or fails to load,
+the next one answers and the UI says so. If Ollama itself is down you get a
+plain message explaining how to start it, and PC folder actions keep working
+regardless — they never needed a model.
 
 ## PC automation (local file operations)
 

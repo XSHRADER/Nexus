@@ -19,7 +19,6 @@ from typing import Any
 import requests
 
 import pc_agent
-from gemini_client import GeminiClient
 from rag_pipeline import build_rag_prompt
 from router import TaskRouter
 
@@ -46,8 +45,6 @@ def _ollama_generate(model: str, prompt: str, timeout: int = 180) -> str:
 
 
 def _generate(provider: str, model: str, prompt: str) -> str:
-    if provider == "gemini":
-        return GeminiClient().generate(prompt, model=model)
     if provider == "ollama":
         return _ollama_generate(model, prompt)
     raise RuntimeError(f"No generator for provider {provider!r}")
@@ -73,15 +70,15 @@ def _base_result(decision: dict[str, Any]) -> dict[str, Any]:
 
 def _no_model_message(decision: dict[str, Any]) -> str:
     avail = decision.get("available", {})
-    if not avail.get("ollama") and not avail.get("gemini"):
+    if not avail.get("ollama"):
         return (
-            "⚠️ No AI backend is reachable. Start local models with `ollama serve` "
-            "(then `ollama pull llama3.1:8b`), or add a Gemini API key in the sidebar. "
-            "PC folder actions still work without either."
+            "⚠️ Ollama is not reachable. Start it with `ollama serve`, then pull "
+            "a model with `ollama pull llama3.1:8b`. "
+            "PC folder actions still work without it."
         )
     return (
-        f"⚠️ Nothing installed can handle a **{decision['task']}** request. "
-        "Pull a suitable Ollama model or add a Gemini API key."
+        f"⚠️ None of your installed models can handle a **{decision['task']}** "
+        "request. Pull a suitable Ollama model."
     )
 
 

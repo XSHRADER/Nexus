@@ -7,14 +7,13 @@ The user never picks a model. `plan()` scores the whole catalogue against the
 routed task, how hard the request looks, and whether local documents are
 involved, then returns an ordered chain of models that are actually reachable
 right now. `engine.py` walks that chain top-down until one answers, so a model
-being down or a key being missing degrades instead of failing.
+that is missing or fails to load degrades instead of failing outright.
 
 Design intent:
-  * Local Ollama is preferred for everyday chat, code, and anything grounded in
-    the user's own documents (fast, free, private).
-  * Gemini is preferred *proactively* — not just as a fallback — where it is
-    genuinely stronger: planning, multi-step reasoning, and long/complex
-    prompts. `gemini-2.5-pro` outranks every local model on those.
+  * Everything runs on this PC through Ollama — free, private, and offline.
+  * Within that, a specialist beats a generalist: the coder models take coding,
+    the chain-of-thought models take planning and deep reasoning, and a model
+    already resident in VRAM beats an equal peer that would need loading first.
 """
 
 from __future__ import annotations
@@ -40,7 +39,7 @@ class ModelSpec:
     """
 
     name: str
-    provider: str  # "ollama" | "gemini" | "toolkit"
+    provider: str  # "ollama" | "toolkit"
     strengths: dict[str, float] = field(default_factory=dict)
     quality: float = 0.5
     speed: float = 0.5
@@ -108,21 +107,6 @@ CATALOG: list[ModelSpec] = [
     # --- local: speech -------------------------------------------------------
     ModelSpec("whisper:small", "ollama", {"speech": 0.85}, quality=0.65, speed=0.70),
     ModelSpec("whisper:base", "ollama", {"speech": 0.72}, quality=0.55, speed=0.85),
-    # --- cloud: Gemini -------------------------------------------------------
-    ModelSpec(
-        "gemini-2.5-pro", "gemini",
-        {"planning": 0.98, "reasoning": 0.96, "coding": 0.90,
-         "general": 0.84, "vision": 0.88},
-        quality=0.96, speed=0.30, local=False,
-        note="strongest at planning and multi-step reasoning",
-    ),
-    ModelSpec(
-        "gemini-2.5-flash", "gemini",
-        {"general": 0.86, "planning": 0.82, "reasoning": 0.80,
-         "coding": 0.76, "vision": 0.84},
-        quality=0.80, speed=0.66, local=False,
-        note="fast cloud generalist",
-    ),
 ]
 
 BY_NAME: dict[str, ModelSpec] = {spec.name: spec for spec in CATALOG}
@@ -131,19 +115,12 @@ BY_NAME: dict[str, ModelSpec] = {spec.name: spec for spec in CATALOG}
 # the machine unless nothing local is reachable.
 PRIVATE_TASKS = {"system_agent"}
 
-# Preference for staying on this PC, expressed on the same 0..1 scale as fit:
-# local is free, private, and fast, so it wins whenever the gap in ability is
-# small.
+# Preference for staying on this PC, on the same 0..1 scale as fit. Every model
+# in the catalogue is local today, so these apply uniformly and do not change
+# the ranking — they are kept because they encode the intended policy, and
+# become load-bearing again the moment a remote provider is added to CATALOG.
 LOCAL_BONUS = 0.12
-# Extra pull toward local when the prompt is grounded in local documents.
 RAG_LOCAL_BONUS = 0.18
-
-# ...except here. Planning and deep reasoning are where the cloud models are
-# decisively better, and where a weak answer costs the user the most, so the
-# home-field advantage is dropped and Gemini is chosen on merit.
-CLOUD_FAVOURED_TASKS = {"planning", "reasoning"}
-CLOUD_FAVOURED_LOCAL_BONUS = 0.0
-CLOUD_FAVOURED_RAG_BONUS = 0.06  # a nod to privacy, not enough to overturn ability
 
 # A 7B model takes ~30s to load into an 8GB card, which holds one at a time.
 # So a model already resident answers *much* sooner. Small enough that a real
@@ -231,7 +208,6 @@ def resolve_installed(spec: ModelSpec, installed: list[str]) -> str | None:
 
 def availability(
     installed_ollama: list[str] | None = None,
-    gemini_ready: bool | None = None,
     loaded_ollama: list[str] | None = None,
 ) -> dict[str, Any]:
     """Snapshot of what NEXUS can reach right now."""
@@ -243,15 +219,10 @@ def availability(
         from router import get_loaded_ollama_models
 
         loaded_ollama = get_loaded_ollama_models()
-    if gemini_ready is None:
-        from gemini_client import GeminiClient
-
-        gemini_ready = GeminiClient().is_available()
     return {
         "ollama": list(installed_ollama or []),
         "ollama_up": bool(installed_ollama),
         "loaded": list(loaded_ollama or []),
-        "gemini": bool(gemini_ready),
     }
 
 
@@ -263,7 +234,7 @@ def availability(
 @dataclass
 class Candidate:
     spec: ModelSpec
-    model: str          # exact name to call (resolved Ollama tag or Gemini id)
+    model: str          # exact Ollama tag to call
     score: float
     reason: str
 
@@ -287,11 +258,9 @@ def score_model(
     score += complexity * spec.quality * 0.60
     score += (1.0 - complexity) * spec.speed * 0.35
     if spec.is_local:
-        cloud_favoured = task in CLOUD_FAVOURED_TASKS
-        score += CLOUD_FAVOURED_LOCAL_BONUS if cloud_favoured else LOCAL_BONUS
+        score += LOCAL_BONUS
         if needs_rag:
-            # Don't ship personal documents to the cloud without good reason.
-            score += CLOUD_FAVOURED_RAG_BONUS if cloud_favoured else RAG_LOCAL_BONUS
+            score += RAG_LOCAL_BONUS
     return score
 
 
@@ -310,22 +279,16 @@ def plan(
 
     installed = avail.get("ollama", [])
     loaded = {_normalise(n) for n in avail.get("loaded", [])}
-    gemini_ready = avail.get("gemini", False)
 
     candidates: list[Candidate] = []
     for spec in CATALOG:
-        if spec.provider == "ollama":
-            resolved = resolve_installed(spec, installed)
-            if resolved is None:
-                continue
-            model_name = resolved
-            warm = _normalise(resolved) in loaded
-        elif spec.provider == "gemini":
-            if not gemini_ready:
-                continue
-            model_name, warm = spec.name, False
-        else:
+        if spec.provider != "ollama":
             continue
+        resolved = resolve_installed(spec, installed)
+        if resolved is None:
+            continue
+        model_name = resolved
+        warm = _normalise(resolved) in loaded
 
         score = score_model(spec, task, complexity, needs_rag, warm)
         if score is None:

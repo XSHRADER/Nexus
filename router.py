@@ -218,7 +218,6 @@ class TaskRouter:
         self,
         query: str,
         available_models: list[str] | None = None,
-        gemini_ready: bool | None = None,
     ) -> dict[str, Any]:
         """Classify the query and pick the models to try, in order.
 
@@ -236,10 +235,10 @@ class TaskRouter:
                  "reason": "local file operation — no model needed"}
             ]
             complexity = 0.0
-            avail = {"ollama": available_models or [], "gemini": bool(gemini_ready)}
+            avail = {"ollama": available_models or []}
         else:
             complexity = providers.estimate_complexity(query)
-            avail = providers.availability(available_models, gemini_ready)
+            avail = providers.availability(available_models)
             chain = [
                 {"model": c.model, "provider": c.spec.provider,
                  "score": round(c.score, 3), "reason": c.reason}

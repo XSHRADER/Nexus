@@ -1,0 +1,32 @@
+PROGRAM ACTION LOG (FROM SCRATCH)
+=================================
+
+Date: 2026-08-30
+Project: Claude / NEXUS AI local RAG and router prototype
+
+1. Started by inspecting the project structure and identifying the main Python files.
+2. Reviewed the project documentation and setup notes to understand the intended program flow.
+3. Checked the current Python environment and confirmed the available version.
+4. Found that the required dependencies were not installed in the base interpreter.
+5. Created the project runtime directories needed for documents and vector storage.
+6. Created a dedicated virtual environment for the project to keep dependencies isolated.
+7. Installed the pinned project dependencies into the virtual environment.
+8. Verified the modules compile successfully and checked for import issues.
+9. Identified compatibility problems caused by older dependency versions on Python 3.13.
+10. Updated the dependency versions to Python 3.13-compatible releases without changing the project APIs.
+11. Tested the ingestion flow and confirmed the embedding model could be downloaded successfully.
+12. Fixed document-handling issues so placeholder and empty files are ignored correctly.
+13. Validated that the program can run cleanly in the prepared environment.
+14. Confirmed that Ollama was not installed initially, so generation-based runtime features were unavailable until setup.
+15. Installed and confirmed Ollama access and verified the required model was available.
+16. Added a startup preflight check to ensure the required Ollama model is present before running generation.
+17. Recorded model mappings in the local AI model list for the embedding and generation tasks.
+18. Organized all project text-based information files into a dedicated folder named program_info.
+19. Built the enhanced NEXUS router to classify general, coding, reasoning, vision, and speech tasks.
+20. Added the local retrieval decision logic so project/document-style queries trigger RAG when needed.
+21. Created a lightweight browser UI for the application and started the local server at http://127.0.0.1:8000.
+22. Verified the UI loads successfully in the browser and renders the chat interface.
+23. Confirmed that the remaining runtime issue is external: Ollama is not currently running on localhost:11434, so generation requests fail until the backend service is started.
+24. Added this action log file to keep a record of work performed from the start of the project.
+
+End of log.

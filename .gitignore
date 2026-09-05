@@ -14,6 +14,8 @@ __pycache__/
 
 # Generated artifacts (rebuilt by `python ingest.py`)
 vector_store/
+# Comparison index built on demand by `python eval_rag.py --legacy`
+vector_store_legacy/
 router_logs.jsonl
 
 # OS / editor

@@ -1,14 +1,26 @@
 """
 loaders.py
-Reads .txt, .pdf, and .docx files and splits them into overlapping chunks
-ready for embedding.
+Reads .txt, .md, .pdf, and .docx files and splits them into overlapping
+chunks ready for embedding.
+
+Chunk sizes are measured in *embedding-model tokens*, not characters. The
+embedder (all-MiniLM-L6-v2) truncates anything past 256 tokens without
+raising, so character-sized chunks look fine on disk and arrive at the model
+with their tails cut off -- the vector index then describes only the first
+half of each chunk while BM25 still matches the whole thing.
 """
 
 import os
+import re
 from pathlib import Path
 
 from pypdf import PdfReader
 from docx import Document as DocxDocument
+
+# Leaves room under the 256-token embedder limit for [CLS]/[SEP] and for the
+# tokenizer splitting a word differently than we estimated.
+DEFAULT_MAX_TOKENS = 240
+DEFAULT_OVERLAP_TOKENS = 48
 
 
 def read_txt(path: str) -> str:
@@ -46,64 +58,134 @@ def load_document(path: str) -> str:
     return loader(path)
 
 
-def chunk_text(text: str, chunk_size: int = 1600, overlap: int = 240):
+# ---------------------------------------------------------------------------
+# Chunking
+# ---------------------------------------------------------------------------
+
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+_PARAGRAPH_SPLIT = re.compile(r"\n\s*\n")
+
+
+def _default_token_counter():
+    """Count in the embedder's own tokens, or fall back to a rough estimate.
+
+    The fallback keeps this module importable (and unit-testable) without the
+    sentence-transformers stack loaded.
     """
-    Recursive character chunking with no external dependencies.
-    Splits on the largest natural boundary that keeps chunks under
-    `chunk_size`, then stitches `overlap` characters of the previous
-    chunk onto the next one so context isn't lost at the seams.
-    chunk_size / overlap are in characters.
+    try:
+        from embeddings import count_tokens
+
+        count_tokens("warmup")
+        return count_tokens
+    except Exception:
+        return lambda text: max(1, len(text) // 4)
+
+
+def _atoms(text: str) -> list[str]:
+    """Smallest units we are willing to keep whole: lines, then sentences."""
+    out: list[str] = []
+    for block in _PARAGRAPH_SPLIT.split(text):
+        block = block.strip()
+        if not block:
+            continue
+        for line in block.split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            if len(line) > 400:
+                out.extend(s.strip() for s in _SENTENCE_SPLIT.split(line) if s.strip())
+            else:
+                out.append(line)
+    return out
+
+
+def _split_oversized(atom: str, count, max_tokens: int) -> list[str]:
+    """Break one atom that is too big on word boundaries.
+
+    Uses the atom's own tokens-per-word ratio so this costs one tokenizer call
+    instead of one per word.
     """
-    text = text.strip()
+    words = atom.split()
+    if not words:
+        return []
+    total = count(atom)
+    if total <= max_tokens:
+        return [atom]
+    per_word = total / len(words)
+    step = max(1, int((max_tokens / per_word) * 0.9))
+    return [" ".join(words[i : i + step]) for i in range(0, len(words), step)]
+
+
+def chunk_text(
+    text: str,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    overlap_tokens: int = DEFAULT_OVERLAP_TOKENS,
+    count_tokens=None,
+) -> list[str]:
+    """Split `text` into chunks of at most `max_tokens` embedding tokens.
+
+    Packs whole lines/sentences greedily up to the budget, then steps back far
+    enough to carry ~`overlap_tokens` of context into the next chunk so an
+    answer that straddles a boundary is still retrievable from one side.
+    """
+    text = (text or "").strip()
     if not text:
         return []
-    if len(text) <= chunk_size:
-        return [text]
 
-    separators = ["\n\n", "\n", ". ", " ", ""]
+    count = count_tokens or _default_token_counter()
 
-    def _split(segment: str, seps: list[str]) -> list[str]:
-        if len(segment) <= chunk_size:
-            return [segment]
-        sep = seps[0]
-        if sep == "":
-            return [segment[i : i + chunk_size] for i in range(0, len(segment), chunk_size)]
-        pieces = segment.split(sep)
-        out: list[str] = []
-        buf = ""
-        for piece in pieces:
-            candidate = piece if not buf else buf + sep + piece
-            if len(candidate) <= chunk_size:
-                buf = candidate
-            else:
-                if buf:
-                    out.append(buf)
-                if len(piece) > chunk_size:
-                    out.extend(_split(piece, seps[1:]))
-                    buf = ""
-                else:
-                    buf = piece
-        if buf:
-            out.append(buf)
-        return out
+    atoms: list[str] = []
+    sizes: list[int] = []
+    for atom in _atoms(text):
+        size = count(atom)
+        if size > max_tokens:
+            for piece in _split_oversized(atom, count, max_tokens):
+                atoms.append(piece)
+                sizes.append(count(piece))
+        else:
+            atoms.append(atom)
+            sizes.append(size)
 
-    raw = _split(text, separators)
-    if overlap <= 0 or len(raw) <= 1:
-        return raw
+    if not atoms:
+        return []
 
-    stitched = [raw[0]]
-    for prev, cur in zip(raw, raw[1:]):
-        stitched.append((prev[-overlap:] + " " + cur).strip())
-    return stitched
+    chunks: list[str] = []
+    start = 0
+    while start < len(atoms):
+        end, total = start, 0
+        while end < len(atoms) and total + sizes[end] <= max_tokens:
+            total += sizes[end]
+            end += 1
+        if end == start:  # one atom still over budget -- emit it alone
+            end = start + 1
+
+        chunks.append("\n".join(atoms[start:end]))
+        if end >= len(atoms):
+            break
+
+        # Walk back over the tail of this chunk to build the overlap.
+        back, carried = end, 0
+        while back > start + 1 and carried < overlap_tokens:
+            back -= 1
+            carried += sizes[back]
+        start = back
+
+    return chunks
 
 
-def load_and_chunk_directory(directory: str, chunk_size: int = 1600, overlap: int = 240):
+def load_and_chunk_directory(
+    directory: str,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    overlap_tokens: int = DEFAULT_OVERLAP_TOKENS,
+):
     """
     Walks a directory, loads every supported file, and returns a list of
-    dicts: {"id": ..., "text": ..., "source": ..., "chunk_index": ...}
+    dicts: {"id", "text", "source", "chunk_index", "n_tokens"}
     """
     results = []
     base_dir = Path(directory).resolve()
+    count = _default_token_counter()
+
     for root, _, files in os.walk(base_dir):
         for fname in files:
             ext = Path(fname).suffix.lower()
@@ -117,7 +199,7 @@ def load_and_chunk_directory(directory: str, chunk_size: int = 1600, overlap: in
                 print(f"[skip] Could not read {full_path}: {e}")
                 continue
 
-            chunks = chunk_text(raw_text, chunk_size, overlap)
+            chunks = chunk_text(raw_text, max_tokens, overlap_tokens, count_tokens=count)
             for i, chunk in enumerate(chunks):
                 results.append(
                     {
@@ -125,6 +207,7 @@ def load_and_chunk_directory(directory: str, chunk_size: int = 1600, overlap: in
                         "text": chunk,
                         "source": relative_path,
                         "chunk_index": i,
+                        "n_tokens": count(chunk),
                     }
                 )
     return results

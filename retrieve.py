@@ -1,13 +1,23 @@
 """
 retrieve.py
-Hybrid retrieval: vector similarity (Chroma) + keyword search (BM25),
-merged with simple score fusion. Hybrid beats vector-only when queries
-contain exact names, error messages, code identifiers, etc.
+Hybrid retrieval: vector similarity (Chroma) + keyword search (BM25), fused
+with Reciprocal Rank Fusion, then reranked by a cross-encoder.
+
+Why RRF rather than a weighted sum of the two scores: cosine similarity and
+BM25 live on different, query-dependent scales, so `0.65 * cosine + 0.35 *
+bm25` compares numbers that don't mean the same thing between one query and
+the next. RRF throws the magnitudes away and fuses on *rank*, which is what
+those two arms actually agree on.
+
+Three stages, narrowing each time:
+    vector top-40 + bm25 top-40  ->  RRF  ->  cross-encoder top-25  ->  top_k
 """
+
+import re
+from pathlib import Path
 
 import chromadb
 from rank_bm25 import BM25Okapi
-from pathlib import Path
 
 from embeddings import get_cross_encoder, get_sentence_transformer
 
@@ -15,16 +25,55 @@ DB_DIR = str(Path(__file__).resolve().parent / "vector_store")
 COLLECTION_NAME = "nexus_documents"
 EMBED_MODEL_NAME = "all-MiniLM-L6-v2"
 
+# Cosine, to match the normalised embeddings written by ingest.py. Chroma
+# defaults to squared L2, which ranks by magnitude as well as direction.
+COLLECTION_METADATA = {"hnsw:space": "cosine"}
+
+_WORD = re.compile(r"[a-z0-9_]+")
+
+
+def tokenize(text: str) -> list[str]:
+    """Lowercase word/identifier tokens.
+
+    Splitting on non-word characters rather than whitespace means a query for
+    `router` still matches `router.py`, which is most of the point of keeping
+    a keyword arm next to the vector one.
+    """
+    return _WORD.findall(text.lower())
+
 
 class Retriever:
-    def __init__(self):
-        self.client = chromadb.PersistentClient(path=DB_DIR)
-        self.collection = self.client.get_or_create_collection(COLLECTION_NAME)
+    VECTOR_CANDIDATES = 40
+    BM25_CANDIDATES = 40
+    RERANK_CANDIDATES = 25
+    RRF_K = 60  # standard damping constant; larger = flatter rank weighting
+
+    def __init__(
+        self,
+        rerank: bool = True,
+        db_dir: str | None = None,
+        collection_name: str = COLLECTION_NAME,
+        collection_metadata: dict | None = None,
+    ):
+        # db_dir/collection_metadata are overridable so eval_rag.py can point a
+        # retriever at a differently-built index and compare the two.
+        self.client = chromadb.PersistentClient(path=db_dir or DB_DIR)
+        # None -> this project's cosine default; {} -> let Chroma pick its own
+        # (squared L2), which is what the legacy index in eval_rag.py needs.
+        metadata = (
+            COLLECTION_METADATA if collection_metadata is None else (collection_metadata or None)
+        )
+        self.collection = self.client.get_or_create_collection(
+            collection_name, metadata=metadata
+        )
         self.embed_model = get_sentence_transformer(EMBED_MODEL_NAME)
+        self.rerank_enabled = rerank
+
         self._cross_encoder = None
         self._bm25 = None
-        self._bm25_docs = []
-        self._bm25_ids = []
+        self._ids: list[str] = []
+        self._doc_by_id: dict[str, dict] = {}
+        self._indexed_count = -1
         self._build_bm25_index()
 
     @property
@@ -33,92 +82,156 @@ class Retriever:
             self._cross_encoder = get_cross_encoder()
         return self._cross_encoder
 
-    def _build_bm25_index(self):
-        data = self.collection.get()
-        docs = data.get("documents", [])
-        ids = data.get("ids", [])
-        if not docs:
-            self._bm25 = None
-            return
-        tokenized = [d.lower().split() for d in docs]
-        self._bm25 = BM25Okapi(tokenized)
-        self._bm25_docs = docs
-        self._bm25_ids = ids
+    # -- index ------------------------------------------------------------
+    def _build_bm25_index(self) -> None:
+        data = self.collection.get(include=["documents", "metadatas"])
+        ids = data.get("ids") or []
+        docs = data.get("documents") or []
+        metas = data.get("metadatas") or []
 
-    def refresh(self):
-        """Call after re-ingesting new documents."""
+        self._ids = list(ids)
+        # One map for text *and* metadata, so a hit found only by BM25 still
+        # carries its source filename. Previously those came back with meta={}
+        # and the answer cited "unknown".
+        self._doc_by_id = {
+            doc_id: {"text": doc, "meta": meta or {}}
+            for doc_id, doc, meta in zip(ids, docs, metas)
+        }
+        self._indexed_count = len(ids)
+        self._bm25 = BM25Okapi([tokenize(d) for d in docs]) if docs else None
+
+    def _ensure_fresh(self) -> None:
+        """Rebuild the keyword index if documents were ingested since startup.
+
+        Chroma picks up new rows on its own, but BM25 is an in-memory
+        structure built once -- without this the Streamlit process had to be
+        restarted after every `python ingest.py`.
+        """
+        if self.collection.count() != self._indexed_count:
+            self._build_bm25_index()
+
+    def refresh(self) -> None:
+        """Force a rebuild of the keyword index."""
         self._build_bm25_index()
 
-    def query(self, question: str, top_k: int = 5):
-        if self.collection.count() == 0:
+    # -- search -----------------------------------------------------------
+    def _vector_ranking(self, question: str, n: int) -> list[str]:
+        embedding = self.embed_model.encode(
+            [question], normalize_embeddings=True
+        ).tolist()
+        res = self.collection.query(
+            query_embeddings=embedding,
+            n_results=min(n, self._indexed_count),
+            include=["documents", "metadatas"],
+        )
+        ids = (res.get("ids") or [[]])[0]
+        docs = (res.get("documents") or [[]])[0]
+        metas = (res.get("metadatas") or [[]])[0]
+        # Cache anything the map somehow lacks, so ids from either arm resolve.
+        for doc_id, doc, meta in zip(ids, docs, metas):
+            self._doc_by_id.setdefault(doc_id, {"text": doc, "meta": meta or {}})
+        return list(ids)
+
+    def _bm25_ranking(self, question: str, n: int) -> list[str]:
+        if self._bm25 is None:
+            return []
+        tokens = tokenize(question)
+        if not tokens:
+            return []
+        scores = self._bm25.get_scores(tokens)
+        # Rank once and keep only the head. The old code fused *every* document
+        # in the corpus on every query, then did a list .index() lookup per
+        # document to find its text -- O(N^2) in the size of the collection.
+        ordered = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
+        return [self._ids[i] for i in ordered[:n] if scores[i] > 0.0]
+
+    def query(
+        self,
+        question: str,
+        top_k: int = 5,
+        rerank: bool | None = None,
+        min_score: float | None = None,
+        use_vector: bool = True,
+        use_bm25: bool = True,
+    ) -> list[dict]:
+        """Return the `top_k` most relevant chunks, best first.
+
+        Each result carries `score` (cross-encoder relevance when reranking is
+        on, otherwise the RRF score) plus the per-arm ranks that produced it,
+        which is what the eval harness reports on.
+
+        `use_vector` / `use_bm25` exist so eval_rag.py can ablate one arm at a
+        time and measure what each is actually contributing.
+        """
+        self._ensure_fresh()
+        if self._indexed_count == 0:
             return []
 
-        # --- Vector search ---
-        query_embedding = self.embed_model.encode([question]).tolist()
-        vector_results = self.collection.query(
-            query_embeddings=query_embedding,
-            n_results=min(top_k * 2, self.collection.count()),
+        use_rerank = self.rerank_enabled if rerank is None else rerank
+
+        vector_ids = (
+            self._vector_ranking(question, self.VECTOR_CANDIDATES) if use_vector else []
         )
-        vector_hits = {}
-        for doc_id, doc, meta, dist in zip(
-            vector_results["ids"][0],
-            vector_results["documents"][0],
-            vector_results["metadatas"][0],
-            vector_results["distances"][0],
-        ):
-            # convert distance -> similarity score (lower distance = better)
-            vector_hits[doc_id] = {
-                "text": doc,
-                "meta": meta,
-                "vector_score": 1 / (1 + dist),
-            }
+        bm25_ids = (
+            self._bm25_ranking(question, self.BM25_CANDIDATES) if use_bm25 else []
+        )
 
-        # --- BM25 keyword search ---
-        bm25_scores = {}
-        if self._bm25 is not None:
-            tokenized_query = question.lower().split()
-            scores = self._bm25.get_scores(tokenized_query)
-            max_score = max(scores) if len(scores) and max(scores) > 0 else 1
-            for idx, score in enumerate(scores):
-                bm25_scores[self._bm25_ids[idx]] = score / max_score
+        # --- Reciprocal Rank Fusion ---
+        fused: dict[str, dict] = {}
+        for arm, ranked in (("vector", vector_ids), ("bm25", bm25_ids)):
+            for rank, doc_id in enumerate(ranked):
+                entry = fused.setdefault(
+                    doc_id, {"rrf": 0.0, "vector_rank": None, "bm25_rank": None}
+                )
+                entry["rrf"] += 1.0 / (self.RRF_K + rank + 1)
+                entry[f"{arm}_rank"] = rank
 
-        # --- Fuse scores (simple weighted sum, vector-leaning) ---
-        all_ids = set(vector_hits.keys()) | set(bm25_scores.keys())
-        fused = []
-        for doc_id in all_ids:
-            v_score = vector_hits.get(doc_id, {}).get("vector_score", 0)
-            b_score = bm25_scores.get(doc_id, 0)
-            combined = 0.65 * v_score + 0.35 * b_score
+        if not fused:
+            return []
 
-            if doc_id in vector_hits:
-                text = vector_hits[doc_id]["text"]
-                meta = vector_hits[doc_id]["meta"]
-            else:
-                bm25_idx = self._bm25_ids.index(doc_id)
-                text = self._bm25_docs[bm25_idx]
-                meta = {}
-
-            fused.append(
-                {"id": doc_id, "text": text, "meta": meta, "score": combined}
+        candidates = []
+        for doc_id, entry in fused.items():
+            record = self._doc_by_id.get(doc_id)
+            if record is None:
+                continue
+            candidates.append(
+                {
+                    "id": doc_id,
+                    "text": record["text"],
+                    "meta": record["meta"],
+                    "score": entry["rrf"],
+                    "rrf": entry["rrf"],
+                    "vector_rank": entry["vector_rank"],
+                    "bm25_rank": entry["bm25_rank"],
+                    "rerank_score": None,
+                }
             )
+        candidates.sort(key=lambda c: c["rrf"], reverse=True)
 
-        fused.sort(key=lambda x: x["score"], reverse=True)
-        top_candidates = fused[:top_k * 3]
+        # --- Cross-encoder rerank ---
+        if use_rerank and candidates:
+            head = candidates[: self.RERANK_CANDIDATES]
+            scores = self.cross_encoder.predict([[question, c["text"]] for c in head])
+            for cand, score in zip(head, scores):
+                cand["rerank_score"] = float(score)
+                cand["score"] = float(score)
+            head.sort(key=lambda c: c["score"], reverse=True)
+            candidates = head + candidates[self.RERANK_CANDIDATES :]
 
-        if top_candidates:
-            pairs = [[question, cand["text"]] for cand in top_candidates]
-            ce_scores = self.cross_encoder.predict(pairs)
-            for idx, cand in enumerate(top_candidates):
-                cand["score"] = float(ce_scores[idx])
-            top_candidates.sort(key=lambda x: x["score"], reverse=True)
+        if min_score is not None:
+            kept = [c for c in candidates if c["score"] >= min_score]
+            # Never hand back nothing just because the threshold was strict;
+            # the generator is told when context looks weak instead.
+            candidates = kept or candidates[:1]
 
-        return top_candidates[:top_k]
+        return candidates[:top_k]
 
 
 if __name__ == "__main__":
     r = Retriever()
+    print(f"{r._indexed_count} chunks indexed.")
     q = input("Test query: ")
-    results = r.query(q, top_k=5)
-    for res in results:
-        print(f"\n[{res['score']:.3f}] {res['meta'].get('source', '?')}")
+    for res in r.query(q, top_k=5):
+        ranks = f"v={res['vector_rank']} b={res['bm25_rank']}"
+        print(f"\n[{res['score']:.3f}] {res['meta'].get('source', '?')}  ({ranks})")
         print(res["text"][:200], "...")

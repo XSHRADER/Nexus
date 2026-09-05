@@ -1,25 +1,5 @@
 # NEXUS AI — RAG Module: Setup Guide
 
-## Quick start
-
-```bash
-python run.py
-```
-
-Checks dependencies and Ollama, indexes anything new in `documents/`, runs a
-real question through retrieval and generation, then starts the UI. Every step
-prints pass/fail and the command that fixes it.
-
-| command | does |
-|---|---|
-| `python run.py` | preflight, index, launch the Streamlit UI |
-| `python run.py --check` | preflight and smoke test only |
-| `python run.py --eval` | score retrieval quality and exit |
-| `python run.py --rebuild` | force a full re-index first |
-| `python run.py --server` | use the dependency-free HTTP UI instead |
-
----
-
 Everything here runs on CPU except the final generation step (which uses
 Ollama and your RTX 4060, exactly as it already does today). Do these
 phases in order — each one only takes a few minutes.
@@ -66,7 +46,7 @@ folder. Supported: `.txt`, `.md`, `.pdf`, `.docx`.
 the ingestion script walks recursively.
 
 **Step 3.** Don't worry about file size yet — chunking handles long
-documents automatically (240 embedding tokens per chunk, 48-token overlap).
+documents automatically (400 tokens per chunk, 60-token overlap).
 
 ---
 
@@ -158,70 +138,6 @@ versus routing straight to a model with no retrieval step.
 can call — same pattern as swapping between chat/coding/reasoning models,
 just triggered by "does this need my local documents" instead of "what
 kind of task is this."
-
----
-
-## Retrieval pipeline
-
-Three stages, narrowing at each one:
-
-```
-vector top-40  +  BM25 top-40   ->   RRF fusion   ->   cross-encoder top-25   ->   top_k
-```
-
-**Chunks are sized in embedding tokens, not characters.** `all-MiniLM-L6-v2`
-truncates at 256 tokens without raising an error, so the previous
-1600-character chunks reached the embedder with their tails cut off — measured
-on this repo's own documents, **34% of all tokens never reached the model**,
-while BM25 went on indexing the full text. Chunks are now packed to 240 tokens
-with 48 tokens of overlap, split on line and sentence boundaries. `ingest.py`
-re-checks this on every run and warns if any chunk exceeds the limit.
-
-**Fusion is Reciprocal Rank Fusion, not a weighted sum of scores.** Cosine
-similarity and BM25 relevance live on different, query-dependent scales, so
-`0.65 * cosine + 0.35 * bm25` adds two numbers that don't mean the same thing
-from one query to the next. RRF throws the magnitudes away and fuses on rank,
-which is the thing the two arms actually agree on.
-
-**Vectors are normalised and compared by cosine.** Chroma defaults to squared
-L2, which ranks by vector magnitude as well as direction.
-
-The index records how it was built — embedding model, token budget, distance
-metric. Change any of them and `ingest.py` rebuilds from scratch, because a
-store half-written under one chunking scheme and half under another retrieves
-worse than either alone and looks perfectly healthy from the outside.
-
-### Measured, not assumed
-
-`python eval_rag.py` scores retrieval against the 18 questions in
-`eval/golden_set.json` — at file level (`recall@k`, `MRR`) and by whether the
-assembled context actually contains the answer (`grounded@5`, which is
-chunker-agnostic and so stays comparable when chunk sizes change).
-
-| configuration | recall@1 | recall@5 | MRR | grounded@5 |
-|---|---|---|---|---|
-| dense only (vector) | 0.778 | 0.889 | 0.833 | 0.889 |
-| BM25 only (keyword) | 0.278 | 0.778 | 0.472 | 0.722 |
-| hybrid, RRF fusion | 0.667 | 0.944 | 0.759 | 0.833 |
-| hybrid + cross-encoder | 0.611 | **1.000** | 0.770 | **0.944** |
-
-Reranking buys recall@5 and groundedness and costs recall@1, where dense
-retrieval on its own is still the sharpest. Both arms earn their keep: BM25
-alone is much weaker, but it recovers questions the vector arm misses.
-
-**What this corpus cannot tell you.** It is 2,835 words. At `top_k=5` a query
-hands back roughly a sixth of everything indexed, so recall@5 saturates and the
-pre-fix index scores just as well — run `python eval_rag.py --legacy` to see
-that side by side. The honest reading is that the chunking change is a
-*correctness* fix, not a measured quality win at this scale: a 490-token chunk
-is simply not represented by a 256-token embedding. Making these numbers
-discriminate needs a bigger corpus, not a better reranker.
-
-The eval did produce one directly actionable result. Token-sized chunks carry
-about a quarter of what the old ones did, so `top_k=5` was feeding the model
-1096 context tokens where it used to get 1950, and `grounded@5` fell to 0.944.
-At `top_k=10` it receives 2190 tokens and returns to 1.000 — so retrieval depth
-now defaults to 10. Retrieval depth has to follow chunk size.
 
 ---
 

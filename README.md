@@ -2,21 +2,37 @@
 
 ## Quick start
 
+**Windows: double-click `start.bat`.**
+
+That is the whole setup. On first run it creates the virtual environment and
+installs dependencies; on every run it starts Ollama if it isn't already
+listening, indexes anything new in `documents/`, puts a real question through
+retrieval and generation to prove the pipeline works, and opens the UI.
+
+From a terminal, or on macOS/Linux:
+
 ```bash
 python run.py
 ```
 
-Checks dependencies and Ollama, indexes anything new in `documents/`, runs a
-real question through retrieval and generation, then starts the UI. Every step
-prints pass/fail and the command that fixes it.
+Every step prints pass/fail and the exact command that fixes a failure, so a
+broken setup tells you what is wrong instead of stack-tracing out of Streamlit.
 
-| command | does |
+| flag | does |
 |---|---|
-| `python run.py` | preflight, index, launch the Streamlit UI |
-| `python run.py --check` | preflight and smoke test only |
-| `python run.py --eval` | score retrieval quality and exit |
-| `python run.py --rebuild` | force a full re-index first |
-| `python run.py --server` | use the dependency-free HTTP UI instead |
+| *(none)* | preflight, index, launch the Streamlit UI |
+| `--check` | preflight and smoke test only, then exit |
+| `--eval` | score retrieval quality and exit |
+| `--rebuild` | force a full re-index first |
+| `--server` | use the dependency-free HTTP UI instead |
+| `--pull` | download `llama3.1:8b` if no model is installed (multi-GB) |
+| `--no-serve` | don't start Ollama automatically |
+
+`start.bat` forwards any of these: `start.bat --check`.
+
+Ollama is started detached, so it keeps running after you close the launcher
+window. Downloading a model is the one prerequisite left to you — it is
+several gigabytes, so `--pull` has to be asked for explicitly.
 
 ---
 

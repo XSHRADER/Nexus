@@ -2,16 +2,16 @@ PROJECT FILES AND FOLDERS INFORMATION
 ===================================
 
 PROJECT ROOT:
-- claude/
+- Nexus/
   Main project folder containing the RAG application source files, documents, environment, and runtime data.
 
 MAIN FOLDERS:
 
-1. claude/documents/
+1. Nexus/documents/
    - Stores source documents used for ingestion and retrieval.
    - Contains project-related knowledge files such as nexus_project_info.md.
 
-2. claude/program_info/
+2. Nexus/program_info/
    - Stores text-based information files about the project.
    - Includes:
      - action_log.txt
@@ -20,7 +20,7 @@ MAIN FOLDERS:
      - local_ai_models.txt
      - requirements.txt
 
-3. claude/vector_store/
+3. Nexus/vector_store/
    - Stores the embedded vector database and metadata used for retrieval.
    - Contains the Chroma database files and hash metadata.
 
@@ -28,48 +28,48 @@ MAIN FOLDERS:
    - Virtual environment created for the project.
    - Contains Python packages and scripts used to run the application in isolation.
 
-5. claude/__pycache__/
+5. Nexus/__pycache__/
    - Python compiled bytecode cache generated during execution.
    - Usually used for faster import times and can be ignored safely.
 
 MAIN FILES:
 
-1. claude/README.md
+1. Nexus/README.md
    - Project overview and instructions.
 
-2. claude/ingest.py
+2. Nexus/ingest.py
    - Script used to load and process documents into the vector store.
 
-3. claude/loaders.py
+3. Nexus/loaders.py
    - Contains helper functions for loading data and preparing it for indexing.
 
-4. claude/retrieve.py
+4. Nexus/retrieve.py
    - Script used to query the vector store and retrieve relevant information.
 
-5. claude/rag_pipeline.py
+5. Nexus/rag_pipeline.py
    - Main pipeline for retrieval-augmented generation using the AI model and vector database.
 
-6. claude/ACTION_LOG.md
+6. Nexus/ACTION_LOG.md
    - Markdown version of the project action history.
 
-7. claude/.gitignore
+7. Nexus/.gitignore
    - Lists files and folders ignored by Git.
 
 TEXT INFORMATION FILES:
 
-- claude/program_info/action_log.txt
+- Nexus/program_info/action_log.txt
   - Records the actions performed from the beginning of the project.
 
-- claude/program_info/checklist.txt
+- Nexus/program_info/checklist.txt
   - Stores task checklist items or setup notes.
 
-- claude/program_info/local_ai_models.txt
+- Nexus/program_info/local_ai_models.txt
   - Lists the AI models used by the project.
 
-- claude/program_info/requirements.txt
+- Nexus/program_info/requirements.txt
   - Lists the Python packages required for the project.
 
-- claude/program_info/file_and_folder_info.txt
+- Nexus/program_info/file_and_folder_info.txt
   - This file: overview of project structure and purpose of folders/files.
 
 SUMMARY:

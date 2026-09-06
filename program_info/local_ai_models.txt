@@ -1,7 +1,7 @@
 NEXUS AI LOCAL MODEL MAP
 ========================
 
-Project: CLAUDE / NEXUS AI
+Project: NEXUS AI
 Purpose: map each local AI model to the specific job it performs in this project.
 
 MODEL 1: all-MiniLM-L6-v2

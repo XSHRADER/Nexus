@@ -5,7 +5,7 @@ This file records setup and foundation actions in chronological order.
 1. Inspected the RAG module files and README.
 2. Confirmed Python 3.13.1 is available.
 3. Confirmed the pinned dependencies were not installed in the base interpreter.
-4. Made project paths resolve from the `claude` module directory, so commands work from any current directory.
+4. Made project paths resolve from the `Nexus` project directory, so commands work from any current directory.
 5. Made nested document paths unique in the hash cache, Chroma metadata, and chunk IDs.
 6. Created the `documents/` and `vector_store/` runtime directories.
 7. Created the isolated `nexus-env` virtual environment.
@@ -52,7 +52,7 @@ This file records setup and foundation actions in chronological order.
 27. Added root `requirements.txt` (README Phase 1 expects it there);
     dropped the unused `tiktoken` pin, added `streamlit`.
 28. Fixed `.vscode/tasks.json` (interpreter path pointed at a
-    non-existent `claude\` folder); added ingest + test tasks and
+    non-existent project folder); added ingest + test tasks and
     `.vscode/settings.json` to auto-select `nexus-env` in VS Code.
 29. `.gitignore`: added `.venv/`, `router_logs.jsonl`, `*.log`.
 30. Validation: all modules compile, all 5 router tests pass, `ingest.py`

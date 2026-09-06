@@ -2,7 +2,7 @@ PROGRAM ACTION LOG (FROM SCRATCH)
 =================================
 
 Date: 2026-08-30
-Project: Claude / NEXUS AI local RAG and router prototype
+Project: NEXUS AI local RAG and router prototype
 
 1. Started by inspecting the project structure and identifying the main Python files.
 2. Reviewed the project documentation and setup notes to understand the intended program flow.

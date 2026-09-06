@@ -1,0 +1,19 @@
+# Normalise line endings in the repo so Windows checkouts stop producing the
+# "LF will be replaced by CRLF" churn on every commit.
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF or cmd.exe mis-parses them.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Never touch these.
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.pdf     binary
+*.docx    binary
+*.joblib  binary
+*.pkl     binary
+*.jar     binary

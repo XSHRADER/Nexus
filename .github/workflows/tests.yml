@@ -1,0 +1,48 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      # The embedding and cross-encoder models are ~90 MB each and are
+      # downloaded on first use. Cache them so only the first run pays for it.
+      - name: Cache sentence-transformers models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ runner.os }}-minilm-ms-marco-v1
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # No Ollama on the runner, and none is needed: the tests exercise
+      # routing, scoring, chunking and retrieval. `providers.availability()`
+      # degrades to an empty model list when the daemon isn't reachable.
+      - name: Run tests
+        env:
+          PYTHONPATH: .
+        run: |
+          status=0
+          for t in tests/test_*.py; do
+            echo "::group::$t"
+            python "$t" -v || status=1
+            echo "::endgroup::"
+          done
+          exit $status

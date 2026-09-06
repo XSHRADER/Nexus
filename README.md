@@ -1,5 +1,7 @@
 # NEXUS AI — RAG Module: Setup Guide
 
+[![tests](https://github.com/XSHRADER/Nexus/actions/workflows/tests.yml/badge.svg)](https://github.com/XSHRADER/Nexus/actions/workflows/tests.yml)
+
 ## Quick start
 
 **Windows: double-click `start.bat`.**

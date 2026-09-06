@@ -261,8 +261,8 @@ chunker-agnostic and so stays comparable when chunk sizes change).
 |---|---|---|---|---|
 | dense only (vector) | 0.778 | 0.889 | 0.833 | 0.889 |
 | BM25 only (keyword) | 0.278 | 0.778 | 0.472 | 0.722 |
-| hybrid, RRF fusion | 0.667 | 0.944 | 0.759 | 0.833 |
-| hybrid + cross-encoder | 0.611 | **1.000** | 0.770 | **0.944** |
+| hybrid, RRF fusion | 0.667 | 0.944 | 0.773 | 0.889 |
+| hybrid + cross-encoder | 0.556 | **1.000** | 0.724 | **0.944** |
 
 Reranking buys recall@5 and groundedness and costs recall@1, where dense
 retrieval on its own is still the sharpest. Both arms earn their keep: BM25

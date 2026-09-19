@@ -22,6 +22,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+import requests
+
 # ---------------------------------------------------------------------------
 # Catalogue
 # ---------------------------------------------------------------------------
@@ -45,6 +47,7 @@ class ModelSpec:
     speed: float = 0.5
     local: bool = True
     note: str = ""
+    discovered: bool = False  # profile inferred by discover(), not hand-tuned
 
     @property
     def is_local(self) -> bool:
@@ -227,6 +230,125 @@ def availability(
 
 
 # ---------------------------------------------------------------------------
+# Capabilities and discovery
+# ---------------------------------------------------------------------------
+
+SHOW_URL = "http://localhost:11434/api/show"
+
+# A discovered profile is a guess, so it is scaled down: a hand-tuned catalogue
+# entry wins any tie, and a discovered model answers when nothing catalogued
+# fits better.
+DISCOVERED_SCALE = 0.9
+
+_GENERAL = {"general": 0.75, "coding": 0.50, "reasoning": 0.50, "planning": 0.45}
+_CODER = {"coding": 0.80, "general": 0.45}
+_REASONER = {"reasoning": 0.78, "planning": 0.68, "coding": 0.55, "general": 0.50}
+_VISION = {"vision": 0.72}
+
+_CAPS_CACHE: dict[str, dict[str, Any]] = {}
+
+
+def _parse_size(text: Any) -> float | None:
+    """'8.0B' -> 8.0, '671M' -> 0.671 (billions of parameters)."""
+    match = re.match(r"^\s*([\d.]+)\s*([BbMm])", str(text or ""))
+    if not match:
+        return None
+    value = float(match.group(1))
+    return value / 1000.0 if match.group(2).lower() == "m" else value
+
+
+def _size_from_tag(tag: str) -> float | None:
+    match = re.search(r":(\d+(?:\.\d+)?)b\b", tag.lower())
+    return float(match.group(1)) if match else None
+
+
+def capabilities(model: str) -> dict[str, Any]:
+    """What Ollama reports about `model`: capability tags, context window, size.
+
+    Cached per process once Ollama answers. Returns empty values (not cached)
+    when Ollama is unreachable or too old to report them, so callers degrade to
+    name-only guesses and default windows.
+    """
+    if model in _CAPS_CACHE:
+        return _CAPS_CACHE[model]
+    info: dict[str, Any] = {"caps": set(), "context_length": None, "parameter_size": None}
+    try:
+        response = requests.post(SHOW_URL, json={"model": model}, timeout=3.0)
+    except Exception:
+        return info
+    if response.status_code == 200:
+        data = response.json()
+        info["caps"] = {str(c).lower() for c in data.get("capabilities") or []}
+        info["parameter_size"] = _parse_size((data.get("details") or {}).get("parameter_size"))
+        for key, value in (data.get("model_info") or {}).items():
+            if key.endswith(".context_length") and isinstance(value, int):
+                info["context_length"] = value
+                break
+    _CAPS_CACHE[model] = info
+    return info
+
+
+def _infer_strengths(tag: str, caps: set[str]) -> dict[str, float] | None:
+    """Task strengths from the model's name, extended by reported capabilities."""
+    base = _base(tag)
+    if "embed" in base or ("embedding" in caps and "completion" not in caps):
+        return None
+    if re.search(r"vl\b|llava|vision|moondream", base):
+        return dict(_VISION)
+    if re.search(r"coder|code", base):
+        strengths = dict(_CODER)
+    elif re.search(r"r1|qwq|think|reason", base):
+        strengths = dict(_REASONER)
+    else:
+        strengths = dict(_GENERAL)
+    # Capability tags add strengths; they never take any away.
+    if "thinking" in caps:
+        for task, fit in _REASONER.items():
+            strengths[task] = max(strengths.get(task, 0.0), fit)
+    if "vision" in caps:
+        strengths["vision"] = max(strengths.get("vision", 0.0), _VISION["vision"])
+    return strengths
+
+
+def _size_profile(size_b: float | None) -> tuple[float, float]:
+    """(quality, speed) from parameter count in billions."""
+    if size_b is None or 4 < size_b <= 9:
+        return 0.58, 0.80
+    if size_b <= 4:
+        return 0.45, 0.90
+    if size_b <= 15:
+        return 0.70, 0.50
+    return 0.75, 0.25  # won't fit an 8 GB card; partly runs on the CPU
+
+
+def discover(installed: list[str]) -> list[ModelSpec]:
+    """Profiles for installed models the catalogue doesn't know about."""
+    known = {
+        resolve_installed(spec, installed)
+        for spec in CATALOG
+        if spec.provider == "ollama"
+    }
+    specs: list[ModelSpec] = []
+    for tag in installed:
+        if tag in known:
+            continue
+        info = capabilities(tag)
+        strengths = _infer_strengths(tag, info["caps"])
+        if strengths is None:
+            continue
+        quality, speed = _size_profile(info["parameter_size"] or _size_from_tag(tag))
+        specs.append(
+            ModelSpec(
+                tag, "ollama",
+                {task: round(fit * DISCOVERED_SCALE, 4) for task, fit in strengths.items()},
+                quality=quality, speed=speed,
+                note="profile inferred from name", discovered=True,
+            )
+        )
+    return specs
+
+
+# ---------------------------------------------------------------------------
 # Selection
 # ---------------------------------------------------------------------------
 
@@ -281,7 +403,7 @@ def plan(
     loaded = {_normalise(n) for n in avail.get("loaded", [])}
 
     candidates: list[Candidate] = []
-    for spec in CATALOG:
+    for spec in CATALOG + discover(installed):
         if spec.provider != "ollama":
             continue
         resolved = resolve_installed(spec, installed)

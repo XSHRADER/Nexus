@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 
 import providers
 
@@ -95,6 +96,103 @@ class WarmModelTests(unittest.TestCase):
         chain = providers.plan("coding", "fix this TypeError",
                                avail=self._avail(["mistral:7b"]))
         self.assertEqual(chain[0].model, "qwen2.5-coder:7b")
+
+
+NO_CAPS = {"caps": set(), "context_length": None, "parameter_size": None}
+
+
+class DiscoveryTests(unittest.TestCase):
+    CAPS = {
+        "qwen3:8b": {"completion", "thinking", "tools"},
+        "bge-m3:latest": {"embedding"},
+    }
+
+    def setUp(self):
+        patcher = mock.patch.object(
+            providers, "capabilities",
+            lambda m: {**NO_CAPS, "caps": self.CAPS.get(m, set())},
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _one(self, tag):
+        specs = providers.discover([tag])
+        self.assertEqual(len(specs), 1, specs)
+        return specs[0]
+
+    def test_unknown_general_model_gets_a_scaled_general_profile(self):
+        spec = self._one("granite3.3:8b")
+        self.assertTrue(spec.discovered)
+        self.assertAlmostEqual(spec.strengths["general"], 0.75 * 0.9)
+        self.assertEqual((spec.quality, spec.speed), (0.58, 0.80))
+
+    def test_catalogued_models_are_not_rediscovered(self):
+        self.assertEqual(providers.discover(["llama3.1:8b", "qwen2.5-coder:7b"]), [])
+
+    def test_embedding_models_are_excluded(self):
+        self.assertEqual(providers.discover(["nomic-embed-text:latest", "bge-m3:latest"]), [])
+
+    def test_coder_family_and_size_from_the_tag(self):
+        spec = self._one("qwen3-coder:30b")
+        self.assertAlmostEqual(spec.strengths["coding"], 0.80 * 0.9)
+        self.assertEqual((spec.quality, spec.speed), (0.75, 0.25))
+
+    def test_reasoner_by_name(self):
+        spec = self._one("qwq:32b")
+        self.assertEqual(max(spec.strengths, key=spec.strengths.get), "reasoning")
+
+    def test_thinking_capability_extends_a_general_model(self):
+        spec = self._one("qwen3:8b")
+        self.assertAlmostEqual(spec.strengths["general"], 0.75 * 0.9)
+        self.assertAlmostEqual(spec.strengths["reasoning"], 0.78 * 0.9)
+
+    def test_vision_by_name_is_vision_only(self):
+        spec = self._one("llama3.2-vision:11b")
+        self.assertEqual(set(spec.strengths), {"vision"})
+
+    def test_catalogue_entry_beats_a_discovered_peer(self):
+        chain = providers.plan(
+            "general", "what is a vector database",
+            avail={"ollama": ["llama3.1:8b", "granite3.3:8b"]},
+        )
+        self.assertEqual(chain[0].model, "llama3.1:8b")
+        discovered = next(c for c in chain if c.model == "granite3.3:8b")
+        self.assertIn("inferred", discovered.reason)
+
+    def test_discovered_model_answers_when_nothing_catalogued_is_installed(self):
+        chain = providers.plan("general", "hello there", avail={"ollama": ["granite3.3:8b"]})
+        self.assertEqual(chain[0].model, "granite3.3:8b")
+
+
+class CapabilitiesTests(unittest.TestCase):
+    def setUp(self):
+        providers._CAPS_CACHE.clear()
+        self.addCleanup(providers._CAPS_CACHE.clear)
+
+    def test_parses_show_and_caches(self):
+        response = mock.Mock(status_code=200)
+        response.json.return_value = {
+            "capabilities": ["completion", "Tools"],
+            "details": {"parameter_size": "8.0B"},
+            "model_info": {"llama.context_length": 131072},
+        }
+        with mock.patch.object(providers.requests, "post", return_value=response) as post:
+            info = providers.capabilities("llama3.1:8b")
+            providers.capabilities("llama3.1:8b")
+        self.assertEqual(info["caps"], {"completion", "tools"})
+        self.assertEqual(info["context_length"], 131072)
+        self.assertEqual(info["parameter_size"], 8.0)
+        self.assertEqual(post.call_count, 1)
+
+    def test_degrades_and_retries_when_ollama_is_down(self):
+        with mock.patch.object(
+            providers.requests, "post",
+            side_effect=providers.requests.ConnectionError("down"),
+        ) as post:
+            info = providers.capabilities("llama3.1:8b")
+            providers.capabilities("llama3.1:8b")
+        self.assertEqual(info, NO_CAPS)
+        self.assertEqual(post.call_count, 2)
 
 
 if __name__ == "__main__":

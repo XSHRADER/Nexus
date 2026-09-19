@@ -212,7 +212,6 @@ def apply_pending(pending: dict[str, Any], base_dir: Path | None = None) -> dict
 def answer(
     question: str,
     base_dir: Path | None = None,
-    confirm: bool = False,
     options: Options | None = None,
     on_token: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
@@ -235,7 +234,7 @@ def answer(
     result = _base_result(decision)
 
     if decision["task"] == "system_agent":
-        outcome = pc_agent.handle(question, base_dir, confirm=confirm)
+        outcome = pc_agent.handle(question, base_dir)
         result["answer"] = outcome["answer"]
         result["requires_confirmation"] = outcome["requires_confirmation"]
         result["pending"] = outcome["pending"]

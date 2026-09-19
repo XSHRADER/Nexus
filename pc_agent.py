@@ -5,8 +5,8 @@ Natural-language front end for PCToolkit.
 Turns "sort my downloads folder" into a concrete operation on a concrete
 path. Read-only operations (analyze, find duplicates, find large files)
 run immediately. Operations that change the disk (organize, delete empty
-folders) return a PREVIEW plus a `pending` action; they only execute when
-`handle(..., confirm=True)` or `apply(pending)` is called.
+folders) return a PREVIEW plus a `pending` action. `handle()` itself never
+changes the disk; only `apply(pending)` does.
 """
 
 import json
@@ -123,8 +123,12 @@ def _read_only(action: str, answer: str) -> dict[str, Any]:
     return {"answer": answer, "action": action, "requires_confirmation": False, "pending": None}
 
 
-def handle(query: str, base_dir: Path, confirm: bool = False) -> dict[str, Any]:
-    """Route `query` to a PCToolkit operation. See module docstring for the confirm flow."""
+def handle(query: str, base_dir: Path) -> dict[str, Any]:
+    """Route `query` to a PCToolkit operation.
+
+    Never changes the disk: a mutating request comes back as a preview plus a
+    `pending` action that only `apply()` executes.
+    """
     intent = parse_intent(query)
     target, how = resolve_target(query, base_dir)
 
@@ -168,32 +172,27 @@ def handle(query: str, base_dir: Path, confirm: bool = False) -> dict[str, Any]:
         preview = _toolkit.delete_empty_dirs(target, dry_run=True)
         if not preview["removed"]:
             return _read_only("empty_dirs", f"🧹 No empty folders under `{target}`.")
-        if not confirm:
-            listing = "\n".join(f"- {p}" for p in preview["removed"][:50])
-            return {
-                "answer": f"🧹 **{preview['removed_count']} empty folder(s)** under `{target}` "
-                          f"would be removed:\n\n{listing}\n\n_Confirm to delete them._",
-                "action": "empty_dirs",
-                "requires_confirmation": True,
-                "pending": {"op": "empty_dirs", "path": str(target)},
-            }
-        res = _toolkit.delete_empty_dirs(target, dry_run=False)
-        return _read_only("empty_dirs", f"🧹 Removed **{res['removed_count']}** empty folder(s) under `{target}`.")
+        listing = "\n".join(f"- {p}" for p in preview["removed"][:50])
+        return {
+            "answer": f"🧹 **{preview['removed_count']} empty folder(s)** under `{target}` "
+                      f"would be removed:\n\n{listing}\n\n_Confirm to delete them._",
+            "action": "empty_dirs",
+            "requires_confirmation": True,
+            "pending": {"op": "empty_dirs", "path": str(target)},
+        }
 
     # intent == "organize"
-    if not confirm:
-        plan = _toolkit.organize_folder(target, dry_run=True)
-        if not plan["planned_moves"]:
-            return _read_only("organize", f"🗂️ `{target}` is already sorted — nothing to move.")
-        return {
-            "answer": f"🗂️ **Plan for `{target}`** ({how}) — {plan['moved_count']} file(s) "
-                      f"into category folders:\n\n{_format_plan(plan['planned_moves'])}\n\n"
-                      f"_Confirm to move them. This is undoable afterwards._",
-            "action": "organize",
-            "requires_confirmation": True,
-            "pending": {"op": "organize", "path": str(target)},
-        }
-    return _apply_organize(target)
+    plan = _toolkit.organize_folder(target, dry_run=True)
+    if not plan["planned_moves"]:
+        return _read_only("organize", f"🗂️ `{target}` is already sorted — nothing to move.")
+    return {
+        "answer": f"🗂️ **Plan for `{target}`** ({how}) — {plan['moved_count']} file(s) "
+                  f"into category folders:\n\n{_format_plan(plan['planned_moves'])}\n\n"
+                  f"_Confirm to move them. This is undoable afterwards._",
+        "action": "organize",
+        "requires_confirmation": True,
+        "pending": {"op": "organize", "path": str(target)},
+    }
 
 
 def _apply_organize(target: Path) -> dict[str, Any]:

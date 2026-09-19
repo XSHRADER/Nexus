@@ -57,7 +57,7 @@ class OrganizeFlowTests(unittest.TestCase):
             (root / ".keep").write_text("x", encoding="utf-8")  # hidden -> untouched
 
             # preview
-            preview = handle(f'sort "{root}"', root, confirm=False)
+            preview = handle(f'sort "{root}"', root)
             self.assertTrue(preview["requires_confirmation"])
             self.assertEqual(preview["pending"]["op"], "organize")
             self.assertTrue((root / "a.txt").exists())  # nothing moved yet
@@ -75,6 +75,19 @@ class OrganizeFlowTests(unittest.TestCase):
             self.assertEqual(res["restored"], 2)
             self.assertTrue((root / "a.txt").exists())
             self.assertFalse((root / MANIFEST_NAME).exists())
+
+    def test_handle_never_changes_the_disk(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "empty").mkdir()
+            (root / "a.txt").write_text("x", encoding="utf-8")
+            for query in (f'remove empty folders in "{root}"', f'sort "{root}"'):
+                result = handle(query, root)
+                self.assertTrue(result["requires_confirmation"], query)
+                with self.assertRaises(TypeError):
+                    handle(query, root, confirm=True)
+            self.assertTrue((root / "empty").is_dir())
+            self.assertTrue((root / "a.txt").exists())
 
     def test_safety_refuses_home_dir(self):
         with self.assertRaises(ValueError):

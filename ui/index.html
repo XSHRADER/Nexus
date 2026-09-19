@@ -132,6 +132,12 @@
       const inputEl = document.getElementById('question');
       const sendBtn = document.getElementById('sendBtn');
 
+      function escapeHtml(text) {
+        return String(text)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+
       // Show which backends are reachable so an "unavailable" answer makes sense.
       fetch('/api/status').then(r => r.json()).then(s => {
         const parts = [];
@@ -143,30 +149,45 @@
       function appendMessage(role, text, meta = null) {
         const row = document.createElement('div');
         row.className = 'msg ' + role;
-        row.innerHTML = '<div>' + text.replace(/\n/g, '<br>') + '</div>';
+        row.innerHTML = '<div>' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>';
         if (meta) {
           const metaRow = document.createElement('div');
           metaRow.className = 'meta';
-          metaRow.innerHTML = meta.map(item => '<span class="badge">' + item + '</span>').join('');
+          metaRow.innerHTML = meta.map(item => '<span class="badge">' + escapeHtml(item) + '</span>').join('');
           row.appendChild(metaRow);
         }
         messagesEl.appendChild(row);
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
 
-      function send(question, confirm) {
+      function applyPending(pendingId, button) {
+        button.disabled = true;
+        button.textContent = 'Applying...';
+        fetch('/api/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pending_id: pendingId })
+        })
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Request failed');
+          appendMessage('assistant', data.answer || 'Done.', null);
+        })
+        .catch((err) => appendMessage('assistant', 'Could not apply: ' + err.message, null))
+        .finally(() => button.remove());
+      }
+
+      function send(question) {
         if (!question) return;
-        if (!confirm) {
-          appendMessage('user', question);
-          inputEl.value = '';
-        }
+        appendMessage('user', question);
+        inputEl.value = '';
         sendBtn.disabled = true;
         sendBtn.textContent = 'Thinking...';
 
         fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, confirm: !!confirm })
+          body: JSON.stringify({ question })
         })
         .then(async (res) => {
           const data = await res.json();
@@ -182,15 +203,11 @@
           if (data.why) meta.push(data.why);
           appendMessage('assistant', data.answer || 'No answer returned.', meta);
           if (data.info) appendMessage('assistant', 'ℹ️ ' + data.info, null);
-          if (data.requires_confirmation) {
+          if (data.requires_confirmation && data.pending_id) {
             const applyBtn = document.createElement('button');
             applyBtn.textContent = 'Apply changes';
             applyBtn.style.marginTop = '10px';
-            applyBtn.addEventListener('click', () => {
-              applyBtn.disabled = true;
-              applyBtn.textContent = 'Applying...';
-              send(question, true);
-            });
+            applyBtn.addEventListener('click', () => applyPending(data.pending_id, applyBtn));
             messagesEl.lastChild.appendChild(applyBtn);
             messagesEl.scrollTop = messagesEl.scrollHeight;
           }
@@ -205,7 +222,7 @@
       }
 
       function ask() {
-        send(inputEl.value.trim(), false);
+        send(inputEl.value.trim());
       }
 
       sendBtn.addEventListener('click', ask);

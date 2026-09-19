@@ -317,6 +317,9 @@ def arm_ranks(hit: dict) -> str:
 
 
 def render_badges(meta: dict) -> None:
+    if meta.get("stopped"):
+        st.markdown("<span class='nx-badge nx-pin'>stopped</span>", unsafe_allow_html=True)
+        return
     bits = [f"<span class='nx-badge nx-model'>{meta.get('model', '?')}</span>",
             f"<span class='nx-badge nx-task'>{meta.get('task', '?')}</span>"]
     if meta.get("forced_model"):
@@ -331,6 +334,8 @@ def render_badges(meta: dict) -> None:
 
 
 def render_why(meta: dict) -> None:
+    if meta.get("stopped"):
+        return
     with st.expander("Why this model"):
         st.markdown(
             f"**Task** `{meta.get('task')}`  ·  "
@@ -415,10 +420,45 @@ def _turn_row(turn: dict) -> dict:
     }
 
 
+def _save_stopped(
+    messages: list[dict],
+    chat_id: str | None,
+    buffer: list[str],
+    thoughts: list[str],
+    opts: Options,
+) -> None:
+    """Keep what streamed before Stop was clicked.
+
+    Runs while Streamlit unwinds the interrupted script, and while a stop is
+    pending every st.* call re-raises it — *including reading
+    st.session_state*. So this only touches objects captured before streaming
+    began: `messages` is the session's own transcript list, mutated in place.
+    """
+    partial = "".join(buffer).strip()
+    if not partial and not thoughts:
+        return
+    content = (partial or "_(stopped before the answer began)_") + "\n\n_— stopped_"
+    meta = {
+        "stopped": True,
+        "thinking": "".join(thoughts) or None,
+        "forced_model": bool(opts.force_model),
+    }
+    messages.append({"role": "assistant", "content": content, "meta": meta})
+    try:
+        if chat_id:
+            store.append_message(chat_id, "assistant", content, meta)
+        store.record_turn({"chat_id": chat_id, "stopped": True})
+    except Exception as exc:
+        print(f"[nexus] could not save the stopped answer: {exc}", file=sys.stderr)
+
+
 def run_turn(question: str, opts: Options, regenerate: bool = False) -> None:
     """Generate one answer, streaming it (and any reasoning) into the transcript."""
     history = _history_for(regenerate)
     with st.chat_message("assistant"):
+        stop_slot = st.empty()
+        stop_slot.button("■ Stop", key="stop_generation",
+                         help="Stop this answer. What's been written so far is kept.")
         think_slot = st.empty()
         placeholder = st.empty()
         buffer: list[str] = []
@@ -436,16 +476,30 @@ def run_turn(question: str, opts: Options, regenerate: bool = False) -> None:
             buffer.append(tok)
             placeholder.markdown("".join(buffer) + "▌")
 
+        # Captured now: once Stop is clicked, session_state can't be read.
+        messages = st.session_state.messages
+        chat_id = st.session_state.chat_id
+        finished = False
         try:
             result = answer(
                 question, options=opts, on_token=on_token, on_thinking=on_thinking,
-                history=history, chat_id=st.session_state.chat_id,
+                history=history, chat_id=chat_id,
             )
+            finished = True
         except Exception as exc:
+            finished = True
+            stop_slot.empty()
             think_slot.empty()
             placeholder.empty()
             st.error(f"NEXUS could not answer: {exc}")
             return
+        finally:
+            # Clicking Stop makes Streamlit raise its (BaseException) stop
+            # signal inside on_token; that closes the Ollama stream on its way
+            # out, and the next script run shows what was saved here.
+            if not finished:
+                _save_stopped(messages, chat_id, buffer, thoughts, opts)
+        stop_slot.empty()
 
         meta = {
             k: result.get(k)

@@ -53,12 +53,45 @@ PROJECT_DIR = Path(__file__).resolve().parent
 LOG_FILE = PROJECT_DIR / "router_logs.jsonl"
 
 
+LOG_MAX_BYTES = 5 * 1024 * 1024
+LOG_BACKUPS = 3
+
+
 class DecisionLogger:
-    def __init__(self, log_file: str | Path = LOG_FILE):
+    """Appends routing decisions as JSON lines, rotating at `max_bytes`.
+
+    router_logs.jsonl -> .1 -> .2 -> .3; the oldest falls off the end, so the
+    log stays under roughly (backups + 1) * max_bytes.
+    """
+
+    def __init__(
+        self,
+        log_file: str | Path = LOG_FILE,
+        max_bytes: int = LOG_MAX_BYTES,
+        backups: int = LOG_BACKUPS,
+    ):
         self.log_file = Path(log_file)
+        self.max_bytes = max_bytes
+        self.backups = backups
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
 
+    def _backup(self, n: int) -> Path:
+        return self.log_file.with_name(f"{self.log_file.name}.{n}")
+
+    def _rotate(self) -> None:
+        for n in range(self.backups, 0, -1):
+            src = self.log_file if n == 1 else self._backup(n - 1)
+            if src.exists():
+                src.replace(self._backup(n))
+
     def log(self, payload: dict[str, Any]) -> None:
+        try:
+            if self.log_file.stat().st_size >= self.max_bytes:
+                self._rotate()
+        except OSError:
+            # Missing file, or (on Windows) another process has it open —
+            # skip rotating this time rather than lose the decision.
+            pass
         with open(self.log_file, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
 

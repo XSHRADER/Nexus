@@ -1,6 +1,28 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from router import TaskRouter
+from router import DecisionLogger, TaskRouter
+
+
+class DecisionLoggerTests(unittest.TestCase):
+    def test_rotates_and_keeps_three_backups(self):
+        with tempfile.TemporaryDirectory() as d:
+            log = Path(d) / "router_logs.jsonl"
+            logger = DecisionLogger(log, max_bytes=200, backups=3)
+            for i in range(60):
+                logger.log({"i": i, "pad": "x" * 40})
+            names = sorted(p.name for p in Path(d).iterdir())
+            self.assertEqual(
+                names,
+                ["router_logs.jsonl", "router_logs.jsonl.1",
+                 "router_logs.jsonl.2", "router_logs.jsonl.3"],
+            )
+            for path in Path(d).iterdir():
+                self.assertLess(path.stat().st_size, 300)
+            last = json.loads(log.read_text(encoding="utf-8").splitlines()[-1])
+            self.assertEqual(last["i"], 59)
 
 
 class TaskRouterTests(unittest.TestCase):

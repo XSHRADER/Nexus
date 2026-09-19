@@ -14,6 +14,7 @@ reproduces the untouched behaviour exactly.
 
 import io
 import json
+import sys
 import time
 from contextlib import redirect_stdout
 from dataclasses import replace
@@ -23,6 +24,7 @@ from pathlib import Path
 import streamlit as st
 
 import providers
+import store
 from engine import Options, answer, apply_pending
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -108,6 +110,47 @@ _state("messages", [])
 _state("pending_action", None)
 _state("last_question", None)
 _state("regenerate_with", None)
+_state("chat_id", None)
+_state("confirm_delete", None)
+
+
+def _persist(role: str, content: str, meta: dict | None = None) -> None:
+    """Add a message to the transcript and save it. Saving never blocks chatting."""
+    message = {"role": role, "content": content}
+    if meta is not None:
+        message["meta"] = meta
+    st.session_state.messages.append(message)
+    try:
+        if st.session_state.chat_id is None:
+            st.session_state.chat_id = store.create_chat(content)
+        store.append_message(st.session_state.chat_id, role, content, meta)
+    except Exception as exc:
+        print(f"[nexus] could not save message: {exc}", file=sys.stderr)
+
+
+def _history_for(regenerate: bool) -> list[dict]:
+    """The turns before the question being answered, without UI metadata.
+
+    For a regenerate, the answer being redone and its original question are
+    left out too, so the model never sees the answer it's asked to replace.
+    """
+    msgs = st.session_state.messages
+    prior = msgs[:-1] if msgs and msgs[-1]["role"] == "user" else list(msgs)
+    if (regenerate and len(prior) >= 2
+            and prior[-1]["role"] == "assistant" and prior[-2]["role"] == "user"):
+        prior = prior[:-2]
+    return [{"role": m["role"], "content": m["content"]} for m in prior]
+
+
+def _ago(ts: float) -> str:
+    minutes = int((time.time() - ts) // 60)
+    if minutes < 1:
+        return "just now"
+    if minutes < 60:
+        return f"{minutes} min ago"
+    if minutes < 1440:
+        return f"{minutes // 60} h ago"
+    return f"{minutes // 1440} d ago"
 
 
 # ---------------------------------------------------------------------------
@@ -183,6 +226,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.pending_action = None
         st.session_state.last_question = None
+        st.session_state.chat_id = None
         st.rerun()
 
     if st.session_state.messages:
@@ -195,6 +239,45 @@ with st.sidebar:
             file_name=f"nexus-chat-{datetime.now():%Y%m%d-%H%M}.txt",
             width='stretch',
         )
+
+with st.sidebar:
+    st.markdown("#### Chats")
+    try:
+        recent_chats = store.list_chats(limit=20)
+    except Exception as exc:
+        recent_chats = []
+        st.caption(f"Saved chats unavailable ({exc})")
+    if not recent_chats:
+        st.caption("Chats you start are saved here.")
+    for chat in recent_chats:
+        c_open, c_del = st.columns([5, 1])
+        mark = "▸ " if chat["id"] == st.session_state.chat_id else ""
+        if c_open.button(f"{mark}{chat['title']}", key=f"open_{chat['id']}",
+                         help=_ago(chat["updated"]), width='stretch'):
+            st.session_state.messages = store.load_messages(chat["id"])
+            st.session_state.chat_id = chat["id"]
+            st.session_state.pending_action = None
+            st.session_state.last_question = None
+            st.rerun()
+        if c_del.button("✕", key=f"del_{chat['id']}", help="Delete this chat"):
+            st.session_state.confirm_delete = chat["id"]
+            st.rerun()
+
+    doomed = next((c for c in recent_chats if c["id"] == st.session_state.confirm_delete), None)
+    if doomed:
+        st.warning(f"Delete “{doomed['title']}”? This can't be undone.")
+        d_yes, d_no = st.columns(2)
+        if d_yes.button("Delete", key="confirm_delete_chat", type="primary"):
+            store.delete_chat(doomed["id"])
+            if st.session_state.chat_id == doomed["id"]:
+                st.session_state.messages = []
+                st.session_state.chat_id = None
+                st.session_state.pending_action = None
+            st.session_state.confirm_delete = None
+            st.rerun()
+        if d_no.button("Keep", key="cancel_delete_chat"):
+            st.session_state.confirm_delete = None
+            st.rerun()
 
 options = Options(
     force_model=None if model_choice.startswith("Auto") else model_choice,
@@ -303,42 +386,86 @@ def render_sources(meta: dict) -> None:
             )
 
 
-def run_turn(question: str, opts: Options) -> None:
-    """Generate one answer, streaming it into the transcript."""
+def render_reasoning(meta: dict) -> None:
+    thinking = meta.get("thinking")
+    if thinking:
+        with st.expander("Reasoning", expanded=False):
+            st.markdown(thinking)
+
+
+def _secs(ms) -> float | None:
+    return None if ms is None else round(ms / 1000, 2)
+
+
+def _turn_row(turn: dict) -> dict:
+    failed = sum(1 for a in turn.get("attempts") or [] if a.get("error"))
+    flags = [name for name, on in (("truncated", turn.get("truncated")),
+                                   ("stopped", turn.get("stopped")),
+                                   ("error", turn.get("error"))) if on]
+    return {
+        "when": datetime.fromtimestamp(turn["ts"]).strftime("%H:%M:%S"),
+        "task": turn.get("task"),
+        "model": turn.get("model") or "—",
+        "total s": _secs(turn.get("total_ms")),
+        "first token s": _secs(turn.get("ttft_ms")),
+        "tok/s": turn.get("tokens_per_s"),
+        "cold load": bool((turn.get("load_ms") or 0) > 1000),
+        "fallbacks": failed,
+        "flags": ", ".join(flags),
+    }
+
+
+def run_turn(question: str, opts: Options, regenerate: bool = False) -> None:
+    """Generate one answer, streaming it (and any reasoning) into the transcript."""
+    history = _history_for(regenerate)
     with st.chat_message("assistant"):
+        think_slot = st.empty()
         placeholder = st.empty()
         buffer: list[str] = []
+        thoughts: list[str] = []
+
+        def on_thinking(text: str) -> None:
+            thoughts.append(text)
+            with think_slot.container():
+                with st.expander("Reasoning…", expanded=True):
+                    st.markdown("".join(thoughts))
+            if not buffer:
+                placeholder.markdown("_thinking…_")
 
         def on_token(tok: str) -> None:
             buffer.append(tok)
             placeholder.markdown("".join(buffer) + "▌")
 
         try:
-            result = answer(question, options=opts, on_token=on_token)
+            result = answer(
+                question, options=opts, on_token=on_token, on_thinking=on_thinking,
+                history=history, chat_id=st.session_state.chat_id,
+            )
         except Exception as exc:
+            think_slot.empty()
             placeholder.empty()
             st.error(f"NEXUS could not answer: {exc}")
             return
-
-        placeholder.markdown(result.get("answer", ""))
 
         meta = {
             k: result.get(k)
             for k in (
                 "model", "task", "needs_rag", "sources", "elapsed", "chain",
                 "complexity", "attempts", "prompt_chars", "info", "auto_task",
+                "thinking", "truncated", "chunks_dropped", "metrics",
             )
         }
         meta["forced_model"] = bool(opts.force_model)
+        with think_slot.container():
+            render_reasoning(meta)
+        placeholder.markdown(result.get("answer", ""))
         render_badges(meta)
         if result.get("info"):
             st.info(result["info"])
         render_why(meta)
         render_sources(meta)
 
-    st.session_state.messages.append(
-        {"role": "assistant", "content": result.get("answer", ""), "meta": meta}
-    )
+    _persist("assistant", result.get("answer", ""), meta)
     if result.get("requires_confirmation"):
         st.session_state.pending_action = result["pending"]
 
@@ -371,13 +498,15 @@ with tab_chat:
         for col, text in zip(cols, starters):
             if col.button(text, width='stretch'):
                 st.session_state.last_question = text
-                st.session_state.messages.append({"role": "user", "content": text})
+                _persist("user", text)
                 st.rerun()
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            st.markdown(message["content"])
             meta = message.get("meta")
+            if meta:
+                render_reasoning(meta)
+            st.markdown(message["content"])
             if meta:
                 render_badges(meta)
                 render_why(meta)
@@ -395,7 +524,7 @@ with tab_chat:
         if alt:
             st.session_state.regenerate_with = None
             turn_options = replace(options, force_model=alt)
-        run_turn(queued, turn_options)
+        run_turn(queued, turn_options, regenerate=bool(alt))
         st.rerun()
 
     if st.session_state.pending_action:
@@ -410,13 +539,11 @@ with tab_chat:
                     msg = apply_pending(pending)["answer"]
                 except Exception as exc:
                     msg = f"Action failed: {exc}"
-                st.session_state.messages.append({"role": "assistant", "content": msg})
+                _persist("assistant", msg)
                 st.session_state.pending_action = None
                 st.rerun()
             if c2.button("Cancel", width='stretch'):
-                st.session_state.messages.append(
-                    {"role": "assistant", "content": "Cancelled — nothing on disk changed."}
-                )
+                _persist("assistant", "Cancelled — nothing on disk changed.")
                 st.session_state.pending_action = None
                 st.rerun()
 
@@ -437,9 +564,7 @@ with tab_chat:
                 cols = st.columns(len(alts))
                 for col, alt in zip(cols, alts):
                     if col.button(alt, key=f"regen_{alt}", width='stretch'):
-                        st.session_state.messages.append(
-                            {"role": "user", "content": question}
-                        )
+                        _persist("user", question)
                         st.session_state.last_question = question
                         st.session_state.regenerate_with = alt
                         st.rerun()
@@ -447,7 +572,7 @@ with tab_chat:
     prompt = st.chat_input("Ask NEXUS AI...")
     if prompt:
         st.session_state.pending_action = None
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        _persist("user", prompt)
         st.session_state.last_question = prompt
         st.rerun()
 
@@ -606,3 +731,66 @@ with tab_diag:
             st.caption(f"could not read log ({exc})")
     else:
         st.caption("No routing log yet — ask something first.")
+
+    st.divider()
+    st.markdown("##### Recent answers")
+    try:
+        turns = store.recent_turns(20)
+    except Exception as exc:
+        turns = []
+        st.caption(f"metrics unavailable ({exc})")
+    if turns:
+        st.dataframe([_turn_row(t) for t in turns], width='stretch', hide_index=True)
+    else:
+        st.caption("No answers recorded yet.")
+
+    st.markdown("##### Per model")
+    st.caption("Over the last 500 answers. Failure rate counts every attempt, "
+               "including ones the next model in the chain recovered from.")
+    try:
+        stats = store.model_stats()
+    except Exception:
+        stats = []
+    if stats:
+        st.dataframe(
+            [
+                {
+                    "model": s["model"],
+                    "answers": s["answers"],
+                    "median s": _secs(s["median_ms"]),
+                    "median tok/s": s["median_tokens_per_s"],
+                    "failure rate": f"{s['failure_rate']:.0%}",
+                    "cold loads": s["cold_loads"],
+                }
+                for s in stats
+            ],
+            width='stretch',
+            hide_index=True,
+        )
+    else:
+        st.caption("Nothing yet.")
+
+    st.markdown("##### Discovered models")
+    discovered = providers.discover(installed)
+    if discovered:
+        st.caption("Installed but not in the catalogue — profiled from name, size and "
+                   "reported capabilities, then scaled to 90%.")
+        st.dataframe(
+            [
+                {
+                    "model": spec.name,
+                    "profile": ", ".join(
+                        f"{task} {fit:.2f}"
+                        for task, fit in sorted(spec.strengths.items(), key=lambda kv: -kv[1])
+                    ),
+                    "capabilities": ", ".join(
+                        sorted(providers.capabilities(spec.name)["caps"])
+                    ) or "unknown",
+                }
+                for spec in discovered
+            ],
+            width='stretch',
+            hide_index=True,
+        )
+    else:
+        st.caption("Every installed model is in the catalogue.")

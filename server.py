@@ -193,9 +193,10 @@ class Handler(BaseHTTPRequestHandler):
     def _drain_body(self) -> None:
         """Read a POST body we're about to reject without using.
 
-        Answering while the client is still sending makes Windows reset the
-        connection, and the client never sees the 403/415. Bodies over
-        MAX_BODY are left unread; that connection is dropped anyway.
+        Closing a socket that still holds unread bytes makes the OS reset the
+        connection, and the client never sees the 403/413/415. An oversized
+        body is only drained as far as it has already arrived — bounded in
+        size and by a short idle timeout — so it can't tie the server up.
         """
         if self.command != "POST" or getattr(self, "_body_consumed", False):
             return
@@ -206,6 +207,17 @@ class Handler(BaseHTTPRequestHandler):
             return
         if 0 < length <= MAX_BODY:
             self.rfile.read(length)
+        elif length > MAX_BODY:
+            self.connection.settimeout(0.2)
+            drained = 0
+            try:
+                while drained < 4 * MAX_BODY:
+                    chunk = self.rfile.read1(65536)
+                    if not chunk:
+                        break
+                    drained += len(chunk)
+            except OSError:
+                pass  # idle timeout: nothing more has arrived
 
     def send_json(self, payload, status=200):
         self._drain_body()

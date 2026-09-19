@@ -14,14 +14,17 @@ retrieval depth -- which is what makes the routing inspectable rather than
 something the user has to take on trust.
 
 Both the Streamlit UI (app.py) and the plain HTTP server (server.py) call
-`answer()` so the routing/fallback behaviour stays in one place.
+`answer()` so the routing/fallback behaviour stays in one place. Streamlit also
+passes the conversation so far as `history`.
 """
 
 import json
+import math
 import os
 import re
+import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable
@@ -30,11 +33,11 @@ import requests
 
 import pc_agent
 import providers
-from rag_pipeline import DEFAULT_TOP_K, retrieve_context
+import store
+from rag_pipeline import DEFAULT_TOP_K, build_prompt, get_retriever
 from router import TaskRouter
 
 PROJECT_DIR = Path(__file__).resolve().parent
-OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
 
 RAG_MODES = ("auto", "always", "never")
 
@@ -208,62 +211,127 @@ def _ollama_chat(
     return ChatReply(text, thinking, _metrics(final, sent, first))
 
 
-def _ollama_generate(
-    model: str,
-    prompt: str,
-    temperature: float = 0.7,
-    timeout: int = 300,
-    on_token: Callable[[str], None] | None = None,
-) -> str:
-    """Generate with Ollama, streaming token-by-token when `on_token` is given."""
-    payload: dict[str, Any] = {
-        "model": model,
-        "prompt": prompt,
-        "stream": on_token is not None,
-        "options": {"temperature": float(temperature)},
+REPLY_RESERVE = 1024     # tokens kept free for the model's answer
+TRUNCATION_RATIO = 0.98  # prompt_eval_count this close to num_ctx => probably cut off
+FOLLOW_UP_WORDS = 12     # a message shorter than this, with history, is a follow-up
+
+
+def estimate_tokens(text: str) -> int:
+    """Deliberately pessimistic: ~3 chars per token, where English on Llama/Qwen
+    tokenizers runs ~4. Over-estimating means sending slightly less — never
+    having Ollama silently cut the front off."""
+    return math.ceil(len(text) / 3)
+
+
+def context_window(model: str) -> int:
+    reported = providers.capabilities(model).get("context_length")
+    return min(NUM_CTX, reported) if reported else NUM_CTX
+
+
+@dataclass
+class Fitted:
+    messages: list[dict[str, str]]
+    kept_chunks: list[dict[str, Any]]
+    chunks_dropped: int
+    over_budget: bool
+
+
+def fit_to_window(
+    question: str,
+    chunks: list[dict[str, Any]],
+    history: list[dict[str, str]],
+    num_ctx: int,
+    use_rag: bool,
+) -> Fitted:
+    """Build one model's chat messages so they fit its context window.
+
+    Priority: the question (with the RAG template) always; then retrieved
+    chunks in rank order; then history, newest first, whole messages only.
+    """
+    budget = num_ctx - REPLY_RESERVE
+
+    def render(kept: list[dict[str, Any]]) -> str:
+        return build_prompt(question, kept) if use_rag else question
+
+    used = estimate_tokens(render([]))
+    over = used > budget  # sent anyway: refusing would be worse than a cut prompt
+
+    kept: list[dict[str, Any]] = []
+    if use_rag and not over:
+        for candidate in chunks:
+            cost = estimate_tokens(render(kept + [candidate]))
+            if cost > budget:
+                break
+            kept.append(candidate)
+            used = cost
+
+    past: list[dict[str, str]] = []
+    if not over:
+        for msg in reversed(history):
+            cost = estimate_tokens(msg["content"]) + 4  # role/framing overhead
+            if used + cost > budget:
+                break
+            past.insert(0, {"role": msg["role"], "content": msg["content"]})
+            used += cost
+
+    return Fitted(
+        past + [{"role": "user", "content": render(kept)}],
+        kept,
+        len(chunks) - len(kept),
+        over,
+    )
+
+
+def _retrieval_query(question: str, history: list[dict[str, str]]) -> str:
+    """"and the second one?" retrieves nothing useful alone — borrow the
+    previous question. Only the search query changes, never the prompt."""
+    if history and len(question.split()) < FOLLOW_UP_WORDS:
+        previous = next((m["content"] for m in reversed(history) if m["role"] == "user"), None)
+        if previous:
+            return f"{previous} {question}"
+    return question
+
+
+def _source(chunk: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "source": chunk["meta"].get("source", "unknown"),
+        "chunk_index": chunk["meta"].get("chunk_index"),
+        "score": chunk.get("score"),
+        "rerank_score": chunk.get("rerank_score"),
+        "vector_rank": chunk.get("vector_rank"),
+        "bm25_rank": chunk.get("bm25_rank"),
+        "text": chunk["text"],
     }
 
-    if on_token is None:
-        response = requests.post(OLLAMA_GENERATE_URL, json=payload, timeout=timeout)
-        response.raise_for_status()
-        text = response.json().get("response", "")
-    else:
-        parts: list[str] = []
-        with requests.post(
-            OLLAMA_GENERATE_URL, json=payload, timeout=timeout, stream=True
-        ) as response:
-            response.raise_for_status()
-            for line in response.iter_lines():
-                if not line:
-                    continue
-                try:
-                    chunk = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                token = chunk.get("response", "")
-                if token:
-                    parts.append(token)
-                    on_token(token)
-                if chunk.get("done"):
-                    break
-        text = "".join(parts)
 
-    text = text.strip()
-    if not text:
-        raise RuntimeError(f"{model} returned an empty response")
-    return text
+def _note(result: dict[str, Any], text: str) -> None:
+    result["info"] = f"{result['info']} {text}" if result.get("info") else text
 
 
-def _generate(
-    provider: str,
-    model: str,
-    prompt: str,
-    temperature: float = 0.7,
-    on_token: Callable[[str], None] | None = None,
-) -> str:
-    if provider == "ollama":
-        return _ollama_generate(model, prompt, temperature=temperature, on_token=on_token)
-    raise RuntimeError(f"No generator for provider {provider!r}")
+def _finish(
+    result: dict[str, Any], started: float, chat_id: str | None, error: str | None = None
+) -> None:
+    """Stamp timings and record exactly one `turns` row. Never raises."""
+    result["elapsed"] = time.monotonic() - started
+    metrics = result["metrics"]
+    metrics["total_ms"] = round(result["elapsed"] * 1000, 1)
+    row = {
+        "chat_id": chat_id,
+        "task": result.get("task"),
+        "model": None if error else result.get("model"),
+        "attempts": result.get("attempts"),
+        "rag_used": bool(result.get("sources")),
+        "chunks_dropped": result.get("chunks_dropped", 0),
+        "truncated": result.get("truncated", False),
+        "stopped": False,
+        "error": error,
+        **{k: metrics.get(k) for k in
+           ("ttft_ms", "total_ms", "load_ms", "prompt_tokens", "eval_tokens", "tokens_per_s")},
+    }
+    try:
+        store.record_turn(row)
+    except Exception as exc:
+        print(f"[nexus] could not record metrics: {exc}", file=sys.stderr)
 
 
 def _base_result(decision: dict[str, Any]) -> dict[str, Any]:
@@ -285,6 +353,14 @@ def _base_result(decision: dict[str, Any]) -> dict[str, Any]:
         "sources": [],
         "elapsed": 0.0,
         "prompt_chars": 0,
+        "thinking": None,
+        "truncated": False,
+        "chunks_dropped": 0,
+        "stopped": False,
+        "metrics": {
+            "ttft_ms": None, "total_ms": None, "load_ms": None,
+            "prompt_tokens": None, "eval_tokens": None, "tokens_per_s": None,
+        },
     }
 
 
@@ -353,21 +429,30 @@ def answer(
     base_dir: Path | None = None,
     options: Options | None = None,
     on_token: Callable[[str], None] | None = None,
+    on_thinking: Callable[[str], None] | None = None,
+    history: list[dict[str, str]] | None = None,
+    chat_id: str | None = None,
 ) -> dict[str, Any]:
-    """Route `question`, then generate a reply with the best reachable model.
+    """Route `question`, then answer it with the best reachable model.
 
-    Returns a dict: answer, task, model, provider, chain, complexity, needs_rag,
-    confidence, scores, why, attempts, info, requires_confirmation, pending,
-    sources, elapsed, prompt_chars.
+    `history` is the conversation so far ({"role", "content"}, oldest first);
+    as much as fits the model's context window is sent, newest first. Returns
+    the routing decision plus: answer, attempts, info, sources, thinking,
+    truncated, chunks_dropped, metrics, requires_confirmation, pending, elapsed.
 
     `chain` is every model considered (best first) and `attempts` records what
-    was actually tried, so the UI can show *why* a given AI answered. `sources`
-    holds the retrieved chunks behind a grounded answer. Pass `on_token` to
-    stream the reply as it is produced.
+    was actually tried, so the UI can show *why* a given AI answered. One
+    `turns` row is recorded per call. Exceptions raised by `on_token` /
+    `on_thinking` propagate unchanged and are never treated as a model failure.
     """
     started = time.monotonic()
     base_dir = base_dir or PROJECT_DIR
     opts = (options or Options()).normalised()
+    history = [
+        {"role": m["role"], "content": m["content"]}
+        for m in (history or [])
+        if m.get("role") in ("user", "assistant") and m.get("content")
+    ]
 
     decision = get_router().route(question, force_task=opts.force_task)
     result = _base_result(decision)
@@ -382,7 +467,7 @@ def answer(
         # The word "folder" trips the RAG signal, but a file operation never
         # retrieves anything -- don't claim it did.
         result["needs_rag"] = False
-        result["elapsed"] = time.monotonic() - started
+        _finish(result, started, chat_id)
         return result
 
     chain = decision.get("chain") or []
@@ -395,67 +480,78 @@ def answer(
     if not chain:
         result["answer"] = _no_model_message(decision)
         result["info"] = "No model was reachable for this request."
-        result["elapsed"] = time.monotonic() - started
+        _finish(result, started, chat_id, error=result["info"])
         return result
 
-    # Retrieval gate: the router's keyword guess by default, or whatever the
-    # caller asked for.
+    # Retrieval gate: the router's keyword guess by default, or the override.
     if opts.rag_mode == "always":
         result["needs_rag"] = True
     elif opts.rag_mode == "never":
         result["needs_rag"] = False
 
-    # Ground the prompt in local documents once, then reuse it for whichever
-    # model ends up answering.
-    prompt = question
+    chunks: list[dict[str, Any]] = []
     if result["needs_rag"]:
         try:
-            prompt, chunks = retrieve_context(
-                question, top_k=opts.top_k, rerank=opts.rerank
+            chunks = get_retriever().query(
+                _retrieval_query(question, history), top_k=opts.top_k, rerank=opts.rerank
             )
-            result["sources"] = [
-                {
-                    "source": c["meta"].get("source", "unknown"),
-                    "chunk_index": c["meta"].get("chunk_index"),
-                    "score": c.get("score"),
-                    "rerank_score": c.get("rerank_score"),
-                    "vector_rank": c.get("vector_rank"),
-                    "bm25_rank": c.get("bm25_rank"),
-                    "text": c["text"],
-                }
-                for c in chunks
-            ]
             if not chunks:
-                result["info"] = "No local documents matched; answering without them."
+                _note(result, "No local documents matched; answering without them.")
         except Exception as exc:
-            result["info"] = f"Local document search unavailable ({exc}); answering without it."
+            _note(result, f"Local document search unavailable ({exc}); answering without it.")
             result["needs_rag"] = False
-    result["prompt_chars"] = len(prompt)
 
+    token_cb, thinking_cb = _guard(on_token), _guard(on_thinking)
     errors: list[str] = []
     for step, candidate in enumerate(chain):
         model, provider = candidate["model"], candidate["provider"]
+        if provider != "ollama":
+            error = f"no generator for provider {provider!r}"
+            result["attempts"].append({"model": model, "provider": provider, "error": error})
+            errors.append(f"{model}: {error}")
+            continue
+
+        num_ctx = context_window(model)
+        fitted = fit_to_window(question, chunks, history, num_ctx, result["needs_rag"])
+        think = "thinking" in providers.capabilities(model).get("caps", set())
         try:
-            text = _generate(
-                provider, model, prompt, temperature=opts.temperature, on_token=on_token
+            reply = _ollama_chat(
+                model, fitted.messages, temperature=opts.temperature, num_ctx=num_ctx,
+                think=think, on_token=token_cb, on_thinking=thinking_cb,
             )
+        except _CallbackRaised as wrapped:
+            raise wrapped.original
         except Exception as exc:
             result["attempts"].append({"model": model, "provider": provider, "error": str(exc)})
             errors.append(f"{model}: {exc}")
             continue
 
         result["attempts"].append({"model": model, "provider": provider, "error": None})
-        result["model"] = model
-        result["provider"] = provider
-        result["why"] = candidate.get("reason")
+        result.update(
+            model=model,
+            provider=provider,
+            why=candidate.get("reason"),
+            answer=reply.text,
+            thinking=reply.thinking,
+            sources=[_source(c) for c in fitted.kept_chunks],
+            chunks_dropped=fitted.chunks_dropped,
+            prompt_chars=sum(len(m["content"]) for m in fitted.messages),
+        )
+        result["metrics"].update(reply.metrics)
+        if fitted.chunks_dropped:
+            _note(result, f"{fitted.chunks_dropped} of {len(chunks)} retrieved chunks were "
+                          f"left out to fit {model}'s {num_ctx}-token context window.")
+        prompt_tokens = reply.metrics.get("prompt_tokens") or 0
+        if fitted.over_budget or prompt_tokens >= TRUNCATION_RATIO * num_ctx:
+            result["truncated"] = True
+            _note(result, f"The prompt filled {model}'s {num_ctx}-token context window, "
+                          "so the start of it may have been cut off.")
         if step > 0:
-            first = chain[0]["model"]
-            note = f"Auto-switched from {first} to {model} — first choice was unavailable."
-            result["info"] = f"{result['info']} {note}".strip() if result["info"] else note
-        result["answer"] = text
-        result["elapsed"] = time.monotonic() - started
+            _note(result, f"Auto-switched from {chain[0]['model']} to {model} — "
+                          "first choice was unavailable.")
+        _finish(result, started, chat_id)
         return result
 
-    raise RuntimeError(
-        "Every available model failed for this request:\n  " + "\n  ".join(errors)
-    )
+    message = "Every available model failed for this request:\n  " + "\n  ".join(errors)
+    _finish(result, started, chat_id, error=message)
+    raise RuntimeError(message)

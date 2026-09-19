@@ -192,7 +192,7 @@ so that all three are visible after the fact and overridable before it.
 | **Chat** | Answers stream in token by token. Under each one: which model answered and why, and the exact chunks that grounded it. |
 | **Documents** | Per-file chunk counts, drag-and-drop upload, and re-indexing — no CLI needed. |
 | **Retrieval lab** | Run one query through all four retrieval arms side by side and compare what each returns, with timings. No model runs; this is retrieval only. |
-| **Diagnostics** | Installed models, what's resident in VRAM, index configuration, and the last 15 routing decisions. |
+| **Diagnostics** | Installed models, what's resident in VRAM, index configuration, the last 15 routing decisions, per-answer speed (time to first token, tokens/s, cold loads), per-model medians and failure rates, and any installed models NEXUS profiled on its own. |
 
 **Every automatic decision has an override**, and every control defaults to
 Auto, so leaving them alone reproduces the untouched behaviour exactly:
@@ -217,6 +217,24 @@ a claim.
 If an answer looks wrong, the row of buttons beneath it re-runs the same
 question on the next-best models NEXUS already scored, so comparing them costs
 one click instead of a settings change.
+
+**Chats are saved and follow-ups work.** Every message is stored in a local
+SQLite file (`data/nexus.db`) and the sidebar lists recent chats to reopen or
+delete. Earlier turns go to the model with each new question, newest first, as
+many as fit. A short follow-up ("and the second one?") also borrows the previous
+question for document search, so it retrieves something meaningful.
+
+**Nothing is silently cut off.** Ollama drops the start of any prompt longer
+than its context window, without an error. NEXUS asks for an 8,192-token window
+explicitly and budgets every prompt into it: your question first, then
+retrieved chunks in rank order, then history. If chunks had to be left out, or
+the prompt still filled the window, the answer says so.
+
+**Reasoning stays out of the answer.** Models that think before answering
+(deepseek-r1, qwen3, …) stream their reasoning into a collapsed *Reasoning*
+panel above the reply.
+
+**Stop** ends an answer mid-stream and keeps what was written.
 
 ---
 
@@ -261,7 +279,7 @@ chunker-agnostic and so stays comparable when chunk sizes change).
 |---|---|---|---|---|
 | dense only (vector) | 0.778 | 0.889 | 0.833 | 0.889 |
 | BM25 only (keyword) | 0.278 | 0.778 | 0.472 | 0.722 |
-| hybrid, RRF fusion | 0.667 | 0.944 | 0.773 | 0.889 |
+| hybrid, RRF fusion | 0.611 | 0.944 | 0.745 | 0.889 |
 | hybrid + cross-encoder | 0.556 | **1.000** | 0.724 | **0.944** |
 
 Reranking buys recall@5 and groundedness and costs recall@1, where dense
@@ -275,6 +293,12 @@ that side by side. The honest reading is that the chunking change is a
 *correctness* fix, not a measured quality win at this scale: a 490-token chunk
 is simply not represented by a 256-token embedding. Making these numbers
 discriminate needs a bigger corpus, not a better reranker.
+
+It is also why the hybrid-RRF row moved when `checklist.txt` had a stale
+folder path corrected (0.667 → 0.611 recall@1): one question (q08) swapped
+its first and second hits. The question shares no words with the edit — with
+only 32 chunks, changing a few tokens anywhere shifts BM25's corpus-wide term
+statistics enough to flip a near-tie. Every other number was unchanged.
 
 The eval did produce one directly actionable result. Token-sized chunks carry
 about a quarter of what the old ones did, so `top_k=5` was feeding the model
@@ -319,6 +343,14 @@ the next one answers and the UI says so. If Ollama itself is down you get a
 plain message explaining how to start it, and PC folder actions keep working
 regardless — they never needed a model.
 
+**Models NEXUS has never heard of still get used.** Any installed model that
+isn't in the catalogue gets a profile inferred from its name (`coder` → coding,
+`r1`/`qwq` → reasoning, `vl`/`llava`/`vision` → vision, anything else general),
+its size, and the capabilities Ollama reports. Inferred profiles are scored at
+90%, so a hand-tuned catalogue entry wins a tie. The *Why this model* panel says
+when a profile was inferred and Diagnostics lists them all; to promote one, add a
+line to `CATALOG` in `providers.py`.
+
 ## PC automation (local file operations)
 
 The router sends folder-management requests to the **system agent**
@@ -341,6 +373,28 @@ With nothing specified it uses the project folder.
 you click **Apply** (Streamlit) or **Apply changes** (browser UI). Sorting
 is collision-safe, never overwrites, skips hidden files, writes an undo
 manifest, and refuses drive roots, your home directory, and system paths.
+
+## Configuration
+
+| variable | default | does |
+|---|---|---|
+| `NEXUS_DB` | `data/nexus.db` | where saved chats and metrics live |
+| `NEXUS_NUM_CTX` | `8192` | context window requested from Ollama. Lower it if a large model spills out of VRAM |
+
+## HTTP API (`run.py --server`)
+
+The dependency-free server only answers its own page:
+
+- Requests must be addressed to `127.0.0.1` or `localhost` on the server's
+  port, and any `Origin` must match; otherwise `403`.
+- `POST` bodies must be `application/json` (else `415`) and under 1 MB (else `413`).
+- `POST /api/chat {"question": …}` never changes anything on disk. A file
+  operation comes back as a preview with a `pending_id`.
+- `POST /api/apply {"pending_id": …}` runs that one previewed action. Each id
+  works once and expires after 10 minutes.
+
+A page on another website can't trigger a file operation: it can't send JSON
+without the server's permission, and it never sees a `pending_id`.
 
 ## Quick troubleshooting
 

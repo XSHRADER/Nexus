@@ -57,10 +57,10 @@ NEXT USER ACTIONS
 [ ] Refresh the browser UI and test a query.
 
 PROJECT LOCATION
-C:\Users\vashu\OneDrive\Desktop\3rd year\FML\Nexus
+C:\Users\vashu\OneDrive\Documents\GitHub\Nexus
 
 USEFUL COMMANDS
-cd "C:\Users\vashu\OneDrive\Desktop\3rd year\FML\Nexus"
+cd "C:\Users\vashu\OneDrive\Documents\GitHub\Nexus"
 .\nexus-env\Scripts\python.exe ingest.py
 .\nexus-env\Scripts\python.exe rag_pipeline.py
 .\nexus-env\Scripts\python.exe server.py

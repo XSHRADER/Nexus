@@ -17,6 +17,9 @@ vector_store/
 # Comparison index built on demand by `python eval_rag.py --legacy`
 vector_store_legacy/
 router_logs.jsonl
+router_logs.jsonl.*
+# Saved chats and metrics (store.py)
+data/
 
 # OS / editor
 .DS_Store

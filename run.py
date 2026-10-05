@@ -27,8 +27,10 @@ from pathlib import Path
 # Preflight is a progress report, so it has to appear as it happens. Python
 # block-buffers stdout when it isn't a terminal, which hid every check
 # behind the Streamlit banner when the output was piped or redirected.
+# UTF-8 because Windows consoles default to cp1252, which can't print the
+# model's answer in the --check smoke test if it contains an emoji.
 try:
-    sys.stdout.reconfigure(line_buffering=True)
+    sys.stdout.reconfigure(line_buffering=True, encoding="utf-8", errors="replace")
 except (AttributeError, ValueError):  # pragma: no cover - older/odd streams
     pass
 

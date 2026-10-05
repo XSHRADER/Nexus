@@ -60,8 +60,8 @@ def _print(good: bool, message: str, fix: str = "") -> bool:
 
 
 def check_python() -> bool:
-    ok = sys.version_info >= (3, 10)
-    return _print(ok, f"Python {sys.version.split()[0]}", "install Python 3.10 or newer")
+    ok = sys.version_info >= (3, 11)
+    return _print(ok, f"Python {sys.version.split()[0]}", "install Python 3.11 or newer")
 
 
 def check_dependencies() -> bool:

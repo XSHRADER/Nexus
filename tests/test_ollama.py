@@ -2,6 +2,7 @@ import os
 import unittest
 from unittest import mock
 
+import isolate  # noqa: F401  (must precede any nexus import)
 from fakes import FakeOllama, FakeResponse, stream
 
 from nexus import config, ollama
@@ -130,6 +131,14 @@ class OllamaUrlTests(unittest.TestCase):
 
     def test_host_without_scheme(self):
         self.assertEqual(self.url(OLLAMA_HOST="192.168.1.5"), "http://192.168.1.5:11434")
+
+
+class IsolationTests(unittest.TestCase):
+    def test_the_suite_never_touches_real_user_data(self):
+        root = os.path.realpath(os.environ["NEXUS_TEST_ROOT"])
+        for path in (config.DATA_DIR, config.DOCS_DIR, config.INDEX_DIR,
+                     config.ROUTER_LOG, config.APP_LOG):
+            self.assertTrue(os.path.realpath(path).startswith(root), path)
 
 
 if __name__ == "__main__":

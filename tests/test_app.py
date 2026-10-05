@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import isolate  # noqa: F401  (must precede any nexus import)
+
 _TMP = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
 os.environ["NEXUS_DB"] = os.path.join(_TMP.name, "app-test.db")
 

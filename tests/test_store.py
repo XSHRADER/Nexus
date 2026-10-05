@@ -4,6 +4,7 @@ import time
 import unittest
 from pathlib import Path
 
+import isolate  # noqa: F401  (must precede any nexus import)
 import numpy as np
 
 from nexus import store

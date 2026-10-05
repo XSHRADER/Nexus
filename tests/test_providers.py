@@ -1,6 +1,8 @@
 import unittest
 from unittest import mock
 
+import isolate  # noqa: F401  (must precede any nexus import)
+
 from nexus import ollama, providers
 
 

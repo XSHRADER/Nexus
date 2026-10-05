@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import isolate  # noqa: F401  (must precede any nexus import)
+
 from nexus import ingest
 from nexus.retrieve import Retriever
 

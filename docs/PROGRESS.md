@@ -149,3 +149,26 @@ palette.
 Tests: 171 (new app tests: every page renders, settings survive page switch,
 suggestion chips, chat search, file actions wait for confirmation; store
 search; engine progress callback).
+
+### 5. Phase 3 — cleanup and pipeline (in progress)
+Done:
+- Removed `program_info/` (byte-identical copy of files in `documents/`),
+  `install_streamlit.bat` (hard-coded a path that no longer exists) and
+  `documents/requirements.txt` (a drifting mirror). `ACTION_LOG.md` moved to
+  `docs/`. Stale root `__pycache__/` deleted; the old root routing log was
+  kept as `data/router_logs.before-move.jsonl`.
+- **Bug**: the test suite wrote routing decisions and logs into the user's
+  real `data/` folder. `tests/isolate.py` now points every path at a temp
+  dir, and a test guards it.
+- `numpy` declared (imported directly); Python minimum is now 3.11 (numpy 2.4).
+  `requirements-dev.txt` adds ruff.
+- CI: separate lint job; tests run with one command on Ubuntu *and* Windows.
+
+Remaining:
+- Rewrite `README.md` (still the old phase-by-phase guide that mentions
+  `rag_pipeline.py` and `nexus_rag/`).
+- Refresh the demo knowledge base in `documents/` so it describes the current
+  project, update the golden set (q07 asks about `program_info/`, q15 expects
+  `ingest.py`), then re-run `python -m nexus.evaluate`.
+- Note: `data/router_logs.jsonl` still contains decisions from earlier test
+  runs (model names `a`/`b`); safe to delete.

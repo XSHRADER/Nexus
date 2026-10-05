@@ -1,6 +1,7 @@
 # Secrets
 .env
 *.key
+.streamlit/secrets.toml
 
 # Virtualenvs
 nexus-env/
@@ -11,15 +12,20 @@ venv/
 __pycache__/
 *.py[cod]
 *.egg-info/
+.ruff_cache/
 
-# Generated artifacts (rebuilt by `python ingest.py`)
+# Generated at runtime: the vector index (rebuilt by `python -m nexus.ingest`)
+# and data/ -- saved chats, metrics, logs, the legacy eval index.
 vector_store/
-# Comparison index built on demand by `python eval_rag.py --legacy`
-vector_store_legacy/
+data/
+
+# Old locations of generated files, from before they moved under data/
 router_logs.jsonl
 router_logs.jsonl.*
-# Saved chats and metrics (store.py)
-data/
+vector_store_legacy/
+
+# Local tool state
+.playwright-mcp/
 
 # OS / editor
 .DS_Store

@@ -7,9 +7,26 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install ruff==0.16.10
+      - run: ruff check .
+
+  test:
+    # Windows is where NEXUS runs (and what the PC tools target); Linux keeps
+    # it honest about paths and line endings.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -32,17 +49,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # No Ollama on the runner, and none is needed: the tests exercise
-      # routing, scoring, chunking and retrieval. `providers.availability()`
-      # degrades to an empty model list when the daemon isn't reachable.
+      # No Ollama on the runner, and none is needed: the tests fake the model
+      # server and exercise routing, retrieval, indexing, the UIs and storage.
       - name: Run tests
-        env:
-          PYTHONPATH: .
-        run: |
-          status=0
-          for t in tests/test_*.py; do
-            echo "::group::$t"
-            python "$t" -v || status=1
-            echo "::endgroup::"
-          done
-          exit $status
+        run: python -m unittest discover -s tests -v

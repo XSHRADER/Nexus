@@ -32,7 +32,7 @@ if not exist "%PY%" (
     where python >nul 2>&1
     if errorlevel 1 (
         echo  [!!] Python is not on PATH.
-        echo       Install Python 3.10+ from https://python.org and re-run.
+        echo       Install Python 3.11+ from https://python.org and re-run.
         goto :setup_failed
     )
     echo  [setup] Creating nexus-env...

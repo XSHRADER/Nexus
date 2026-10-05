@@ -2,6 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import isolate  # noqa: F401  (must precede any nexus import)
+
 from nexus.pc_agent import apply, handle, parse_intent, resolve_target
 from nexus.pc_tools import MANIFEST_NAME, PCToolkit
 

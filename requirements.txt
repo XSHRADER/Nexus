@@ -1,15 +1,16 @@
-# NEXUS AI -- fully local. CPU-only except final generation (Ollama).
-# Python 3.13 compatible pins.
+# NEXUS runtime dependencies -- exact, tested versions (Python 3.11-3.13).
+# Everything runs on CPU except generation, which Ollama does separately.
 
-# Retrieval stack
+# Retrieval
 chromadb==1.5.5
 sentence-transformers==5.1.2
 rank-bm25==0.2.2
+numpy==2.4.4
 
-# Document loaders
+# Document readers
 pypdf==4.3.1
 python-docx==1.1.2
 
-# UI + HTTP
+# UI and HTTP
 streamlit==1.62.0
 requests==2.32.3

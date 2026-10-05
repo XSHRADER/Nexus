@@ -19,7 +19,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_DB = PROJECT_DIR / "data" / "nexus.db"
 SCHEMA_VERSION = 1
 TITLE_CHARS = 60

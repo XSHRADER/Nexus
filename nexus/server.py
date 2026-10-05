@@ -17,12 +17,12 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
 
-import providers
-from engine import answer, apply_pending
-from router import TaskRouter
+from nexus import providers
+from nexus.engine import answer, apply_pending
+from nexus.router import TaskRouter
 
-PROJECT_DIR = Path(__file__).resolve().parent
-UI_DIR = PROJECT_DIR / "ui"
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+UI_DIR = Path(__file__).resolve().parent / "static"
 MAX_BODY = 1_000_000   # bytes
 PENDING_TTL = 600.0    # seconds a previewed action stays applicable
 

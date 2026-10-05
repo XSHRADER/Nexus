@@ -73,7 +73,7 @@ def _default_token_counter():
     sentence-transformers stack loaded.
     """
     try:
-        from embeddings import count_tokens
+        from nexus.embeddings import count_tokens
 
         count_tokens("warmup")
         return count_tokens

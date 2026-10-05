@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from loaders import chunk_text
-from retrieve import Retriever, tokenize
+from nexus.loaders import chunk_text
+from nexus.retrieve import Retriever, tokenize
 
 
 def fake_counter(text: str) -> int:
@@ -85,7 +85,7 @@ class RetrieverTests(unittest.TestCase):
     def setUpClass(cls):
         import chromadb
 
-        from embeddings import get_sentence_transformer
+        from nexus.embeddings import get_sentence_transformer
 
         cls.tmp = tempfile.mkdtemp(prefix="nexus_test_")
         model = get_sentence_transformer()

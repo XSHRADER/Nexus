@@ -9,10 +9,10 @@ os.environ["NEXUS_DB"] = os.path.join(_TMP.name, "app-test.db")
 
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
-import engine  # noqa: E402
-import providers  # noqa: E402
-import retrieve  # noqa: E402
-import store  # noqa: E402
+from nexus import engine  # noqa: E402
+from nexus import providers  # noqa: E402
+from nexus import retrieve  # noqa: E402
+from nexus import store  # noqa: E402
 
 APP = str(Path(__file__).resolve().parent.parent / "app.py")
 CHAIN = [

@@ -15,7 +15,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from pc_tools import PCToolkit
+from nexus.pc_tools import PCToolkit
 
 _toolkit = PCToolkit()
 

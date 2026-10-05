@@ -11,7 +11,7 @@ from unittest import mock
 _TMP = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
 os.environ["NEXUS_DB"] = os.path.join(_TMP.name, "server-test.db")
 
-import server  # noqa: E402  (NEXUS_DB must be set before the engine loads)
+from nexus import server  # noqa: E402  (NEXUS_DB must be set before the engine loads)
 
 PREVIEW = {
     "answer": "would move 2 files",

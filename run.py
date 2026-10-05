@@ -157,7 +157,7 @@ def check_documents() -> bool:
 
 
 def build_index(rebuild: bool = False) -> bool:
-    import ingest
+    from nexus import ingest
 
     print("\n-- indexing --")
     try:
@@ -168,20 +168,20 @@ def build_index(rebuild: bool = False) -> bool:
 
 
 def check_index() -> bool:
-    from retrieve import Retriever
+    from nexus.retrieve import Retriever
 
     retriever = Retriever()
     count = retriever._indexed_count
     return _print(
         count > 0,
         f"index holds {count} chunk(s)",
-        "python ingest.py --rebuild",
+        "python -m nexus.ingest --rebuild",
     )
 
 
 def smoke_test() -> bool:
     """Prove the whole path works: retrieve -> prompt -> local model -> text."""
-    from engine import answer
+    from nexus.engine import answer
 
     print("\n-- end-to-end smoke test --")
     question = "What does this project use to store embeddings?"
@@ -230,7 +230,7 @@ def preflight(
 def launch(server: bool) -> int:
     if server:
         print("\nStarting the plain HTTP UI on http://127.0.0.1:8000 (Ctrl+C to stop)")
-        return subprocess.call([sys.executable, str(PROJECT_DIR / "server.py")])
+        return subprocess.call([sys.executable, "-m", "nexus.server"], cwd=PROJECT_DIR)
     print("\nStarting the Streamlit UI on http://127.0.0.1:8501 (Ctrl+C to stop)")
     return subprocess.call(
         [
@@ -274,7 +274,7 @@ def main() -> int:
 
     if args.eval:
         print()
-        return subprocess.call([sys.executable, str(PROJECT_DIR / "eval_rag.py")])
+        return subprocess.call([sys.executable, "-m", "nexus.evaluate"], cwd=PROJECT_DIR)
 
     if args.check:
         if all_clear:

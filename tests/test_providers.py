@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-import providers
+from nexus import providers
 
 
 class ComplexityTests(unittest.TestCase):

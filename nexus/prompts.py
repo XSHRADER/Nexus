@@ -14,7 +14,7 @@ from functools import lru_cache
 
 import requests
 
-from retrieve import Retriever
+from nexus.retrieve import Retriever
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "llama3.1:8b"  # swap for whichever model your router picks

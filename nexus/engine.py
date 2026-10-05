@@ -31,13 +31,13 @@ from typing import Any, Callable
 
 import requests
 
-import pc_agent
-import providers
-import store
-from rag_pipeline import DEFAULT_TOP_K, build_prompt, get_retriever
-from router import TaskRouter
+from nexus import pc_agent
+from nexus import providers
+from nexus import store
+from nexus.prompts import DEFAULT_TOP_K, build_prompt, get_retriever
+from nexus.router import TaskRouter
 
-PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = Path(__file__).resolve().parent.parent
 
 RAG_MODES = ("auto", "always", "never")
 

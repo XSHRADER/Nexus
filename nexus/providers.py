@@ -215,11 +215,11 @@ def availability(
 ) -> dict[str, Any]:
     """Snapshot of what NEXUS can reach right now."""
     if installed_ollama is None:
-        from router import get_installed_ollama_models
+        from nexus.router import get_installed_ollama_models
 
         installed_ollama = get_installed_ollama_models()
     if loaded_ollama is None and installed_ollama:
-        from router import get_loaded_ollama_models
+        from nexus.router import get_loaded_ollama_models
 
         loaded_ollama = get_loaded_ollama_models()
     return {

@@ -27,9 +27,9 @@ import json
 import shutil
 from pathlib import Path
 
-from retrieve import Retriever
+from nexus.retrieve import Retriever
 
-PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = Path(__file__).resolve().parent.parent
 GOLDEN_SET = PROJECT_DIR / "eval" / "golden_set.json"
 DOCS_DIR = PROJECT_DIR / "documents"
 LEGACY_DB = PROJECT_DIR / "vector_store_legacy"
@@ -167,8 +167,8 @@ def build_legacy_index() -> Retriever:
     """Rebuild the index exactly as it was built before the fixes."""
     import chromadb
 
-    from embeddings import count_tokens, get_max_tokens, get_sentence_transformer
-    from loaders import load_document, LOADERS
+    from nexus.embeddings import count_tokens, get_max_tokens, get_sentence_transformer
+    from nexus.loaders import load_document, LOADERS
 
     if LEGACY_DB.exists():
         shutil.rmtree(LEGACY_DB)

@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Any
 import requests
 
-import providers
-from embeddings import get_sentence_transformer
+from nexus import providers
+from nexus.embeddings import get_sentence_transformer
 
 _OLLAMA_CACHE: dict[str, Any] = {"ts": 0.0, "models": []}
 _OLLAMA_TTL = 5.0  # seconds -- route() runs per keystroke-ish; don't hammer the daemon
@@ -49,7 +49,7 @@ def get_loaded_ollama_models() -> list[str]:
     ~30s load on an 8GB card, which only holds one 7B model at a time."""
     return _ollama_models("ps", _LOADED_CACHE, _LOADED_TTL)
 
-PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = Path(__file__).resolve().parent.parent
 LOG_FILE = PROJECT_DIR / "router_logs.jsonl"
 
 

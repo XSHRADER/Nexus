@@ -23,9 +23,9 @@ from pathlib import Path
 
 import streamlit as st
 
-import providers
-import store
-from engine import Options, answer, apply_pending
+from nexus import providers
+from nexus import store
+from nexus.engine import Options, answer, apply_pending
 
 PROJECT_DIR = Path(__file__).resolve().parent
 DOCS_DIR = PROJECT_DIR / "documents"
@@ -76,7 +76,7 @@ st.markdown(
 
 @st.cache_resource(show_spinner=False)
 def _retriever():
-    from retrieve import Retriever
+    from nexus.retrieve import Retriever
 
     return Retriever()
 
@@ -672,7 +672,7 @@ with tab_docs:
     do_rebuild = c2.button("Full rebuild", width='stretch')
 
     if do_incremental or do_rebuild:
-        import ingest
+        from nexus import ingest
 
         with st.spinner("Indexing..."):
             log = io.StringIO()
@@ -695,7 +695,7 @@ with tab_lab:
     st.markdown("#### Retrieval lab")
     st.caption(
         "Retrieval only — no model runs here. Compare what each arm returns for "
-        "the same question. This is the same measurement `eval_rag.py` reports, "
+        "the same question. This is the same measurement `python -m nexus.evaluate` reports, "
         "one query at a time."
     )
 
@@ -749,7 +749,7 @@ with tab_diag:
     st.divider()
     st.markdown("##### Index configuration")
     try:
-        import ingest as _ingest
+        from nexus import ingest as _ingest
 
         st.json(_ingest.index_config())
     except Exception as exc:

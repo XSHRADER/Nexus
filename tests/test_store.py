@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-import store
+from nexus import store
 
 
 class StoreTestCase(unittest.TestCase):

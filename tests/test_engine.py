@@ -7,9 +7,9 @@ from unittest import mock
 _TMP = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
 os.environ["NEXUS_DB"] = os.path.join(_TMP.name, "engine-test.db")
 
-import engine  # noqa: E402
-import providers  # noqa: E402
-import store  # noqa: E402
+from nexus import engine  # noqa: E402
+from nexus import providers  # noqa: E402
+from nexus import store  # noqa: E402
 from fakes import FakeOllama, FakeRetriever, FakeRouter, chunk, stream  # noqa: E402
 
 MESSAGES = [{"role": "user", "content": "hi"}]

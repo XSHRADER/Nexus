@@ -19,9 +19,9 @@ from pathlib import Path
 import chromadb
 from rank_bm25 import BM25Okapi
 
-from embeddings import get_cross_encoder, get_sentence_transformer
+from nexus.embeddings import get_cross_encoder, get_sentence_transformer
 
-DB_DIR = str(Path(__file__).resolve().parent / "vector_store")
+DB_DIR = str(Path(__file__).resolve().parent.parent / "vector_store")
 COLLECTION_NAME = "nexus_documents"
 EMBED_MODEL_NAME = "all-MiniLM-L6-v2"
 

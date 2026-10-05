@@ -2,8 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pc_agent import apply, handle, parse_intent, resolve_target
-from pc_tools import MANIFEST_NAME, PCToolkit
+from nexus.pc_agent import apply, handle, parse_intent, resolve_target
+from nexus.pc_tools import MANIFEST_NAME, PCToolkit
 
 
 class ParseIntentTests(unittest.TestCase):

@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from router import DecisionLogger, TaskRouter
+from nexus.router import DecisionLogger, TaskRouter
 
 
 class DecisionLoggerTests(unittest.TestCase):

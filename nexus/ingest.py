@@ -25,10 +25,10 @@ from pathlib import Path
 
 import chromadb
 
-from embeddings import EMBED_MODEL_NAME, get_max_tokens, get_sentence_transformer
-from loaders import DEFAULT_MAX_TOKENS, DEFAULT_OVERLAP_TOKENS, load_and_chunk_directory
+from nexus.embeddings import EMBED_MODEL_NAME, get_max_tokens, get_sentence_transformer
+from nexus.loaders import DEFAULT_MAX_TOKENS, DEFAULT_OVERLAP_TOKENS, load_and_chunk_directory
 
-PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = Path(__file__).resolve().parent.parent
 DOCS_DIR = str(PROJECT_DIR / "documents")
 DB_DIR = str(PROJECT_DIR / "vector_store")
 HASH_CACHE_FILE = os.path.join(DB_DIR, "file_hashes.json")

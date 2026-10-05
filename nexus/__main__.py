@@ -49,7 +49,7 @@ def main() -> int:
         if not streamed:  # PC actions and "no model" messages aren't streamed
             print(result["answer"], end="")
         sources = sorted({s["source"] for s in result["sources"]})
-        print(f"\n\n  [{result['model'] or 'no model'} ·{result['task']} · {result['elapsed']:.1f}s"
+        print(f"\n\n  [{result['model'] or 'no model'} · {result['task']} · {result['elapsed']:.1f}s"
               + (f" · sources: {', '.join(sources)}" if sources else "") + "]")
         if result.get("info"):
             print(f"  note: {result['info']}")

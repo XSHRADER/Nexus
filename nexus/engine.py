@@ -376,6 +376,7 @@ def answer(
     on_thinking: Callable[[str], None] | None = None,
     history: list[dict[str, str]] | None = None,
     chat_id: str | None = None,
+    on_status: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     """Route `question`, then answer it with the best reachable model.
 
@@ -386,8 +387,10 @@ def answer(
 
     `chain` is every model considered (best first) and `attempts` records what
     was actually tried, so the UI can show *why* a given AI answered. One
-    `turns` row is recorded per call. Exceptions raised by `on_token` /
-    `on_thinking` propagate unchanged and are never treated as a model failure.
+    `turns` row is recorded per call. `on_status` receives short progress
+    lines ("Searching your documents…") for the wait before the first token.
+    Exceptions raised by any callback propagate unchanged and are never
+    treated as a model failure.
     """
     started = time.monotonic()
     base_dir = base_dir or config.PROJECT_DIR
@@ -428,9 +431,13 @@ def answer(
         _finish(result, started, chat_id, error=result["info"])
         return result
 
+    status = on_status or (lambda _text: None)
+    if opts.rag_mode != "never":
+        status("Searching your documents…")
     chunks = _retrieve(result, question, history, opts)
 
     token_cb, thinking_cb = _guard(on_token), _guard(on_thinking)
+    loaded = {m.lower() for m in decision.get("available", {}).get("loaded", [])}
     errors: list[str] = []
     for step, candidate in enumerate(chain):
         model, provider = candidate["model"], candidate["provider"]
@@ -440,6 +447,8 @@ def answer(
             errors.append(f"{model}: {error}")
             continue
 
+        status(f"Writing with {model}…" if model.lower() in loaded
+               else f"Loading {model} — the first answer from a model takes longer…")
         num_ctx = context_window(model)
         fitted = fit_to_window(question, chunks, history, num_ctx, result["needs_rag"])
         think = "thinking" in providers.capabilities(model).get("caps", set())

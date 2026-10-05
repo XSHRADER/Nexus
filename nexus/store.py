@@ -140,14 +140,22 @@ def create_chat(title: str, conn: sqlite3.Connection | None = None) -> str:
     return chat_id
 
 
-def list_chats(limit: int = 20, conn: sqlite3.Connection | None = None) -> list[dict]:
+def list_chats(
+    limit: int = 20, search: str | None = None, conn: sqlite3.Connection | None = None
+) -> list[dict]:
+    """Newest first. `search` matches the title or any message, case-insensitively."""
     conn = conn or _default()
+    sql = "SELECT id, title, created, updated FROM chats"
+    params: list[Any] = []
+    if search and search.strip():
+        like = "%" + search.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        sql += (" WHERE title LIKE ? ESCAPE '\\' OR id IN "
+                "(SELECT chat_id FROM messages WHERE content LIKE ? ESCAPE '\\')")
+        params += [like, like]
+    sql += " ORDER BY updated DESC, created DESC LIMIT ?"
+    params.append(limit)
     with _lock:
-        rows = conn.execute(
-            "SELECT id, title, created, updated FROM chats "
-            "ORDER BY updated DESC, created DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        rows = conn.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
 
 

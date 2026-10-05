@@ -101,3 +101,51 @@ Eval on the real index after the changes (golden set, 18 questions):
 hybrid + cross-encoder recall@5 1.000, MRR 0.724, grounded@5 0.944.
 
 Tests: 133 -> 164, all passing. New: `test_ingest.py`, `test_ollama.py`.
+
+### 3. Terminal chat
+`python -m nexus` replaces the loop in the old `rag_pipeline.py`, which
+skipped routing and always called one hard-coded model. Consoles print UTF-8
+(Windows defaults to cp1252 and crashed on emoji).
+
+### 4. Phase 2 — GUI
+**Structure**: `app.py` is now a 40-line entry point using `st.navigation`;
+pages live in `app_pages/` (Chat, Documents, Retrieval lab, Diagnostics) and
+shared rendering in `nexus/ui.py`. Before, the four views were tabs, and
+Streamlit computes every tab on every rerun -- each chat message also
+re-ran the diagnostics queries and, if a lab question was typed, four
+retrievals.
+
+**Theme**: `.streamlit/config.toml` dark theme (indigo accent, ~5:1 contrast
+for button text), system fonts only so the UI works offline, no custom CSS.
+Server bound to 127.0.0.1 in config too, so a bare `streamlit run app.py`
+can't expose the file tools to the network. The plain HTML UI uses the same
+palette.
+
+**UX changes**
+- Live progress before the first token ("Searching your documents…",
+  "Loading llama3.1:8b — the first answer from a model takes longer…") via a
+  new `on_status` engine callback. Previously a 30 s cold load showed nothing.
+- Answer settings moved from the sidebar into a popover; any non-automatic
+  setting shows as a badge above the chat, with "Reset to automatic".
+  Settings now survive switching pages (`persist_state="session"`).
+- Sidebar: New chat, chat search (titles and message text), per-chat delete
+  with inline confirm, status block (Ollama, index, models in memory).
+- Per answer: native badges, "How this was answered" with first-token time,
+  tokens/s, prompt size, model load time and the scored model chain; numbered
+  sources matching the `[n]` citations.
+- Empty state with suggestion chips and guidance when Ollama is down or
+  nothing is indexed (links to Documents).
+- Documents: metrics row, files table with per-file status (indexed / not
+  yet / could not be read / deleted), "Add and index" in one step (the old
+  uploader rewrote every file on every rerun), progress in `st.status`.
+- Export as Markdown with sources.
+
+**Bugs found while testing in the browser**
+- Document excerpts rendered as Markdown: a line of `===` turned the line
+  above into a page-wide heading. Excerpts are now one escaped line.
+- Status block above the page delayed the whole page on first load (models
+  loading); moved below the page content.
+
+Tests: 171 (new app tests: every page renders, settings survive page switch,
+suggestion chips, chat search, file actions wait for confirmation; store
+search; engine progress callback).

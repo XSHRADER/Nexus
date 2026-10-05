@@ -1,0 +1,64 @@
+# NEXUS Streamlit settings. Used by `python run.py` and by a plain
+# `streamlit run app.py` alike.
+
+[server]
+# Local only: NEXUS can move files on this PC, so it must not listen on the
+# network. run.py passes the same values on the command line.
+address = "127.0.0.1"
+port = 8501
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = "type"
+
+[theme]
+base = "dark"
+
+# Surfaces, darkest to lightest: page < sidebar < cards/inputs < borders.
+backgroundColor = "#0e1016"
+secondaryBackgroundColor = "#171a23"
+textColor = "#e4e7ef"
+borderColor = "#2a2f3d"
+showWidgetBorder = true
+showSidebarBorder = true
+
+# Indigo accent. White button text on #5b5bd6 is ~5:1 (WCAG AA).
+primaryColor = "#5b5bd6"
+linkColor = "#9aa5ff"
+linkUnderline = false
+
+codeBackgroundColor = "#12151d"
+codeTextColor = "#c9d1e3"
+
+# System fonts only: NEXUS works offline, so no web-font downloads.
+font = "sans-serif"
+codeFont = "monospace"
+baseFontSize = 15
+headingFontWeights = [650, 600, 600, 600, 600, 600]
+headingFontSizes = ["30px", "23px", "19px", "16px", "14px", "13px"]
+
+baseRadius = "10px"
+buttonRadius = "8px"
+
+# Status colours: badges, callouts, coloured markdown.
+blueColor = "#6c8cff"
+greenColor = "#3fb27f"
+orangeColor = "#e0a03d"
+redColor = "#e5636b"
+violetColor = "#a78bfa"
+grayColor = "#8a93a6"
+yellowColor = "#d9c35c"
+
+dataframeBorderColor = "#262b38"
+dataframeHeaderBackgroundColor = "#1b1f2a"
+
+chartCategoricalColors = ["#6c8cff", "#3fb27f", "#e0a03d", "#a78bfa", "#e5636b", "#4fc3d9", "#8a93a6"]
+
+[theme.sidebar]
+backgroundColor = "#12141b"
+secondaryBackgroundColor = "#1a1d27"
+borderColor = "#252a37"

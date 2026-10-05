@@ -215,6 +215,14 @@ class AnswerTests(unittest.TestCase):
         self.assertIn("[1] doc0.md", prompt)
         self.assertIn("[2] doc1.md", prompt)
 
+    def test_progress_is_reported_before_the_first_token(self):
+        self.use(chain=("a", "b"), scripts={"a": ConnectionError("down"), "b": stream("ok")})
+        seen = []
+        engine.answer("hello", on_status=seen.append)
+        self.assertEqual(seen[0], "Searching your documents…")
+        self.assertTrue(seen[1].startswith("Loading a"))
+        self.assertTrue(seen[2].startswith("Loading b"))  # the fallback is announced too
+
     def test_applied_action_has_the_full_result_shape(self):
         with mock.patch.object(engine.pc_agent, "apply", return_value={"answer": "done"}):
             result = engine.apply_pending({"op": "organize", "path": "x"})

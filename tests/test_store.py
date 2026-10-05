@@ -48,6 +48,21 @@ class ChatTests(StoreTestCase):
         store.append_message(a, "user", "bump", conn=self.conn)
         self.assertEqual([c["id"] for c in store.list_chats(conn=self.conn)], [a, b])
 
+    def test_search_matches_titles_and_message_text(self):
+        a = store.create_chat("Embedding models", conn=self.conn)
+        b = store.create_chat("Sorting folders", conn=self.conn)
+        store.append_message(b, "assistant", "Moved 3 files into Images/", conn=self.conn)
+
+        def found(term):
+            return {c["id"] for c in store.list_chats(search=term, conn=self.conn)}
+
+        self.assertEqual(found("embedding"), {a})
+        self.assertEqual(found("IMAGES"), {b})
+        self.assertEqual(found("   "), {a, b})
+        # LIKE wildcards in the query are literal text, not patterns.
+        self.assertEqual(found("%"), set())
+        self.assertEqual(found("_"), set())
+
     def test_delete_cascades_to_messages(self):
         chat = store.create_chat("a", conn=self.conn)
         store.append_message(chat, "user", "hello", conn=self.conn)

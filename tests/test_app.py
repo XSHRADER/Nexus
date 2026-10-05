@@ -58,7 +58,7 @@ class AppFlowTests(unittest.TestCase):
             self.addCleanup(patcher.stop)
 
     def fake_answer(self, question, base_dir=None, options=None, on_token=None,
-                    on_thinking=None, history=None, chat_id=None):
+                    on_thinking=None, history=None, chat_id=None, on_status=None):
         self.calls.append({"question": question, "options": options,
                            "history": history, "chat_id": chat_id})
         model = options.force_model if options and options.force_model else "a"
@@ -114,6 +114,59 @@ class AppFlowTests(unittest.TestCase):
         last = self.calls[-1]
         self.assertEqual(last["options"].force_model, "b")
         self.assertEqual(last["history"], [])
+
+    def test_every_page_renders(self):
+        at = self.start()
+        for page in ("documents.py", "lab.py", "diagnostics.py", "chat.py"):
+            at.switch_page(f"app_pages/{page}").run()
+            self.assertFalse(at.exception, f"{page}: {at.exception}")
+
+    def test_answer_settings_survive_a_page_switch(self):
+        # Widget state is dropped when a widget isn't rendered, so settings
+        # used to reset whenever the user looked at another page.
+        at = self.start()
+        at.selectbox(key="opt_model").set_value("b").run()
+        at.switch_page("app_pages/diagnostics.py").run()
+        at.switch_page("app_pages/chat.py").run()
+        self.ask(at, "hello")
+        self.assertEqual(self.calls[-1]["options"].force_model, "b")
+
+    def test_suggestion_asks_the_question(self):
+        at = self.start()
+        at.pills(key="suggestion").set_value(at.pills(key="suggestion").options[0]).run()
+        self.assertFalse(at.exception, at.exception)
+        self.assertEqual(self.calls[-1]["question"], "What does this project use to store embeddings?")
+
+    def test_chat_search_filters_the_sidebar(self):
+        at = self.start()
+        self.ask(at, "alpha question")
+        at.button(key="new_chat").click().run()
+        self.ask(at, "beta question")
+        at.text_input(key="chat_search").input("alpha").run()
+        titles = [b.label for b in at.sidebar.button if b.key and b.key.startswith("open_")]
+        self.assertEqual(titles, ["alpha question"])
+
+    def test_file_action_waits_for_confirmation(self):
+        pending = {"op": "organize", "path": "C:/tmp/demo"}
+        real = self.fake_answer
+
+        def previewing(question, **kwargs):
+            result = real(question, **kwargs)
+            result.update(task="system_agent", model="pc-toolkit", chain=[],
+                          answer="Plan: 2 files", requires_confirmation=True, pending=pending)
+            return result
+
+        applied = []
+        with mock.patch.object(engine, "answer", previewing), \
+                mock.patch.object(engine, "apply_pending",
+                                  lambda p: applied.append(p) or {"answer": "Moved 2 files."}):
+            at = self.start()
+            self.ask(at, "sort my demo folder")
+            self.assertEqual(applied, [])  # nothing happens without the click
+            at.button(key="apply_pending").click().run()
+        self.assertEqual(applied, [pending])
+        chat = store.list_chats()[0]
+        self.assertEqual(store.load_messages(chat["id"])[-1]["content"], "Moved 2 files.")
 
     def test_deleting_a_chat(self):
         at = self.start()

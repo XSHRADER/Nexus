@@ -18,21 +18,20 @@ Metrics
                  change underneath it.
 
 Usage
-    python eval_rag.py                # ablate the arms of the current index
-    python eval_rag.py --legacy       # also rebuild + score the pre-fix index
+    python -m nexus.evaluate            # ablate the arms of the current index
+    python -m nexus.evaluate --legacy   # also rebuild + score the pre-fix index
 """
 
 import argparse
 import json
 import shutil
-from pathlib import Path
 
-from nexus.retrieve import Retriever
+from nexus import config
+from nexus.retrieve import Retriever, get_retriever
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent
-GOLDEN_SET = PROJECT_DIR / "eval" / "golden_set.json"
-DOCS_DIR = PROJECT_DIR / "documents"
-LEGACY_DB = PROJECT_DIR / "vector_store_legacy"
+GOLDEN_SET = config.GOLDEN_SET
+DOCS_DIR = config.DOCS_DIR
+LEGACY_DB = config.DATA_DIR / "vector_store_legacy"
 
 TOP_K = 5
 
@@ -46,7 +45,7 @@ CONFIGS = [
 
 
 def load_golden() -> list[dict]:
-    with open(GOLDEN_SET, "r", encoding="utf-8") as f:
+    with open(GOLDEN_SET, encoding="utf-8") as f:
         return json.load(f)["questions"]
 
 
@@ -158,7 +157,7 @@ def _legacy_chunk(text: str, chunk_size: int = 1600, overlap: int = 240) -> list
     if overlap <= 0 or len(raw) <= 1:
         return raw
     stitched = [raw[0]]
-    for prev, cur in zip(raw, raw[1:]):
+    for prev, cur in zip(raw, raw[1:], strict=False):
         stitched.append((prev[-overlap:] + " " + cur).strip())
     return stitched
 
@@ -168,7 +167,7 @@ def build_legacy_index() -> Retriever:
     import chromadb
 
     from nexus.embeddings import count_tokens, get_max_tokens, get_sentence_transformer
-    from nexus.loaders import load_document, LOADERS
+    from nexus.loaders import LOADERS, load_document
 
     if LEGACY_DB.exists():
         shutil.rmtree(LEGACY_DB)
@@ -217,8 +216,8 @@ def main() -> int:
     questions = load_golden()
     print(f"Golden set: {len(questions)} questions over {DOCS_DIR.name}/")
 
-    current = Retriever()
-    print(f"Current index: {current._indexed_count} chunks")
+    current = get_retriever()
+    print(f"Current index: {current.stats()['chunks']} chunks")
 
     rows = [(name, evaluate(current, questions, **kwargs)) for name, kwargs in CONFIGS]
     print_table("CURRENT INDEX (token-aware chunks, normalised, cosine)", rows)

@@ -1,75 +1,91 @@
 """
 ingest.py
-Run this whenever you add/change documents in ./documents
-It embeds new/changed chunks and stores them in a local Chroma DB.
-Unchanged files are skipped (hash-based) so you don't re-embed everything
-every time -- this matters on CPU.
+Embeds new and changed documents into the local Chroma index.
+
+Unchanged files are skipped by content hash, and only changed files are read
+at all, so re-indexing stays fast on CPU as the document set grows. A file
+that fails to load is reported and retried next run rather than being marked
+as done.
 
 The index also records *how* it was built (embedding model, chunk budget,
-distance metric). If any of that changes, the whole collection is rebuilt
-automatically -- a store half-written by one chunking scheme and half by
-another retrieves worse than either one alone, and nothing about it looks
-broken from the outside.
+distance metric, chunker version). If any of that changes, the whole
+collection is rebuilt automatically -- a store half-written by one chunking
+scheme and half by another retrieves worse than either one alone, and nothing
+about it looks broken from the outside.
 
 Usage:
-    python ingest.py              # incremental
-    python ingest.py --rebuild    # force a full re-index
+    python -m nexus.ingest              # incremental
+    python -m nexus.ingest --rebuild    # force a full re-index
 """
+
+from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import os
-import shutil
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import chromadb
 
-from nexus.embeddings import EMBED_MODEL_NAME, get_max_tokens, get_sentence_transformer
-from nexus.loaders import DEFAULT_MAX_TOKENS, DEFAULT_OVERLAP_TOKENS, load_and_chunk_directory
+from nexus import config
+from nexus.embeddings import get_max_tokens, get_sentence_transformer
+from nexus.loaders import DEFAULT_MAX_TOKENS, DEFAULT_OVERLAP_TOKENS, LOADERS, chunk_file
+from nexus.retrieve import STAMP_NAME
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent
-DOCS_DIR = str(PROJECT_DIR / "documents")
-DB_DIR = str(PROJECT_DIR / "vector_store")
-HASH_CACHE_FILE = os.path.join(DB_DIR, "file_hashes.json")
-COLLECTION_NAME = "nexus_documents"
-
-# Must match retrieve.py -- normalised vectors compared by cosine.
-COLLECTION_METADATA = {"hnsw:space": "cosine"}
-
+SUPPORTED = frozenset(LOADERS)
 # Chroma rejects very large single add() calls.
 ADD_BATCH = 256
-
-SUPPORTED = {".txt", ".md", ".pdf", ".docx"}
 
 
 def index_config() -> dict:
     """Everything that, if changed, invalidates the existing vectors."""
     return {
-        "embed_model": EMBED_MODEL_NAME,
+        "embed_model": config.EMBED_MODEL,
         "max_tokens": DEFAULT_MAX_TOKENS,
         "overlap_tokens": DEFAULT_OVERLAP_TOKENS,
-        "space": COLLECTION_METADATA["hnsw:space"],
-        "chunker": "token-aware-v2",
+        "space": config.COLLECTION_METADATA["hnsw:space"],
+        # v3: DOCX tables are read, text files lose their BOM.
+        "chunker": "token-aware-v3",
     }
 
 
-def file_hash(path: str) -> str:
+@dataclass
+class Report:
+    """What one ingest run did, for the CLI and the UI."""
+
+    rebuilt: bool = False
+    rebuild_reason: str | None = None
+    added: list[str] = field(default_factory=list)      # new or changed, indexed
+    removed: list[str] = field(default_factory=list)    # deleted from documents/
+    failed: dict[str, str] = field(default_factory=dict)  # file -> error
+    chunks_added: int = 0
+    total_chunks: int = 0
+    total_files: int = 0
+
+    @property
+    def changed(self) -> bool:
+        return bool(self.rebuilt or self.added or self.removed)
+
+
+def file_hash(path: Path) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
-        for block in iter(lambda: f.read(8192), b""):
+        for block in iter(lambda: f.read(65536), b""):
             h.update(block)
     return h.hexdigest()
 
 
-def load_cache() -> tuple[dict, dict]:
+def _cache_path(index_dir: Path) -> Path:
+    return index_dir / STAMP_NAME
+
+
+def load_cache(index_dir: Path) -> tuple[dict, dict]:
     """Returns (config, {relative_path: hash})."""
-    if not os.path.exists(HASH_CACHE_FILE):
-        return {}, {}
     try:
-        with open(HASH_CACHE_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except (json.JSONDecodeError, OSError):
+        data = json.loads(_cache_path(index_dir).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
         return {}, {}
     if isinstance(data, dict) and "files" in data:
         return data.get("config", {}), data.get("files", {})
@@ -78,142 +94,137 @@ def load_cache() -> tuple[dict, dict]:
     return {}, data if isinstance(data, dict) else {}
 
 
-def save_cache(files: dict) -> None:
-    os.makedirs(DB_DIR, exist_ok=True)
-    with open(HASH_CACHE_FILE, "w", encoding="utf-8") as f:
-        json.dump({"config": index_config(), "files": files}, f, indent=2)
+def save_cache(index_dir: Path, files: dict) -> None:
+    """Also the retriever's freshness stamp: rewriting it tells a running UI
+    to reload. Written via a temp file so a crash can't leave half a file."""
+    index_dir.mkdir(parents=True, exist_ok=True)
+    target = _cache_path(index_dir)
+    tmp = target.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"config": index_config(), "files": files}, indent=2), encoding="utf-8")
+    tmp.replace(target)
 
 
-def scan(docs_dir: str, cache: dict) -> tuple[list[str], dict]:
-    changed, current = [], {}
-    for root, _, files in os.walk(docs_dir):
-        for fname in files:
-            if Path(fname).suffix.lower() not in SUPPORTED:
+def scan(docs_dir: Path) -> dict[str, Path]:
+    """{relative posix path: absolute path} for every supported file."""
+    found = {}
+    for path in sorted(docs_dir.rglob("*")):
+        if path.is_file() and path.suffix.lower() in SUPPORTED and not path.name.startswith("~$"):
+            found[path.relative_to(docs_dir).as_posix()] = path
+    return found
+
+
+def run(
+    force_rebuild: bool = False,
+    docs_dir: Path | None = None,
+    index_dir: Path | None = None,
+    echo: Callable[[str], None] = print,
+) -> Report:
+    """Bring the index in line with `docs_dir`. `echo` receives progress lines."""
+    docs_dir = Path(docs_dir or config.DOCS_DIR)
+    index_dir = Path(index_dir or config.INDEX_DIR)
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    index_dir.mkdir(parents=True, exist_ok=True)
+    report = Report()
+
+    saved_config, cache = load_cache(index_dir)
+    wanted = index_config()
+    if force_rebuild or saved_config != wanted:
+        report.rebuilt = True
+        report.rebuild_reason = "rebuild requested" if force_rebuild else "index settings changed"
+        if saved_config and not force_rebuild:
+            for key in sorted(set(saved_config) | set(wanted)):
+                if saved_config.get(key) != wanted.get(key):
+                    echo(f"  {key}: {saved_config.get(key)!r} -> {wanted.get(key)!r}")
+        cache = {}
+
+    client = chromadb.PersistentClient(path=str(index_dir))
+    if report.rebuilt:
+        echo(f"Full rebuild ({report.rebuild_reason}).")
+        # Through Chroma rather than deleting files: the distance metric is
+        # fixed when a collection is created, and a running UI may hold the
+        # store's files open.
+        try:
+            client.delete_collection(config.COLLECTION_NAME)
+        except Exception:  # absent on first run; any other error resurfaces below
+            pass
+    collection = client.get_or_create_collection(
+        config.COLLECTION_NAME, metadata=config.COLLECTION_METADATA
+    )
+
+    files = scan(docs_dir)
+    hashes = {rel: file_hash(path) for rel, path in files.items()}
+    changed = [rel for rel, h in hashes.items() if cache.get(rel) != h]
+    report.removed = [rel for rel in cache if rel not in files]
+
+    for rel in report.removed + changed:
+        stale = collection.get(where={"source": rel}, include=[])
+        if stale.get("ids"):
+            collection.delete(ids=stale["ids"])
+    if report.removed:
+        echo(f"Removed {len(report.removed)} deleted file(s): {', '.join(report.removed)}")
+
+    chunks: list[dict] = []
+    if changed:
+        echo(f"Reading {len(changed)} new or changed file(s)...")
+        for rel in changed:
+            try:
+                file_chunks = chunk_file(files[rel], rel)
+            except Exception as exc:  # one bad file must not stop the rest
+                report.failed[rel] = str(exc)
+                echo(f"  [skip] {rel}: {exc}")
                 continue
-            full_path = os.path.join(root, fname)
-            rel = Path(full_path).relative_to(Path(docs_dir).resolve()).as_posix()
-            h = file_hash(full_path)
-            current[rel] = h
-            if cache.get(rel) != h:
-                changed.append(rel)
-    return changed, current
+            if not file_chunks:
+                echo(f"  [empty] {rel}: no text found")
+            chunks.extend(file_chunks)
+            report.added.append(rel)
+
+    if chunks:
+        limit = get_max_tokens()
+        sizes = sorted(c["n_tokens"] for c in chunks)
+        echo(f"Embedding {len(chunks)} chunks (tokens: median {sizes[len(sizes) // 2]}, "
+             f"max {sizes[-1]}, embedder limit {limit})...")
+        oversized = sum(1 for n in sizes if n > limit)
+        if oversized:
+            echo(f"  WARNING: {oversized} chunk(s) exceed the embedder limit and will be truncated.")
+        model = get_sentence_transformer(config.EMBED_MODEL)
+        for start in range(0, len(chunks), ADD_BATCH):
+            batch = chunks[start : start + ADD_BATCH]
+            texts = [c["text"] for c in batch]
+            vectors = model.encode(texts, normalize_embeddings=True).tolist()
+            collection.add(
+                ids=[c["id"] for c in batch],
+                embeddings=vectors,
+                documents=texts,
+                metadatas=[
+                    {"source": c["source"], "chunk_index": c["chunk_index"], "n_tokens": c["n_tokens"]}
+                    for c in batch
+                ],
+            )
+        report.chunks_added = len(chunks)
+
+    # A file that failed is left out, so the next run sees it as changed and
+    # tries again (its old chunks were deleted above).
+    done = {rel: h for rel, h in hashes.items() if rel not in report.failed}
+    if report.changed or done != cache:
+        save_cache(index_dir, done)
+
+    report.total_chunks = collection.count()
+    report.total_files = len(done)
+    if not report.changed and not report.failed:
+        echo(f"Index is up to date: {report.total_chunks} chunks from {report.total_files} file(s).")
+    else:
+        echo(f"Done. {report.total_chunks} chunks from {report.total_files} file(s)"
+             + (f"; {len(report.failed)} could not be read." if report.failed else "."))
+    return report
 
 
 def main(force_rebuild: bool = False) -> int:
-    os.makedirs(DOCS_DIR, exist_ok=True)
-    os.makedirs(DB_DIR, exist_ok=True)
-
-    saved_config, cache = load_cache()
-    config_changed = saved_config != index_config()
-    rebuild = force_rebuild or config_changed
-
-    if rebuild and saved_config:
-        reason = "--rebuild requested" if force_rebuild else "index config changed"
-        print(f"Full rebuild ({reason}).")
-        if config_changed and saved_config:
-            for key in set(saved_config) | set(index_config()):
-                was, now = saved_config.get(key), index_config().get(key)
-                if was != now:
-                    print(f"  {key}: {was!r} -> {now!r}")
-
-    if rebuild:
-        cache = {}
-        if os.path.isdir(DB_DIR):
-            # Drop the whole store: the distance metric is fixed at collection
-            # creation, so it cannot be changed in place.
-            for entry in Path(DB_DIR).iterdir():
-                if entry.name == "file_hashes.json":
-                    continue
-                shutil.rmtree(entry) if entry.is_dir() else entry.unlink()
-
-    client = chromadb.PersistentClient(path=DB_DIR)
-    collection = client.get_or_create_collection(
-        COLLECTION_NAME, metadata=COLLECTION_METADATA
-    )
-
-    changed_files, current_files = scan(DOCS_DIR, cache)
-    deleted_files = [src for src in cache if src not in current_files]
-
-    if not changed_files and not deleted_files:
-        print(f"No new, changed, or deleted documents. {collection.count()} chunks indexed.")
-        return 0
-
-    if deleted_files:
-        print(f"Removing chunks for {len(deleted_files)} deleted file(s): {deleted_files}")
-        for rel in deleted_files:
-            existing = collection.get(where={"source": rel})
-            if existing and existing.get("ids"):
-                collection.delete(ids=existing["ids"])
-
-    if changed_files:
-        print(f"Found {len(changed_files)} new/changed file(s): {changed_files}")
-        print("Loading embedding model (CPU)...")
-        model = get_sentence_transformer(EMBED_MODEL_NAME)
-        limit = get_max_tokens()
-
-        for rel in changed_files:
-            existing = collection.get(where={"source": rel})
-            if existing and existing.get("ids"):
-                collection.delete(ids=existing["ids"])
-
-        print("Chunking documents...")
-        all_chunks = load_and_chunk_directory(DOCS_DIR)
-        to_embed = [c for c in all_chunks if c["source"] in changed_files]
-
-        if not to_embed:
-            print("No chunks produced from changed files (empty or unreadable).")
-        else:
-            oversized = [c for c in to_embed if c["n_tokens"] > limit]
-            if oversized:
-                # Should be impossible now that chunking is token-aware; if it
-                # ever fires, the vectors would silently describe only the
-                # first `limit` tokens of those chunks.
-                print(
-                    f"  WARNING: {len(oversized)} chunk(s) exceed the {limit}-token "
-                    f"embedder limit and will be truncated."
-                )
-            token_counts = [c["n_tokens"] for c in to_embed]
-            print(
-                f"Embedding {len(to_embed)} chunks "
-                f"(tokens: min={min(token_counts)} "
-                f"median={sorted(token_counts)[len(token_counts) // 2]} "
-                f"max={max(token_counts)}, limit={limit})..."
-            )
-
-            for start in range(0, len(to_embed), ADD_BATCH):
-                batch = to_embed[start : start + ADD_BATCH]
-                texts = [c["text"] for c in batch]
-                embeddings = model.encode(
-                    texts,
-                    normalize_embeddings=True,
-                    show_progress_bar=len(to_embed) > ADD_BATCH,
-                ).tolist()
-                collection.add(
-                    ids=[c["id"] for c in batch],
-                    embeddings=embeddings,
-                    documents=texts,
-                    metadatas=[
-                        {
-                            "source": c["source"],
-                            "chunk_index": c["chunk_index"],
-                            "n_tokens": c["n_tokens"],
-                        }
-                        for c in batch
-                    ],
-                )
-
-    save_cache(current_files)
-    total = collection.count()
-    print(f"Done. Collection now has {total} chunks from {len(current_files)} file(s).")
-    return 0
+    report = run(force_rebuild=force_rebuild)
+    return 1 if report.failed else 0
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build the NEXUS document index.")
-    parser.add_argument(
-        "--rebuild",
-        action="store_true",
-        help="Delete and re-create the index from scratch.",
-    )
+    parser.add_argument("--rebuild", action="store_true", help="Re-create the index from scratch.")
     args = parser.parse_args()
     raise SystemExit(main(force_rebuild=args.rebuild))

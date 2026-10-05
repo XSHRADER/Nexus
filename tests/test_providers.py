@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from nexus import providers
+from nexus import ollama, providers
 
 
 class ComplexityTests(unittest.TestCase):
@@ -28,6 +28,15 @@ class ResolveInstalledTests(unittest.TestCase):
         spec = providers.BY_NAME["llama3.1:8b"]
         self.assertEqual(providers.resolve_installed(spec, ["llama3.1:latest"]), "llama3.1:latest")
 
+    def test_quantised_tag_of_the_same_size_matches(self):
+        spec = providers.BY_NAME["llama3.1:8b"]
+        tag = "llama3.1:8b-instruct-q4_K_M"
+        self.assertEqual(providers.resolve_installed(spec, [tag]), tag)
+
+    def test_a_different_size_is_a_different_model(self):
+        spec = providers.BY_NAME["llama3.1:8b"]
+        self.assertIsNone(providers.resolve_installed(spec, ["llama3.1:70b"]))
+
     def test_missing_model(self):
         spec = providers.BY_NAME["llama3.1:8b"]
         self.assertIsNone(providers.resolve_installed(spec, ["mistral:7b"]))
@@ -36,8 +45,8 @@ class ResolveInstalledTests(unittest.TestCase):
 class PlanTests(unittest.TestCase):
     AVAIL = {"ollama": ["llama3.1:8b", "qwen2.5-coder:7b", "deepseek-r1:7b", "llava:7b"]}
 
-    def _top(self, task, query, needs_rag=False, avail=None):
-        chain = providers.plan(task, query, needs_rag, avail=avail or self.AVAIL)
+    def _top(self, task, query, avail=None):
+        chain = providers.plan(task, query, avail=avail or self.AVAIL)
         return chain[0].model if chain else None
 
     def test_planning_goes_to_the_reasoning_specialist(self):
@@ -54,14 +63,22 @@ class PlanTests(unittest.TestCase):
     def test_coding_prefers_specialist_local_model(self):
         self.assertEqual(self._top("coding", "write a function to sort a list"), "qwen2.5-coder:7b")
 
-    def test_rag_keeps_documents_local(self):
-        chain = providers.plan("general", "summarize my notes", needs_rag=True, avail=self.AVAIL)
-        self.assertTrue(chain[0].spec.is_local)
+    def test_vision_models_are_never_offered_for_text(self):
+        for task in providers.TEXT_TASKS:
+            chain = providers.plan(task, "what is in this image", avail=self.AVAIL)
+            self.assertNotIn("llava:7b", [c.model for c in chain], task)
 
-    def test_only_capable_models_are_offered(self):
-        chain = providers.plan("vision", "what is in this image", avail=self.AVAIL)
-        for candidate in chain:
-            self.assertIn("vision", candidate.spec.strengths)
+    def test_each_installed_model_appears_once(self):
+        # Two sizes of one family both resolve to a bare `qwen2.5` tag; the
+        # engine must not try the same model twice.
+        catalog = [
+            providers.ModelSpec("qwen2.5:7b", "ollama", {"general": 0.8}),
+            providers.ModelSpec("qwen2.5:14b", "ollama", {"general": 0.9}),
+        ]
+        with mock.patch.object(providers, "CATALOG", catalog):
+            chain = providers.plan("general", "hello", avail={"ollama": ["qwen2.5"]})
+        self.assertEqual([c.model for c in chain], ["qwen2.5"])
+        self.assertEqual(chain[0].spec.name, "qwen2.5:14b")  # the better fit wins
 
     def test_chain_is_ordered_best_first(self):
         chain = providers.plan("reasoning", "compare these trade-offs", avail=self.AVAIL)
@@ -176,7 +193,7 @@ class CapabilitiesTests(unittest.TestCase):
             "details": {"parameter_size": "8.0B"},
             "model_info": {"llama.context_length": 131072},
         }
-        with mock.patch.object(providers.requests, "post", return_value=response) as post:
+        with mock.patch.object(ollama.requests, "post", return_value=response) as post:
             info = providers.capabilities("llama3.1:8b")
             providers.capabilities("llama3.1:8b")
         self.assertEqual(info["caps"], {"completion", "tools"})
@@ -186,8 +203,8 @@ class CapabilitiesTests(unittest.TestCase):
 
     def test_degrades_and_retries_when_ollama_is_down(self):
         with mock.patch.object(
-            providers.requests, "post",
-            side_effect=providers.requests.ConnectionError("down"),
+            ollama.requests, "post",
+            side_effect=ollama.requests.ConnectionError("down"),
         ) as post:
             info = providers.capabilities("llama3.1:8b")
             providers.capabilities("llama3.1:8b")

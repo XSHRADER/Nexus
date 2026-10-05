@@ -7,79 +7,19 @@ from unittest import mock
 _TMP = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
 os.environ["NEXUS_DB"] = os.path.join(_TMP.name, "engine-test.db")
 
-from nexus import engine  # noqa: E402
-from nexus import providers  # noqa: E402
-from nexus import store  # noqa: E402
 from fakes import FakeOllama, FakeRetriever, FakeRouter, chunk, stream  # noqa: E402
+
+from nexus import (  # noqa: E402
+    engine,
+    ollama,
+    providers,  # noqa: E402
+    store,  # noqa: E402
+)
 
 MESSAGES = [{"role": "user", "content": "hi"}]
 
 
-class OllamaChatTests(unittest.TestCase):
-    def use(self, scripts):
-        self.ollama = FakeOllama(scripts)
-        patcher = mock.patch.object(engine.requests, "post", self.ollama)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
-    def test_streams_tokens_and_reports_metrics(self):
-        self.use({"a": stream("Hel", "lo")})
-        seen = []
-        reply = engine._ollama_chat("a", MESSAGES, on_token=seen.append)
-        self.assertEqual(reply.text, "Hello")
-        self.assertEqual(seen, ["Hel", "lo"])
-        self.assertIsNone(reply.thinking)
-        self.assertEqual(reply.metrics["tokens_per_s"], 20.0)
-        self.assertEqual(reply.metrics["load_ms"], 2000.0)
-        self.assertEqual(reply.metrics["prompt_tokens"], 50)
-        self.assertEqual(reply.metrics["eval_tokens"], 20)
-        self.assertIsNotNone(reply.metrics["ttft_ms"])
-
-    def test_payload_uses_chat_endpoint_window_and_timeouts(self):
-        self.use({"a": stream("ok")})
-        engine._ollama_chat("a", MESSAGES, temperature=0.2, num_ctx=4096)
-        call = self.ollama.calls[0]
-        self.assertTrue(call["url"].endswith("/api/chat"))
-        self.assertTrue(call["stream"])
-        self.assertEqual(call["timeout"], (5, 120))
-        self.assertEqual(call["json"]["messages"], MESSAGES)
-        self.assertEqual(call["json"]["options"], {"temperature": 0.2, "num_ctx": 4096})
-        self.assertNotIn("think", call["json"])
-
-    def test_think_flag_is_sent_only_when_asked(self):
-        self.use({"a": stream("ok")})
-        engine._ollama_chat("a", MESSAGES, think=True)
-        self.assertIs(self.ollama.calls[0]["json"]["think"], True)
-
-    def test_native_thinking_is_kept_separate(self):
-        self.use({"a": stream("Answer", thinking=("step one ", "step two"))})
-        thoughts = []
-        reply = engine._ollama_chat("a", MESSAGES, on_thinking=thoughts.append)
-        self.assertEqual(reply.text, "Answer")
-        self.assertEqual(reply.thinking, "step one step two")
-        self.assertEqual(thoughts, ["step one ", "step two"])
-
-    def test_inline_think_block_is_moved_out_of_the_answer(self):
-        self.use({"a": stream("<think>plan it</think>", "\n\nDone")})
-        reply = engine._ollama_chat("a", MESSAGES)
-        self.assertEqual(reply.text, "Done")
-        self.assertEqual(reply.thinking, "plan it")
-
-    def test_close_tag_only(self):
-        self.use({"a": stream("plan it</think>Done")})
-        reply = engine._ollama_chat("a", MESSAGES)
-        self.assertEqual((reply.text, reply.thinking), ("Done", "plan it"))
-
-    def test_error_chunk_raises(self):
-        self.use({"a": [{"error": "model not found"}]})
-        with self.assertRaisesRegex(RuntimeError, "model not found"):
-            engine._ollama_chat("a", MESSAGES)
-
-    def test_empty_reply_raises(self):
-        self.use({"a": stream()})
-        with self.assertRaisesRegex(RuntimeError, "empty"):
-            engine._ollama_chat("a", MESSAGES)
-
+class GuardTests(unittest.TestCase):
     def test_guard_wraps_callback_errors(self):
         def boom(_):
             raise ValueError("ui gone")
@@ -108,7 +48,7 @@ class AnswerTests(unittest.TestCase):
         for patcher in (
             mock.patch.object(engine, "get_router", lambda: self.router),
             mock.patch.object(engine, "get_retriever", lambda: self.retriever),
-            mock.patch.object(engine.requests, "post", self.ollama),
+            mock.patch.object(ollama.requests, "post", self.ollama),
             mock.patch.object(providers, "capabilities",
                               lambda m: {**NO_CAPS, **caps.get(m, {})}),
         ):
@@ -239,6 +179,47 @@ class AnswerTests(unittest.TestCase):
         turn = store.recent_turns(1)[0]
         self.assertIsNone(turn["model"])
         self.assertTrue(turn["error"].startswith("Every available model failed"))
+
+    # -- relevance probe ------------------------------------------------------
+    def relevant(self, score):
+        return dict(chunk(0), rerank_score=score, score=score)
+
+    def test_relevant_documents_ground_a_question_that_never_named_them(self):
+        # "which model writes the answer?" has no "document"/"project" keyword,
+        # so the keyword gate alone answered it from general knowledge.
+        self.use(needs_rag=False, chunks=[self.relevant(2.5)])
+        result = engine.answer("which model writes the final answer?")
+        self.assertTrue(result["needs_rag"])
+        self.assertEqual(len(result["sources"]), 1)
+        self.assertIn("looked relevant", result["rag_reason"])
+        self.assertIn("chunk0", self.sent()["messages"][-1]["content"])
+
+    def test_irrelevant_documents_stay_out_of_the_prompt(self):
+        self.use(needs_rag=False, chunks=[self.relevant(-9.0)])
+        result = engine.answer("what is the capital of France?")
+        self.assertFalse(result["needs_rag"])
+        self.assertEqual(result["sources"], [])
+        self.assertEqual(self.sent()["messages"][-1]["content"], "what is the capital of France?")
+        self.assertIsNone(result["info"])  # a probe that finds nothing is silent
+
+    def test_no_probe_without_reranking(self):
+        # The threshold is a cross-encoder score; RRF scores can't be compared to it.
+        self.use(needs_rag=False, chunks=[self.relevant(5.0)])
+        engine.answer("which model writes the answer?", options=engine.Options(rerank=False))
+        self.assertEqual(self.retriever.queries, [])
+
+    def test_sources_are_numbered_in_the_prompt_for_citation(self):
+        self.use(needs_rag=True, chunks=[chunk(0), chunk(1)])
+        engine.answer("what does the readme say")
+        prompt = self.sent()["messages"][-1]["content"]
+        self.assertIn("[1] doc0.md", prompt)
+        self.assertIn("[2] doc1.md", prompt)
+
+    def test_applied_action_has_the_full_result_shape(self):
+        with mock.patch.object(engine.pc_agent, "apply", return_value={"answer": "done"}):
+            result = engine.apply_pending({"op": "organize", "path": "x"})
+        self.assertEqual(result["answer"], "done")
+        self.assertEqual(set(result), set(engine._empty_result("x")))
 
     def test_system_agent_only_previews(self):
         self.use(task="system_agent")

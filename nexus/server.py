@@ -9,20 +9,24 @@ so a page on another site cannot drive it.
 """
 
 import json
+import logging
 import secrets
 import threading
 import time
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import urlparse
 
-from nexus import providers
+from nexus import config, log, providers
 from nexus.engine import answer, apply_pending
 from nexus.router import TaskRouter
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent
+PROJECT_DIR = config.PROJECT_DIR
 UI_DIR = Path(__file__).resolve().parent / "static"
+HOST, PORT = "127.0.0.1", 8000
+_log = logging.getLogger(__name__)
 MAX_BODY = 1_000_000   # bytes
 PENDING_TTL = 600.0    # seconds a previewed action stays applicable
 
@@ -219,6 +223,10 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 pass  # idle timeout: nothing more has arrived
 
+    def log_message(self, format, *args):
+        """Request lines go to the log file, not the console."""
+        _log.debug("%s %s", self.address_string(), format % args)
+
     def send_json(self, payload, status=200):
         self._drain_body()
         body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
@@ -238,9 +246,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    UI_DIR.mkdir(exist_ok=True)
-    server = ThreadingHTTPServer(("127.0.0.1", 8000), Handler)
-    print("NEXUS UI running at http://127.0.0.1:8000")
+    log.setup()
+    server = ThreadingHTTPServer((HOST, PORT), Handler)
+    print(f"NEXUS UI running at http://{HOST}:{PORT}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

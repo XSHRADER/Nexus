@@ -10,12 +10,11 @@ with their tails cut off -- the vector index then describes only the first
 half of each chunk while BM25 still matches the whole thing.
 """
 
-import os
 import re
 from pathlib import Path
 
-from pypdf import PdfReader
 from docx import Document as DocxDocument
+from pypdf import PdfReader
 
 # Leaves room under the 256-token embedder limit for [CLS]/[SEP] and for the
 # tokenizer splitting a word differently than we estimated.
@@ -24,7 +23,9 @@ DEFAULT_OVERLAP_TOKENS = 48
 
 
 def read_txt(path: str) -> str:
-    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+    # utf-8-sig drops the BOM Notepad writes, which otherwise ends up glued
+    # to the first word of the first chunk.
+    with open(path, encoding="utf-8-sig", errors="replace") as f:
         return f.read()
 
 
@@ -37,9 +38,28 @@ def read_pdf(path: str) -> str:
     return "\n".join(text)
 
 
+def _xml_text(element) -> str:
+    return "".join(node.text or "" for node in element.iter() if node.tag.endswith("}t"))
+
+
 def read_docx(path: str) -> str:
-    doc = DocxDocument(path)
-    return "\n".join(p.text for p in doc.paragraphs)
+    """Paragraphs and tables, in document order.
+
+    `doc.paragraphs` alone skips every table, which in reports and specs is
+    often where the facts are. Each table row becomes one `a | b | c` line.
+    """
+    body = DocxDocument(path).element.body
+    lines: list[str] = []
+    for block in body.iterchildren():
+        tag = block.tag.rsplit("}", 1)[-1]
+        if tag == "p":
+            lines.append(_xml_text(block))
+        elif tag == "tbl":
+            for row in block.iter():
+                if row.tag.endswith("}tr"):
+                    cells = [_xml_text(c).strip() for c in row.iterchildren() if c.tag.endswith("}tc")]
+                    lines.append(" | ".join(c for c in cells if c))
+    return "\n".join(lines)
 
 
 LOADERS = {
@@ -173,41 +193,44 @@ def chunk_text(
     return chunks
 
 
+def chunk_file(
+    path: str | Path,
+    source: str,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    overlap_tokens: int = DEFAULT_OVERLAP_TOKENS,
+    count_tokens=None,
+) -> list[dict]:
+    """Load one file and return its chunks as
+    {"id", "text", "source", "chunk_index", "n_tokens"}. Raises if unreadable."""
+    count = count_tokens or _default_token_counter()
+    chunks = chunk_text(load_document(str(path)), max_tokens, overlap_tokens, count_tokens=count)
+    return [
+        {
+            "id": f"{source}::{i}",
+            "text": chunk,
+            "source": source,
+            "chunk_index": i,
+            "n_tokens": count(chunk),
+        }
+        for i, chunk in enumerate(chunks)
+    ]
+
+
 def load_and_chunk_directory(
     directory: str,
     max_tokens: int = DEFAULT_MAX_TOKENS,
     overlap_tokens: int = DEFAULT_OVERLAP_TOKENS,
 ):
-    """
-    Walks a directory, loads every supported file, and returns a list of
-    dicts: {"id", "text", "source", "chunk_index", "n_tokens"}
-    """
+    """Chunk every supported file under `directory`; unreadable files are skipped."""
     results = []
     base_dir = Path(directory).resolve()
     count = _default_token_counter()
-
-    for root, _, files in os.walk(base_dir):
-        for fname in files:
-            ext = Path(fname).suffix.lower()
-            if ext not in LOADERS:
-                continue
-            full_path = os.path.join(root, fname)
-            relative_path = Path(full_path).relative_to(base_dir).as_posix()
-            try:
-                raw_text = load_document(full_path)
-            except Exception as e:
-                print(f"[skip] Could not read {full_path}: {e}")
-                continue
-
-            chunks = chunk_text(raw_text, max_tokens, overlap_tokens, count_tokens=count)
-            for i, chunk in enumerate(chunks):
-                results.append(
-                    {
-                        "id": f"{relative_path}::{i}",
-                        "text": chunk,
-                        "source": relative_path,
-                        "chunk_index": i,
-                        "n_tokens": count(chunk),
-                    }
-                )
+    for path in sorted(base_dir.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in LOADERS:
+            continue
+        source = path.relative_to(base_dir).as_posix()
+        try:
+            results.extend(chunk_file(path, source, max_tokens, overlap_tokens, count))
+        except Exception as exc:
+            print(f"[skip] Could not read {path}: {exc}")
     return results

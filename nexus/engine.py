@@ -13,33 +13,38 @@ Automatic selection stays the default. `Options` exists so a caller can
 retrieval depth -- which is what makes the routing inspectable rather than
 something the user has to take on trust.
 
-Both the Streamlit UI (app.py) and the plain HTTP server (server.py) call
-`answer()` so the routing/fallback behaviour stays in one place. Streamlit also
-passes the conversation so far as `history`.
+Both UIs (app.py, server.py) and the CLI call `answer()`, so the routing and
+fallback behaviour lives in one place.
 """
 
-import json
+from __future__ import annotations
+
+import logging
 import math
-import os
-import re
-import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
-import requests
-
-from nexus import pc_agent
-from nexus import providers
-from nexus import store
-from nexus.prompts import DEFAULT_TOP_K, build_prompt, get_retriever
+from nexus import config, ollama, pc_agent, providers, store
+from nexus.prompts import build_prompt
+from nexus.retrieve import get_retriever
 from nexus.router import TaskRouter
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent
+log = logging.getLogger(__name__)
 
 RAG_MODES = ("auto", "always", "never")
+
+REPLY_RESERVE = 1024     # tokens kept free for the model's answer
+TRUNCATION_RATIO = 0.98  # prompt_eval_count this close to num_ctx => probably cut off
+FOLLOW_UP_WORDS = 12     # a message shorter than this, with history, is a follow-up
+# Cross-encoder logit above which the best retrieved chunk counts as relevant
+# even though the question named no document. Measured on the golden set:
+# 15 of 18 document questions score above it, 0 of 15 off-topic ones do
+# (their best is -4.2, typically -8 to -11).
+RELEVANCE_THRESHOLD = -3.0
 
 
 @dataclass
@@ -53,11 +58,11 @@ class Options:
     force_model: str | None = None   # pin a specific model
     force_task: str | None = None    # override the classifier
     rag_mode: str = "auto"           # auto | always | never
-    top_k: int = DEFAULT_TOP_K
+    top_k: int = config.DEFAULT_TOP_K
     rerank: bool = True
     temperature: float = 0.7
 
-    def normalised(self) -> "Options":
+    def normalised(self) -> Options:
         mode = self.rag_mode if self.rag_mode in RAG_MODES else "auto"
         return Options(
             force_model=self.force_model or None,
@@ -72,25 +77,6 @@ class Options:
 @lru_cache(maxsize=1)
 def get_router() -> TaskRouter:
     return TaskRouter()
-
-
-OLLAMA_CHAT_URL = "http://localhost:11434/api/chat"
-# 5 s to connect, then at most 120 s of silence between streamed chunks. A long
-# answer is fine while tokens keep arriving; a stuck model fails and the chain
-# moves on. Loading a 7B model (~30 s here) happens before the first chunk.
-OLLAMA_TIMEOUT = (5, 120)
-# Ollama's default window is 2k-4k tokens depending on version, and it silently
-# drops the front of anything longer. Always ask for this much explicitly.
-NUM_CTX = int(os.environ.get("NEXUS_NUM_CTX") or 8192)
-
-_THINK_BLOCK = re.compile(r"<think>(.*?)</think>", re.S)
-
-
-@dataclass
-class ChatReply:
-    text: str
-    thinking: str | None
-    metrics: dict[str, Any]
 
 
 class _CallbackRaised(Exception):
@@ -115,105 +101,9 @@ def _guard(callback: Callable[[str], None] | None) -> Callable[[str], None] | No
     return call
 
 
-def _split_inline_thinking(text: str, thinking: str | None) -> tuple[str, str | None]:
-    """Older Ollama versions put reasoning inline as <think>…</think>."""
-    parts = [thinking] if thinking else []
-    match = _THINK_BLOCK.search(text)
-    if match:
-        parts.append(match.group(1).strip())
-        text = _THINK_BLOCK.sub("", text, count=1)
-    elif "</think>" in text:
-        # Some chat templates open the block in the prompt, so only the close arrives.
-        head, _, text = text.partition("</think>")
-        parts.append(head.strip())
-    joined = "\n".join(p for p in parts if p)
-    return text.strip(), joined or None
-
-
-def _metrics(final: dict[str, Any], sent: float, first: float | None) -> dict[str, Any]:
-    eval_count = final.get("eval_count")
-    eval_seconds = (final.get("eval_duration") or 0) / 1e9
-    load_ns = final.get("load_duration")
-    return {
-        "ttft_ms": round((first - sent) * 1000, 1) if first is not None else None,
-        "load_ms": round(load_ns / 1e6, 1) if load_ns is not None else None,
-        "prompt_tokens": final.get("prompt_eval_count"),
-        "eval_tokens": eval_count,
-        "tokens_per_s": (
-            round(eval_count / eval_seconds, 2) if eval_count and eval_seconds > 0 else None
-        ),
-    }
-
-
-def _ollama_chat(
-    model: str,
-    messages: list[dict[str, str]],
-    *,
-    temperature: float = 0.7,
-    num_ctx: int = NUM_CTX,
-    think: bool = False,
-    on_token: Callable[[str], None] | None = None,
-    on_thinking: Callable[[str], None] | None = None,
-) -> ChatReply:
-    """One streamed /api/chat call.
-
-    Raises on HTTP errors, error chunks and empty replies. Callback exceptions
-    propagate unchanged; the `with` block closes the socket on the way out,
-    which is what makes Ollama stop generating.
-    """
-    payload: dict[str, Any] = {
-        "model": model,
-        "messages": messages,
-        "stream": True,
-        "options": {"temperature": float(temperature), "num_ctx": int(num_ctx)},
-    }
-    if think:
-        payload["think"] = True
-
-    sent = time.monotonic()
-    first: float | None = None
-    parts: list[str] = []
-    thoughts: list[str] = []
-    final: dict[str, Any] = {}
-    with requests.post(
-        OLLAMA_CHAT_URL, json=payload, timeout=OLLAMA_TIMEOUT, stream=True
-    ) as response:
-        response.raise_for_status()
-        for line in response.iter_lines():
-            if not line:
-                continue
-            try:
-                chunk = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if chunk.get("error"):
-                raise RuntimeError(f"{model}: {chunk['error']}")
-            message = chunk.get("message") or {}
-            thought = message.get("thinking") or ""
-            token = message.get("content") or ""
-            if (thought or token) and first is None:
-                first = time.monotonic()
-            if thought:
-                thoughts.append(thought)
-                if on_thinking:
-                    on_thinking(thought)
-            if token:
-                parts.append(token)
-                if on_token:
-                    on_token(token)
-            if chunk.get("done"):
-                final = chunk
-                break
-
-    text, thinking = _split_inline_thinking("".join(parts), "".join(thoughts) or None)
-    if not text:
-        raise RuntimeError(f"{model} returned an empty response")
-    return ChatReply(text, thinking, _metrics(final, sent, first))
-
-
-REPLY_RESERVE = 1024     # tokens kept free for the model's answer
-TRUNCATION_RATIO = 0.98  # prompt_eval_count this close to num_ctx => probably cut off
-FOLLOW_UP_WORDS = 12     # a message shorter than this, with history, is a follow-up
+# ---------------------------------------------------------------------------
+# Prompt budgeting
+# ---------------------------------------------------------------------------
 
 
 def estimate_tokens(text: str) -> int:
@@ -225,7 +115,7 @@ def estimate_tokens(text: str) -> int:
 
 def context_window(model: str) -> int:
     reported = providers.capabilities(model).get("context_length")
-    return min(NUM_CTX, reported) if reported else NUM_CTX
+    return min(config.NUM_CTX, reported) if reported else config.NUM_CTX
 
 
 @dataclass
@@ -292,6 +182,11 @@ def _retrieval_query(question: str, history: list[dict[str, str]]) -> str:
     return question
 
 
+# ---------------------------------------------------------------------------
+# Result shaping
+# ---------------------------------------------------------------------------
+
+
 def _source(chunk: dict[str, Any]) -> dict[str, Any]:
     return {
         "source": chunk["meta"].get("source", "unknown"),
@@ -306,6 +201,56 @@ def _source(chunk: dict[str, Any]) -> dict[str, Any]:
 
 def _note(result: dict[str, Any], text: str) -> None:
     result["info"] = f"{result['info']} {text}" if result.get("info") else text
+
+
+def _empty_result(task: str) -> dict[str, Any]:
+    """Every key a caller may read, so no UI has to guess which exist."""
+    return {
+        "answer": "",
+        "task": task,
+        "model": None,
+        "provider": None,
+        "chain": [],
+        "complexity": 0.0,
+        "needs_rag": False,
+        "rag_reason": None,
+        "confidence": 0.0,
+        "scores": {},
+        "why": None,
+        "auto_task": task,
+        "attempts": [],
+        "info": None,
+        "requires_confirmation": False,
+        "pending": None,
+        "sources": [],
+        "elapsed": 0.0,
+        "prompt_chars": 0,
+        "thinking": None,
+        "truncated": False,
+        "chunks_dropped": 0,
+        "stopped": False,
+        "metrics": {
+            "ttft_ms": None, "total_ms": None, "load_ms": None,
+            "prompt_tokens": None, "eval_tokens": None, "tokens_per_s": None,
+        },
+    }
+
+
+def _base_result(decision: dict[str, Any]) -> dict[str, Any]:
+    result = _empty_result(decision["task"])
+    result.update(
+        model=decision.get("model"),
+        provider=decision.get("provider"),
+        chain=decision.get("chain", []),
+        complexity=decision.get("complexity", 0.0),
+        needs_rag=bool(decision.get("needs_rag")),
+        rag_reason="your question mentions your documents" if decision.get("needs_rag") else None,
+        confidence=float(decision["confidence"]),
+        scores={k: float(v) for k, v in decision["scores"].items()},
+        why=decision.get("reason"),
+        auto_task=decision.get("auto_task", decision["task"]),
+    )
+    return result
 
 
 def _finish(
@@ -331,45 +276,14 @@ def _finish(
     try:
         store.record_turn(row)
     except Exception as exc:
-        print(f"[nexus] could not record metrics: {exc}", file=sys.stderr)
-
-
-def _base_result(decision: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "task": decision["task"],
-        "model": decision.get("model"),
-        "provider": decision.get("provider"),
-        "chain": decision.get("chain", []),
-        "complexity": decision.get("complexity", 0.0),
-        "needs_rag": bool(decision.get("needs_rag")),
-        "confidence": float(decision["confidence"]),
-        "scores": {k: float(v) for k, v in decision["scores"].items()},
-        "why": decision.get("reason"),
-        "auto_task": decision.get("auto_task", decision["task"]),
-        "attempts": [],
-        "info": None,
-        "requires_confirmation": False,
-        "pending": None,
-        "sources": [],
-        "elapsed": 0.0,
-        "prompt_chars": 0,
-        "thinking": None,
-        "truncated": False,
-        "chunks_dropped": 0,
-        "stopped": False,
-        "metrics": {
-            "ttft_ms": None, "total_ms": None, "load_ms": None,
-            "prompt_tokens": None, "eval_tokens": None, "tokens_per_s": None,
-        },
-    }
+        log.warning("could not record metrics: %s", exc)
 
 
 def _no_model_message(decision: dict[str, Any]) -> str:
-    avail = decision.get("available", {})
-    if not avail.get("ollama"):
+    if not decision.get("available", {}).get("ollama"):
         return (
             "⚠️ Ollama is not reachable. Start it with `ollama serve`, then pull "
-            "a model with `ollama pull llama3.1:8b`. "
+            f"a model with `ollama pull {config.DEFAULT_PULL_MODEL}`. "
             "PC folder actions still work without it."
         )
     return (
@@ -387,41 +301,71 @@ def _pin_model(chain: list[dict[str, Any]], model: str) -> list[dict[str, Any]]:
     rest = [c for c in chain if c["model"] != model]
     existing = next((c for c in chain if c["model"] == model), None)
     if existing is None:
-        spec = providers.BY_NAME.get(model)
-        existing = {
-            "model": model,
-            "provider": spec.provider if spec else "ollama",
-            "score": 1.0,
-            "reason": f"{model}: pinned by you",
-        }
+        existing = {"model": model, "provider": "ollama", "score": 1.0,
+                    "reason": f"{model}: pinned by you"}
     else:
-        existing = dict(existing)
-        existing["reason"] = f"{existing.get('reason', model)} (pinned by you)"
+        existing = dict(existing, reason=f"{existing.get('reason', model)} (pinned by you)")
     return [existing] + rest
 
 
 def apply_pending(pending: dict[str, Any], base_dir: Path | None = None) -> dict[str, Any]:
     """Execute a local action previously returned as `pending` by `answer()`."""
-    outcome = pc_agent.apply(pending, base_dir or PROJECT_DIR)
-    return {
-        "answer": outcome["answer"],
-        "task": "system_agent",
-        "model": "pc-toolkit",
-        "provider": "toolkit",
-        "chain": [],
-        "complexity": 0.0,
-        "needs_rag": False,
-        "confidence": 1.0,
-        "scores": {},
-        "why": None,
-        "attempts": [],
-        "info": None,
-        "requires_confirmation": False,
-        "pending": None,
-        "sources": [],
-        "elapsed": 0.0,
-        "prompt_chars": 0,
-    }
+    outcome = pc_agent.apply(pending, base_dir or config.PROJECT_DIR)
+    result = _empty_result("system_agent")
+    result.update(answer=outcome["answer"], model="pc-toolkit", provider="toolkit", confidence=1.0)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Retrieval
+# ---------------------------------------------------------------------------
+
+
+def _retrieve(
+    result: dict[str, Any], question: str, history: list[dict[str, str]], opts: Options
+) -> list[dict[str, Any]]:
+    """Decide whether to ground this answer in local documents, and fetch them.
+
+    `always`/`never` are absolute. In `auto`, a question that names the
+    documents ("what does the readme say") always retrieves; any other
+    question still gets a quick look, and is grounded only if the best chunk
+    clears RELEVANCE_THRESHOLD -- so "which model writes the answer?" finds
+    the notes that say so instead of being answered from general knowledge.
+    """
+    if opts.rag_mode == "never":
+        result["needs_rag"], result["rag_reason"] = False, None
+        return []
+    if opts.rag_mode == "always":
+        result["needs_rag"], result["rag_reason"] = True, "you asked to always use documents"
+    probing = not result["needs_rag"]
+    if probing and not opts.rerank:
+        return []  # the threshold is calibrated on cross-encoder scores
+
+    try:
+        chunks = get_retriever().query(
+            _retrieval_query(question, history), top_k=opts.top_k, rerank=opts.rerank
+        )
+    except Exception as exc:
+        log.warning("document search failed: %s", exc)
+        if not probing:
+            _note(result, f"Local document search unavailable ({exc}); answering without it.")
+        result["needs_rag"] = False
+        return []
+
+    if probing:
+        best = chunks[0].get("rerank_score") if chunks else None
+        if best is None or best < RELEVANCE_THRESHOLD:
+            return []
+        result["needs_rag"] = True
+        result["rag_reason"] = f"your documents looked relevant (best match {best:+.1f})"
+    elif not chunks:
+        _note(result, "No local documents matched; answering without them.")
+    return chunks
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 
 def answer(
@@ -446,7 +390,7 @@ def answer(
     `on_thinking` propagate unchanged and are never treated as a model failure.
     """
     started = time.monotonic()
-    base_dir = base_dir or PROJECT_DIR
+    base_dir = base_dir or config.PROJECT_DIR
     opts = (options or Options()).normalised()
     history = [
         {"role": m["role"], "content": m["content"]}
@@ -459,23 +403,24 @@ def answer(
 
     if decision["task"] == "system_agent":
         outcome = pc_agent.handle(question, base_dir)
-        result["answer"] = outcome["answer"]
-        result["requires_confirmation"] = outcome["requires_confirmation"]
-        result["pending"] = outcome["pending"]
-        result["model"] = "pc-toolkit"
-        result["provider"] = "toolkit"
-        # The word "folder" trips the RAG signal, but a file operation never
-        # retrieves anything -- don't claim it did.
-        result["needs_rag"] = False
+        result.update(
+            answer=outcome["answer"],
+            requires_confirmation=outcome["requires_confirmation"],
+            pending=outcome["pending"],
+            model="pc-toolkit",
+            provider="toolkit",
+            # The word "folder" trips the RAG signal, but a file operation
+            # never retrieves anything -- don't claim it did.
+            needs_rag=False,
+            rag_reason=None,
+        )
         _finish(result, started, chat_id)
         return result
 
     chain = decision.get("chain") or []
     if opts.force_model and chain:
         chain = _pin_model(chain, opts.force_model)
-        result["chain"] = chain
-        result["model"] = chain[0]["model"]
-        result["provider"] = chain[0]["provider"]
+        result.update(chain=chain, model=chain[0]["model"], provider=chain[0]["provider"])
 
     if not chain:
         result["answer"] = _no_model_message(decision)
@@ -483,23 +428,7 @@ def answer(
         _finish(result, started, chat_id, error=result["info"])
         return result
 
-    # Retrieval gate: the router's keyword guess by default, or the override.
-    if opts.rag_mode == "always":
-        result["needs_rag"] = True
-    elif opts.rag_mode == "never":
-        result["needs_rag"] = False
-
-    chunks: list[dict[str, Any]] = []
-    if result["needs_rag"]:
-        try:
-            chunks = get_retriever().query(
-                _retrieval_query(question, history), top_k=opts.top_k, rerank=opts.rerank
-            )
-            if not chunks:
-                _note(result, "No local documents matched; answering without them.")
-        except Exception as exc:
-            _note(result, f"Local document search unavailable ({exc}); answering without it.")
-            result["needs_rag"] = False
+    chunks = _retrieve(result, question, history, opts)
 
     token_cb, thinking_cb = _guard(on_token), _guard(on_thinking)
     errors: list[str] = []
@@ -515,13 +444,14 @@ def answer(
         fitted = fit_to_window(question, chunks, history, num_ctx, result["needs_rag"])
         think = "thinking" in providers.capabilities(model).get("caps", set())
         try:
-            reply = _ollama_chat(
+            reply = ollama.chat(
                 model, fitted.messages, temperature=opts.temperature, num_ctx=num_ctx,
                 think=think, on_token=token_cb, on_thinking=thinking_cb,
             )
         except _CallbackRaised as wrapped:
-            raise wrapped.original
+            raise wrapped.original from None
         except Exception as exc:
+            log.info("%s failed, trying the next model: %s", model, exc)
             result["attempts"].append({"model": model, "provider": provider, "error": str(exc)})
             errors.append(f"{model}: {exc}")
             continue

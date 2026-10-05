@@ -107,7 +107,7 @@ class RetrieverTests(unittest.TestCase):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
     def test_indexes_every_document(self):
-        self.assertEqual(self.retriever._indexed_count, len(self.DOCS))
+        self.assertEqual(self.retriever.stats()["chunks"], len(self.DOCS))
 
     def test_every_hit_carries_its_source(self):
         # Hits found only by BM25 used to come back with meta={}, so the
@@ -158,6 +158,58 @@ class RetrieverTests(unittest.TestCase):
     def test_top_k_larger_than_corpus_is_safe(self):
         hits = self.retriever.query("NEXUS", top_k=50)
         self.assertLessEqual(len(hits), len(self.DOCS))
+
+
+class RetrieverRefreshTests(unittest.TestCase):
+    """A long-lived retriever (the UI's) must follow the index as it changes."""
+
+    def setUp(self):
+        import chromadb
+
+        from nexus.embeddings import get_sentence_transformer
+
+        self.tmp = Path(tempfile.mkdtemp(prefix="nexus_test_"))
+        self.model = get_sentence_transformer()
+        self.client = chromadb.PersistentClient(path=str(self.tmp))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self._write({"a.md": "the launcher is called start.bat"})
+        self.retriever = Retriever(db_dir=self.tmp)
+
+    def _write(self, docs):
+        col = self.client.get_or_create_collection(
+            "nexus_documents", metadata={"hnsw:space": "cosine"}
+        )
+        existing = col.get()["ids"]
+        if existing:
+            col.delete(ids=existing)
+        texts = list(docs.values())
+        col.add(
+            ids=[f"{src}::0" for src in docs],
+            embeddings=self.model.encode(texts, normalize_embeddings=True).tolist(),
+            documents=texts,
+            metadatas=[{"source": src, "chunk_index": 0} for src in docs],
+        )
+        # ingest.py rewrites its hash file at the end of every run.
+        stamp = self.tmp / "file_hashes.json"
+        stamp.write_text(str(len(texts)) + str(texts), encoding="utf-8")
+        mtime = stamp.stat().st_mtime_ns + 10_000_000
+        import os
+        os.utime(stamp, ns=(mtime, mtime))
+
+    def test_same_count_new_content_is_picked_up(self):
+        # The chunk count is unchanged, which is all the old freshness check
+        # looked at -- BM25 kept serving the replaced text.
+        self._write({"a.md": "the launcher is called run.py"})
+        texts = [h["text"] for h in self.retriever.query("launcher", top_k=1, rerank=False)]
+        self.assertEqual(texts, ["the launcher is called run.py"])
+
+    def test_survives_the_collection_being_rebuilt(self):
+        # A full rebuild deletes and recreates the collection, which left the
+        # UI holding a handle to a collection that no longer existed.
+        self.client.delete_collection("nexus_documents")
+        self._write({"b.md": "embeddings live in chroma"})
+        hits = self.retriever.query("chroma", top_k=1, rerank=False)
+        self.assertEqual(hits[0]["meta"]["source"], "b.md")
 
 
 if __name__ == "__main__":

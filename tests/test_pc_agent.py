@@ -93,6 +93,94 @@ class OrganizeFlowTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             PCToolkit().organize_folder(Path.home(), dry_run=True)
 
+    def test_missing_folder_is_an_answer_not_a_crash(self):
+        result = handle('analyze "C:/definitely/not/here"', Path.cwd())
+        self.assertIn("Not an existing folder", result["answer"])
+
+
+class ToolkitSafetyTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.kit = PCToolkit()
+
+    def test_empty_dir_cleanup_never_enters_ignored_folders(self):
+        # The bottom-up walk ignored its own skip list, so empty folders
+        # inside .git and virtual envs were deleted.
+        (self.root / ".git" / "refs" / "tags").mkdir(parents=True)
+        (self.root / "node_modules" / "pkg").mkdir(parents=True)
+        (self.root / "really_empty").mkdir()
+        res = self.kit.delete_empty_dirs(self.root, dry_run=False)
+        self.assertEqual(res["removed"], [str(self.root / "really_empty")])
+        self.assertTrue((self.root / ".git" / "refs" / "tags").is_dir())
+        self.assertTrue((self.root / "node_modules" / "pkg").is_dir())
+
+    def test_empty_dir_preview_matches_the_real_run(self):
+        # A folder holding only empty folders was missing from the preview
+        # (its child still existed during a dry run) but removed for real.
+        (self.root / "outer" / "inner" / "deepest").mkdir(parents=True)
+        (self.root / "kept").mkdir()
+        (self.root / "kept" / "file.txt").write_text("x", encoding="utf-8")
+        preview = self.kit.delete_empty_dirs(self.root, dry_run=True)
+        real = self.kit.delete_empty_dirs(self.root, dry_run=False)
+        self.assertEqual(preview["removed_count"], 3)
+        self.assertEqual(sorted(preview["removed"]), sorted(real["removed"]))
+        self.assertFalse((self.root / "outer").exists())
+        self.assertTrue((self.root / "kept").is_dir())
+
+    def test_undo_never_overwrites_a_new_file(self):
+        (self.root / "a.txt").write_text("original", encoding="utf-8")
+        self.kit.organize_folder(self.root, dry_run=False)
+        (self.root / "a.txt").write_text("new file, same name", encoding="utf-8")
+        res = self.kit.undo_last_organize(self.root)
+        self.assertEqual(res["restored"], 0)
+        self.assertEqual((self.root / "a.txt").read_text(encoding="utf-8"), "new file, same name")
+        self.assertEqual((self.root / "Documents" / "a.txt").read_text(encoding="utf-8"), "original")
+        self.assertTrue((self.root / MANIFEST_NAME).exists())  # still undoable later
+
+    def test_each_organize_run_is_undone_separately(self):
+        # The manifest used to be overwritten, so the first run became
+        # impossible to undo once a second one happened.
+        (self.root / "a.txt").write_text("x", encoding="utf-8")
+        self.kit.organize_folder(self.root, dry_run=False)
+        (self.root / "b.png").write_bytes(b"x")
+        self.kit.organize_folder(self.root, dry_run=False)
+        self.assertEqual(self.kit.undo_last_organize(self.root)["restored"], 1)
+        self.assertTrue((self.root / "b.png").exists())
+        self.assertEqual(self.kit.undo_last_organize(self.root)["restored"], 1)
+        self.assertTrue((self.root / "a.txt").exists())
+        self.assertFalse((self.root / MANIFEST_NAME).exists())
+
+    def test_a_failure_part_way_keeps_the_finished_moves_undoable(self):
+        for name in ("a.txt", "b.txt", "c.txt"):
+            (self.root / name).write_text(name, encoding="utf-8")
+        import shutil as _shutil
+        real_move = _shutil.move
+        calls = []
+
+        def flaky(src, dst):
+            calls.append(src)
+            if len(calls) == 2:
+                raise PermissionError("file is open in another program")
+            return real_move(src, dst)
+
+        from unittest import mock
+        with mock.patch("nexus.pc_tools.shutil.move", flaky):
+            res = self.kit.organize_folder(self.root, dry_run=False)
+        self.assertEqual(res["moved_count"], 1)
+        self.assertIn("Stopped after 1 of 3", res["error"])
+        self.assertEqual(self.kit.undo_last_organize(self.root)["restored"], 1)
+        self.assertTrue((self.root / "a.txt").exists())
+
+    def test_duplicates_need_identical_content_not_just_size(self):
+        (self.root / "one.bin").write_bytes(b"A" * 100_000)
+        (self.root / "two.bin").write_bytes(b"A" * 100_000)
+        (self.root / "same_size.bin").write_bytes(b"A" * 99_999 + b"B")
+        groups = self.kit.find_duplicates(self.root)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(sorted(Path(p).name for p in groups[0]["paths"]), ["one.bin", "two.bin"])
+
 
 if __name__ == "__main__":
     unittest.main()

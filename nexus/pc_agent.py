@@ -9,7 +9,8 @@ folders) return a PREVIEW plus a `pending` action. `handle()` itself never
 changes the disk; only `apply(pending)` does.
 """
 
-import json
+from __future__ import annotations
+
 import os
 import re
 from pathlib import Path
@@ -36,6 +37,9 @@ KNOWN_DIRS = {
 _DRIVE_PATH_RE = re.compile(r"[a-zA-Z]:[\\/][^\s\"'<>|?*\n]*")
 _QUOTED_RE = re.compile(r"[\"'`]([^\"'`\n]+)[\"'`]")
 
+LARGE_FILE_MB = 50.0
+LIST_LIMIT = 25
+
 
 def _known_dir(folder: str) -> Path:
     """Locate a shell folder like Documents.
@@ -57,7 +61,7 @@ def _known_dir(folder: str) -> Path:
     return home / folder  # let the toolkit report the missing path
 
 
-def _describe_known(path: Path, folder: str) -> str:
+def _describe_known(path: Path) -> str:
     try:
         return f"~\\{path.relative_to(Path.home())}"
     except ValueError:
@@ -69,7 +73,8 @@ def resolve_target(query: str, base_dir: Path) -> tuple[Path, str]:
     quoted = _QUOTED_RE.search(query)
     if quoted:
         candidate = quoted.group(1).strip()
-        if re.match(r"[a-zA-Z]:[\\/]", candidate) or candidate.startswith("~") or "/" in candidate or "\\" in candidate:
+        if (re.match(r"[a-zA-Z]:[\\/]", candidate) or candidate.startswith("~")
+                or "/" in candidate or "\\" in candidate):
             return Path(candidate).expanduser(), "path in your message"
 
     drive = _DRIVE_PATH_RE.search(query)
@@ -80,7 +85,7 @@ def resolve_target(query: str, base_dir: Path) -> tuple[Path, str]:
     for keyword, folder in KNOWN_DIRS.items():
         if re.search(rf"\b{keyword}\b", low):
             resolved = _known_dir(folder)
-            return resolved, _describe_known(resolved, folder)
+            return resolved, _describe_known(resolved)
 
     if "my home" in low or re.search(r"\bhome (folder|directory)\b", low):
         return Path.home(), "home directory"
@@ -105,22 +110,63 @@ def parse_intent(query: str) -> str:
     return "analyze"
 
 
+# ---------------------------------------------------------------------------
+# Formatting
+# ---------------------------------------------------------------------------
+
+
+def _size(mb: float) -> str:
+    return f"{mb / 1024:.2f} GB" if mb >= 1024 else f"{mb:.1f} MB"
+
+
 def _format_plan(moves: list[dict[str, str]], limit: int = 40) -> str:
     by_cat: dict[str, list[str]] = {}
     for mv in moves:
-        by_cat.setdefault(mv["category"], []).append(Path(mv["source"]).name)
+        by_cat.setdefault(mv["category"], []).append(Path(mv["destination"]).name)
     lines = []
     for cat, names in sorted(by_cat.items()):
         lines.append(f"**{cat}/** — {len(names)} file(s)")
-        for name in names[:limit]:
-            lines.append(f"- {name}")
+        lines.extend(f"- {name}" for name in names[:limit])
         if len(names) > limit:
             lines.append(f"- …and {len(names) - limit} more")
     return "\n".join(lines)
 
 
+def _format_analysis(info: dict[str, Any], how: str) -> str:
+    rows = [f"| {cat} | {n} |" for cat, n in info["category_counts"].items() if n]
+    table = "\n".join(["| Type | Files |", "|---|---:|", *rows]) if rows else "_No files._"
+    return (f"📂 **`{info['path']}`** ({how}) — {info['total_files']} file(s), "
+            f"{_size(info['total_size_mb'])} in total\n\n{table}")
+
+
+def _format_duplicates(target: Path, groups: list[dict[str, Any]]) -> str:
+    wasted = sum(g["size_mb"] * (len(g["paths"]) - 1) for g in groups)
+    lines = [f"🔍 **{len(groups)} set(s) of identical files** in `{target}` — "
+             f"{_size(wasted)} could be freed by keeping one of each:\n"]
+    for g in groups[:LIST_LIMIT]:
+        lines.append(f"- **{_size(g['size_mb'])}** × {len(g['paths'])}")
+        lines.extend(f"  - `{p}`" for p in g["paths"])
+    if len(groups) > LIST_LIMIT:
+        lines.append(f"- …and {len(groups) - LIST_LIMIT} more set(s)")
+    return "\n".join(lines)
+
+
+def _format_large(target: Path, files: list[dict[str, Any]]) -> str:
+    lines = [f"📊 **Files over {LARGE_FILE_MB:.0f} MB** in `{target}`:\n",
+             "| Size | File |", "|---:|---|"]
+    lines.extend(f"| {_size(f['size_mb'])} | `{f['path']}` |" for f in files[:LIST_LIMIT])
+    if len(files) > LIST_LIMIT:
+        lines.append(f"\n…and {len(files) - LIST_LIMIT} more.")
+    return "\n".join(lines)
+
+
 def _read_only(action: str, answer: str) -> dict[str, Any]:
     return {"answer": answer, "action": action, "requires_confirmation": False, "pending": None}
+
+
+# ---------------------------------------------------------------------------
+# Entry points
+# ---------------------------------------------------------------------------
 
 
 def handle(query: str, base_dir: Path) -> dict[str, Any]:
@@ -131,52 +177,45 @@ def handle(query: str, base_dir: Path) -> dict[str, Any]:
     """
     intent = parse_intent(query)
     target, how = resolve_target(query, base_dir)
+    try:
+        return _handle(intent, target, how)
+    except (ValueError, OSError) as exc:
+        return _read_only(intent, f"⚠️ {exc}")
 
+
+def _handle(intent: str, target: Path, how: str) -> dict[str, Any]:
     if intent == "duplicates":
-        dups = _toolkit.find_duplicates(target)
-        if not dups:
-            return _read_only("duplicates", f"🔍 No duplicate files found in `{target}`.")
-        return _read_only(
-            "duplicates",
-            f"🔍 Found **{len(dups)}** duplicate group(s) in `{target}`:\n\n"
-            f"```json\n{json.dumps(dups, indent=2)}\n```",
-        )
+        groups = _toolkit.find_duplicates(target)
+        if not groups:
+            return _read_only(intent, f"🔍 No duplicate files in `{target}`.")
+        return _read_only(intent, _format_duplicates(target, groups))
 
     if intent == "large":
-        large = _toolkit.find_large_files(target, min_size_mb=50.0)
+        large = _toolkit.find_large_files(target, min_size_mb=LARGE_FILE_MB)
         if not large:
-            return _read_only("large", f"📊 No files over 50 MB in `{target}`.")
-        return _read_only(
-            "large",
-            f"📊 Largest files in `{target}`:\n\n```json\n{json.dumps(large[:25], indent=2)}\n```",
-        )
+            return _read_only(intent, f"📊 No files over {LARGE_FILE_MB:.0f} MB in `{target}`.")
+        return _read_only(intent, _format_large(target, large))
 
     if intent == "analyze":
-        info = _toolkit.analyze_directory(target)
-        return _read_only(
-            "analyze",
-            f"📂 **Analysis of `{target}`** ({how}):\n\n```json\n{json.dumps(info, indent=2)}\n```",
-        )
+        return _read_only(intent, _format_analysis(_toolkit.analyze_directory(target), how))
 
     if intent == "undo":
-        try:
-            res = _toolkit.undo_last_organize(target)
-        except ValueError as exc:
-            return _read_only("undo", f"↩️ {exc}")
-        note = f"↩️ Restored **{res['restored']}** file(s) to their original spots in `{target}`."
+        res = _toolkit.undo_last_organize(target)
+        note = f"↩️ Restored **{res['restored']}** file(s) to their original places in `{target}`."
         if res["errors"]:
-            note += "\n\nProblems:\n" + "\n".join(f"- {e}" for e in res["errors"])
-        return _read_only("undo", note)
+            note += "\n\nNot restored:\n" + "\n".join(f"- {e}" for e in res["errors"])
+        return _read_only(intent, note)
 
     if intent == "empty_dirs":
         preview = _toolkit.delete_empty_dirs(target, dry_run=True)
         if not preview["removed"]:
-            return _read_only("empty_dirs", f"🧹 No empty folders under `{target}`.")
-        listing = "\n".join(f"- {p}" for p in preview["removed"][:50])
+            return _read_only(intent, f"🧹 No empty folders under `{target}`.")
+        listing = "\n".join(f"- `{p}`" for p in preview["removed"][:50])
+        more = f"\n- …and {preview['removed_count'] - 50} more" if preview["removed_count"] > 50 else ""
         return {
             "answer": f"🧹 **{preview['removed_count']} empty folder(s)** under `{target}` "
-                      f"would be removed:\n\n{listing}\n\n_Confirm to delete them._",
-            "action": "empty_dirs",
+                      f"would be removed:\n\n{listing}{more}\n\n_Confirm to delete them._",
+            "action": intent,
             "requires_confirmation": True,
             "pending": {"op": "empty_dirs", "path": str(target)},
         }
@@ -184,24 +223,15 @@ def handle(query: str, base_dir: Path) -> dict[str, Any]:
     # intent == "organize"
     plan = _toolkit.organize_folder(target, dry_run=True)
     if not plan["planned_moves"]:
-        return _read_only("organize", f"🗂️ `{target}` is already sorted — nothing to move.")
+        return _read_only(intent, f"🗂️ `{target}` is already sorted — nothing to move.")
     return {
         "answer": f"🗂️ **Plan for `{target}`** ({how}) — {plan['moved_count']} file(s) "
                   f"into category folders:\n\n{_format_plan(plan['planned_moves'])}\n\n"
                   f"_Confirm to move them. This is undoable afterwards._",
-        "action": "organize",
+        "action": intent,
         "requires_confirmation": True,
         "pending": {"op": "organize", "path": str(target)},
     }
-
-
-def _apply_organize(target: Path) -> dict[str, Any]:
-    res = _toolkit.organize_folder(target, dry_run=False)
-    tail = f'\n\nTo undo: `undo organize in "{target}"`' if res["moved_count"] else ""
-    return _read_only(
-        "organize",
-        f"✅ Moved **{res['moved_count']}** file(s) in `{target}` into category folders.{tail}",
-    )
 
 
 def apply(pending: dict[str, Any], base_dir: Path | None = None) -> dict[str, Any]:
@@ -209,8 +239,14 @@ def apply(pending: dict[str, Any], base_dir: Path | None = None) -> dict[str, An
     op = pending.get("op")
     target = Path(pending["path"]).resolve()
     if op == "organize":
-        return _apply_organize(target)
+        res = _toolkit.organize_folder(target, dry_run=False)
+        note = f"✅ Moved **{res['moved_count']}** file(s) in `{target}` into category folders."
+        if res["error"]:
+            note += f"\n\n⚠️ {res['error']}"
+        if res["moved_count"]:
+            note += f'\n\nTo undo: `undo organize in "{target}"`'
+        return _read_only(op, note)
     if op == "empty_dirs":
         res = _toolkit.delete_empty_dirs(target, dry_run=False)
-        return _read_only("empty_dirs", f"🧹 Removed **{res['removed_count']}** empty folder(s) under `{target}`.")
+        return _read_only(op, f"🧹 Removed **{res['removed_count']}** empty folder(s) under `{target}`.")
     raise ValueError(f"Unknown pending operation: {op!r}")

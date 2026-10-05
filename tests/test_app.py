@@ -9,10 +9,12 @@ os.environ["NEXUS_DB"] = os.path.join(_TMP.name, "app-test.db")
 
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
-from nexus import engine  # noqa: E402
-from nexus import providers  # noqa: E402
-from nexus import retrieve  # noqa: E402
-from nexus import store  # noqa: E402
+from nexus import (
+    engine,  # noqa: E402
+    providers,  # noqa: E402
+    retrieve,  # noqa: E402
+    store,  # noqa: E402
+)
 
 APP = str(Path(__file__).resolve().parent.parent / "app.py")
 CHAIN = [
@@ -22,17 +24,8 @@ CHAIN = [
 
 
 class FakeRetriever:
-    _doc_by_id: dict = {}
-    _indexed_count = 0
-
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def _ensure_fresh(self):
-        pass
-
-    def refresh(self):
-        pass
+    def stats(self):
+        return {"chunks": 0, "files": {}}
 
     def query(self, *args, **kwargs):
         return []
@@ -59,7 +52,7 @@ class AppFlowTests(unittest.TestCase):
             mock.patch.object(providers, "capabilities",
                               lambda m: {"caps": set(), "context_length": None,
                                          "parameter_size": None}),
-            mock.patch.object(retrieve, "Retriever", FakeRetriever),
+            mock.patch.object(retrieve, "get_retriever", lambda: FakeRetriever()),
         ):
             patcher.start()
             self.addCleanup(patcher.stop)

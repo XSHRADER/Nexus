@@ -1,57 +1,21 @@
 """
 router.py
 Task router for NEXUS AI: classifies a query as general chat, coding,
-reasoning, planning, vision, speech, or a PC action, decides when local
-document retrieval should be included, and hands the task to `providers.plan()`
-which picks the model automatically.
-
-The user never selects a model anywhere in the app.
+reasoning, planning, or a PC action, decides when local document retrieval
+should be included, and hands the task to `providers.plan()`, which picks the
+model automatically.
 """
 
 import json
+import logging
 import re
-import time
 from pathlib import Path
 from typing import Any
-import requests
 
-from nexus import providers
+from nexus import config, providers
 from nexus.embeddings import get_sentence_transformer
 
-_OLLAMA_CACHE: dict[str, Any] = {"ts": 0.0, "models": []}
-_OLLAMA_TTL = 5.0  # seconds -- route() runs per keystroke-ish; don't hammer the daemon
-_LOADED_CACHE: dict[str, Any] = {"ts": 0.0, "models": []}
-_LOADED_TTL = 2.0  # shorter: which model is resident changes as we generate
-
-
-def _ollama_models(endpoint: str, cache: dict[str, Any], ttl: float) -> list[str]:
-    now = time.monotonic()
-    if now - cache["ts"] < ttl:
-        return cache["models"]
-    models: list[str] = []
-    try:
-        response = requests.get(f"http://localhost:11434/api/{endpoint}", timeout=2.0)
-        if response.status_code == 200:
-            models = [m["name"] for m in response.json().get("models", [])]
-    except Exception:
-        pass
-    cache.update(ts=now, models=models)
-    return models
-
-
-def get_installed_ollama_models() -> list[str]:
-    """Everything pulled onto this machine."""
-    return _ollama_models("tags", _OLLAMA_CACHE, _OLLAMA_TTL)
-
-
-def get_loaded_ollama_models() -> list[str]:
-    """Models currently resident in VRAM — answering with one of these skips a
-    ~30s load on an 8GB card, which only holds one 7B model at a time."""
-    return _ollama_models("ps", _LOADED_CACHE, _LOADED_TTL)
-
-PROJECT_DIR = Path(__file__).resolve().parent.parent
-LOG_FILE = PROJECT_DIR / "router_logs.jsonl"
-
+log = logging.getLogger(__name__)
 
 LOG_MAX_BYTES = 5 * 1024 * 1024
 LOG_BACKUPS = 3
@@ -66,7 +30,7 @@ class DecisionLogger:
 
     def __init__(
         self,
-        log_file: str | Path = LOG_FILE,
+        log_file: str | Path = config.ROUTER_LOG,
         max_bytes: int = LOG_MAX_BYTES,
         backups: int = LOG_BACKUPS,
     ):
@@ -99,7 +63,7 @@ class DecisionLogger:
 class TaskRouter:
     """Simple rule-based router with lightweight semantic fallback."""
 
-    TASKS = ("general", "coding", "reasoning", "planning", "vision", "speech", "system_agent")
+    TASKS = (*providers.TEXT_TASKS, "system_agent")
 
     # Every model that can serve each task, best-typical-fit first. Built from
     # the capability catalogue so there is exactly one place to add a model.
@@ -137,14 +101,6 @@ class TaskRouter:
             "Break this task down into ordered steps I can follow.",
             "How should I approach building this from scratch?",
         ],
-        "vision": [
-            "Describe what is in this image.",
-            "Read the chart and explain the trends.",
-        ],
-        "speech": [
-            "Transcribe this spoken conversation.",
-            "Convert the audio note into a written summary.",
-        ],
         "system_agent": [
             "Organize my downloads folder by file types.",
             "Sort the files on my desktop into folders.",
@@ -156,7 +112,7 @@ class TaskRouter:
         ],
     }
 
-    def __init__(self, embedding_model: str = "all-MiniLM-L6-v2"):
+    def __init__(self, embedding_model: str = config.EMBED_MODEL):
         self.embed_model = get_sentence_transformer(embedding_model)
         self.logger = DecisionLogger()
         # Pre-embed the category exemplars once; reused on every query.
@@ -169,7 +125,7 @@ class TaskRouter:
         text = query.lower()
         scores = {name: 0.0 for name in self.TASKS}
         # Chat is the safe default: without it, a short greeting has no keyword
-        # signal at all and embedding noise can hand it to a vision model.
+        # signal at all and embedding noise can hand it to any other task.
         scores["general"] += 1.2
         if re.match(r"^\s*(hi|hey|hello|yo|sup|thanks|thank you|ok|okay|yes|no|cool|nice|good (morning|evening|night))\b[\s!.,?]*$", text):
             scores["general"] += 4.0
@@ -214,11 +170,6 @@ class TaskRouter:
         # Questions about versions and setup are informational, not coding work.
         if re.search(r"\b(version|release|installed|which model|what model)\b", text):
             scores["general"] += 2.5
-
-        if re.search(r"\b(image|picture|photo|chart|diagram|vision|describe the screenshot|what is in this)\b", text):
-            scores["vision"] += 4.0
-        if re.search(r"\b(audio|voice|speech|transcribe|listen|whisper|caption|recording|podcast)\b", text):
-            scores["speech"] += 4.0
 
         # Same principle as coding: a file operation needs a verb. Bare
         # "folder", "directory" or "system" was turning questions *about* the
@@ -271,24 +222,15 @@ class TaskRouter:
         confidence = max(combined.values())
         return {"task": task, "confidence": confidence, "scores": combined}
 
+    # Whole words only: as substrings, "file" matched "profile" and "source"
+    # matched "resources", pulling documents into unrelated questions.
+    _RAG_SIGNALS = re.compile(
+        r"\b(project|documents?|docs|readme|sources?|according to|knowledge base|"
+        r"my notes|notes|context|files?|folders?|repo|nexus)\b"
+    )
+
     def _needs_rag(self, query: str) -> bool:
-        text = query.lower()
-        rag_signals = [
-            "project",
-            "document",
-            "readme",
-            "source",
-            "according to",
-            "local docs",
-            "knowledge base",
-            "my notes",
-            "context",
-            "file",
-            "folder",
-            "repo",
-            "nexus",
-        ]
-        return any(signal in text for signal in rag_signals)
+        return bool(self._RAG_SIGNALS.search(query.lower()))
 
     def route(
         self,
@@ -300,7 +242,7 @@ class TaskRouter:
 
         Returns `model` (the first choice) plus `chain` — every reachable
         alternative, best first — so the engine can fall through without
-        re-routing. Nothing here is user-configurable by design.
+        re-routing. `force_task` overrides the classifier.
         """
         classification = self.classify(query)
         task = classification["task"]
@@ -317,14 +259,14 @@ class TaskRouter:
                  "reason": "local file operation — no model needed"}
             ]
             complexity = 0.0
-            avail = {"ollama": available_models or []}
+            avail = {"ollama": list(available_models or []), "ollama_up": None, "loaded": []}
         else:
             complexity = providers.estimate_complexity(query)
             avail = providers.availability(available_models)
             chain = [
                 {"model": c.model, "provider": c.spec.provider,
                  "score": round(c.score, 3), "reason": c.reason}
-                for c in providers.plan(task, query, needs_rag, complexity, avail)
+                for c in providers.plan(task, query, complexity, avail)
             ]
 
         top = chain[0] if chain else None

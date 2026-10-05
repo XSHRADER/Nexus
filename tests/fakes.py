@@ -10,7 +10,7 @@ import requests
 
 class FakeResponse:
     def __init__(self, lines, status=200):
-        self._lines = [_json.dumps(l).encode("utf-8") if isinstance(l, dict) else l for l in lines]
+        self._lines = [_json.dumps(line).encode("utf-8") if isinstance(line, dict) else line for line in lines]
         self.status_code = status
         self.closed = False
 

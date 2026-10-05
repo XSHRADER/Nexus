@@ -3,17 +3,19 @@ providers.py
 Capability map of every model NEXUS can reach, plus the automatic selection
 logic behind it.
 
-The user never picks a model. `plan()` scores the whole catalogue against the
-routed task, how hard the request looks, and whether local documents are
-involved, then returns an ordered chain of models that are actually reachable
-right now. `engine.py` walks that chain top-down until one answers, so a model
-that is missing or fails to load degrades instead of failing outright.
+`plan()` scores every installed model against the routed task, how hard the
+request looks, and whether it is already loaded, then returns an ordered chain
+of models that are actually reachable right now. `engine.py` walks that chain
+top-down until one answers, so a model that is missing or fails to load
+degrades instead of failing outright.
 
 Design intent:
   * Everything runs on this PC through Ollama — free, private, and offline.
-  * Within that, a specialist beats a generalist: the coder models take coding,
-    the chain-of-thought models take planning and deep reasoning, and a model
+  * A specialist beats a generalist: the coder models take coding, the
+    chain-of-thought models take planning and deep reasoning, and a model
     already resident in VRAM beats an equal peer that would need loading first.
+  * Models outside the hand-tuned catalogue still take part, with a profile
+    inferred from their name, size and reported capabilities.
 """
 
 from __future__ import annotations
@@ -22,7 +24,11 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-import requests
+from nexus import ollama
+
+# Tasks a text prompt can be routed to. Image and audio models are recognised
+# (so they are never offered for text) but there is no attachment input yet.
+TEXT_TASKS = ("general", "coding", "reasoning", "planning")
 
 # ---------------------------------------------------------------------------
 # Catalogue
@@ -31,13 +37,12 @@ import requests
 
 @dataclass(frozen=True)
 class ModelSpec:
-    """One reachable model and what it is good at.
+    """One model and what it is good at.
 
     strengths: task -> 0..1 fit. A task absent from the dict means the model is
     not a candidate for it at all.
     quality:   raw capability on hard prompts (matters as complexity rises).
     speed:     responsiveness (matters when the prompt is easy).
-    local:     runs on this PC — free, private, no network.
     """
 
     name: str
@@ -45,17 +50,12 @@ class ModelSpec:
     strengths: dict[str, float] = field(default_factory=dict)
     quality: float = 0.5
     speed: float = 0.5
-    local: bool = True
     note: str = ""
     discovered: bool = False  # profile inferred by discover(), not hand-tuned
 
-    @property
-    def is_local(self) -> bool:
-        return self.local
-
 
 CATALOG: list[ModelSpec] = [
-    # --- local: general chat -------------------------------------------------
+    # --- general chat --------------------------------------------------------
     ModelSpec(
         "llama3.1:8b", "ollama",
         {"general": 0.88, "coding": 0.55, "reasoning": 0.55, "planning": 0.50},
@@ -76,7 +76,7 @@ CATALOG: list[ModelSpec] = [
         {"general": 0.80, "coding": 0.55, "reasoning": 0.58, "planning": 0.50},
         quality=0.60, speed=0.76,
     ),
-    # --- local: coding -------------------------------------------------------
+    # --- coding --------------------------------------------------------------
     ModelSpec(
         "qwen2.5-coder:7b", "ollama",
         {"coding": 0.92, "general": 0.55, "reasoning": 0.50},
@@ -92,7 +92,7 @@ CATALOG: list[ModelSpec] = [
         {"coding": 0.76, "general": 0.42},
         quality=0.56, speed=0.82,
     ),
-    # --- local: reasoning ----------------------------------------------------
+    # --- reasoning -----------------------------------------------------------
     ModelSpec(
         "deepseek-r1:7b", "ollama",
         {"reasoning": 0.86, "planning": 0.74, "coding": 0.62, "general": 0.55},
@@ -103,27 +103,12 @@ CATALOG: list[ModelSpec] = [
         {"reasoning": 0.80, "planning": 0.70, "general": 0.70, "coding": 0.60},
         quality=0.74, speed=0.42,
     ),
-    # --- local: vision -------------------------------------------------------
+    # --- vision (recognised so they are kept out of text routing) ------------
     ModelSpec("llava:7b", "ollama", {"vision": 0.78}, quality=0.55, speed=0.70),
     ModelSpec("qwen2.5vl:7b", "ollama", {"vision": 0.82}, quality=0.62, speed=0.66),
-    ModelSpec("bakllava:7b", "ollama", {"vision": 0.72}, quality=0.52, speed=0.70),
-    # --- local: speech -------------------------------------------------------
-    ModelSpec("whisper:small", "ollama", {"speech": 0.85}, quality=0.65, speed=0.70),
-    ModelSpec("whisper:base", "ollama", {"speech": 0.72}, quality=0.55, speed=0.85),
 ]
 
 BY_NAME: dict[str, ModelSpec] = {spec.name: spec for spec in CATALOG}
-
-# Tasks whose answers are built from the user's own documents. Keep these on
-# the machine unless nothing local is reachable.
-PRIVATE_TASKS = {"system_agent"}
-
-# Preference for staying on this PC, on the same 0..1 scale as fit. Every model
-# in the catalogue is local today, so these apply uniformly and do not change
-# the ranking — they are kept because they encode the intended policy, and
-# become load-bearing again the moment a remote provider is added to CATALOG.
-LOCAL_BONUS = 0.12
-RAG_LOCAL_BONUS = 0.18
 
 # A 7B model takes ~30s to load into an 8GB card, which holds one at a time.
 # So a model already resident answers *much* sooner. Small enough that a real
@@ -158,8 +143,8 @@ def estimate_complexity(query: str) -> float:
     """0..1 — how much raw capability this prompt is likely to need.
 
     Length, planning language, and analytical depth push it up; greetings and
-    one-line lookups push it down. This is what decides whether NEXUS reaches
-    for the cloud or answers locally.
+    one-line lookups push it down. High complexity favours the stronger,
+    slower models; low complexity favours the fast ones.
     """
     text = (query or "").strip()
     if not text:
@@ -192,19 +177,29 @@ def _base(name: str) -> str:
     return _normalise(name).split(":", 1)[0]
 
 
+def _size_from_tag(tag: str) -> float | None:
+    """`llama3.1:8b-instruct-q4_K_M` -> 8.0; `llama3.1:latest` -> None."""
+    match = re.search(r":(\d+(?:\.\d+)?)b\b", tag.lower())
+    return float(match.group(1)) if match else None
+
+
 def resolve_installed(spec: ModelSpec, installed: list[str]) -> str | None:
     """Return the exact Ollama tag matching `spec`, or None.
 
-    Matches `llama3.1:8b` exactly, and also accepts `llama3.1:latest` /
-    `llama3.1` so a user who pulled the default tag still gets routed there.
+    Matches `llama3.1:8b` exactly, and also accepts `llama3.1:latest`,
+    `llama3.1` or `llama3.1:8b-instruct-q4_K_M` -- but not `llama3.1:70b`:
+    a different size is a different model, with a different speed profile.
     """
     wanted = _normalise(spec.name)
     lookup = {_normalise(n): n for n in installed}
     if wanted in lookup:
         return lookup[wanted]
-    base = _base(spec.name)
+    base, size = _base(spec.name), _size_from_tag(spec.name)
     for norm, original in lookup.items():
-        if _base(norm) == base:
+        if _base(norm) != base:
+            continue
+        other = _size_from_tag(norm)
+        if size is None or other is None or other == size:
             return original
     return None
 
@@ -215,25 +210,19 @@ def availability(
 ) -> dict[str, Any]:
     """Snapshot of what NEXUS can reach right now."""
     if installed_ollama is None:
-        from nexus.router import get_installed_ollama_models
-
-        installed_ollama = get_installed_ollama_models()
-    if loaded_ollama is None and installed_ollama:
-        from nexus.router import get_loaded_ollama_models
-
-        loaded_ollama = get_loaded_ollama_models()
+        installed_ollama = ollama.installed_models()
+    if loaded_ollama is None:
+        loaded_ollama = ollama.loaded_models() if installed_ollama else []
     return {
-        "ollama": list(installed_ollama or []),
+        "ollama": list(installed_ollama),
         "ollama_up": bool(installed_ollama),
-        "loaded": list(loaded_ollama or []),
+        "loaded": list(loaded_ollama),
     }
 
 
 # ---------------------------------------------------------------------------
 # Capabilities and discovery
 # ---------------------------------------------------------------------------
-
-SHOW_URL = "http://localhost:11434/api/show"
 
 # A discovered profile is a guess, so it is scaled down: a hand-tuned catalogue
 # entry wins any tie, and a discovered model answers when nothing catalogued
@@ -257,11 +246,6 @@ def _parse_size(text: Any) -> float | None:
     return value / 1000.0 if match.group(2).lower() == "m" else value
 
 
-def _size_from_tag(tag: str) -> float | None:
-    match = re.search(r":(\d+(?:\.\d+)?)b\b", tag.lower())
-    return float(match.group(1)) if match else None
-
-
 def capabilities(model: str) -> dict[str, Any]:
     """What Ollama reports about `model`: capability tags, context window, size.
 
@@ -272,18 +256,15 @@ def capabilities(model: str) -> dict[str, Any]:
     if model in _CAPS_CACHE:
         return _CAPS_CACHE[model]
     info: dict[str, Any] = {"caps": set(), "context_length": None, "parameter_size": None}
-    try:
-        response = requests.post(SHOW_URL, json={"model": model}, timeout=3.0)
-    except Exception:
+    data = ollama.show(model)
+    if data is None:
         return info
-    if response.status_code == 200:
-        data = response.json()
-        info["caps"] = {str(c).lower() for c in data.get("capabilities") or []}
-        info["parameter_size"] = _parse_size((data.get("details") or {}).get("parameter_size"))
-        for key, value in (data.get("model_info") or {}).items():
-            if key.endswith(".context_length") and isinstance(value, int):
-                info["context_length"] = value
-                break
+    info["caps"] = {str(c).lower() for c in data.get("capabilities") or []}
+    info["parameter_size"] = _parse_size((data.get("details") or {}).get("parameter_size"))
+    for key, value in (data.get("model_info") or {}).items():
+        if key.endswith(".context_length") and isinstance(value, int):
+            info["context_length"] = value
+            break
     _CAPS_CACHE[model] = info
     return info
 
@@ -323,11 +304,7 @@ def _size_profile(size_b: float | None) -> tuple[float, float]:
 
 def discover(installed: list[str]) -> list[ModelSpec]:
     """Profiles for installed models the catalogue doesn't know about."""
-    known = {
-        resolve_installed(spec, installed)
-        for spec in CATALOG
-        if spec.provider == "ollama"
-    }
+    known = {resolve_installed(spec, installed) for spec in CATALOG}
     specs: list[ModelSpec] = []
     for tag in installed:
         if tag in known:
@@ -361,39 +338,30 @@ class Candidate:
     reason: str
 
 
-def score_model(
-    spec: ModelSpec,
-    task: str,
-    complexity: float,
-    needs_rag: bool,
-    warm: bool = False,
-) -> float | None:
+def score_model(spec: ModelSpec, task: str, complexity: float, warm: bool = False) -> float | None:
     """Fit of one model for one request, or None if it can't do the task."""
     fit = spec.strengths.get(task)
     if fit is None:
         return None
-
-    score = fit
-    if warm:
-        score += WARM_BONUS
+    score = fit + (WARM_BONUS if warm else 0.0)
     # Hard prompts pay for capability; easy ones pay for responsiveness.
     score += complexity * spec.quality * 0.60
     score += (1.0 - complexity) * spec.speed * 0.35
-    if spec.is_local:
-        score += LOCAL_BONUS
-        if needs_rag:
-            score += RAG_LOCAL_BONUS
     return score
 
 
 def plan(
     task: str,
     query: str = "",
-    needs_rag: bool = False,
     complexity: float | None = None,
     avail: dict[str, Any] | None = None,
 ) -> list[Candidate]:
-    """Ordered chain of reachable models for this request, best first."""
+    """Ordered chain of reachable models for this request, best first.
+
+    Each installed model appears at most once: two catalogue entries can
+    resolve to the same tag (`llava:7b` and a bare `llava`), and retrying the
+    same model after it failed only doubles the wait.
+    """
     if complexity is None:
         complexity = estimate_complexity(query)
     if avail is None:
@@ -402,51 +370,24 @@ def plan(
     installed = avail.get("ollama", [])
     loaded = {_normalise(n) for n in avail.get("loaded", [])}
 
-    candidates: list[Candidate] = []
+    best: dict[str, Candidate] = {}
     for spec in CATALOG + discover(installed):
-        if spec.provider != "ollama":
-            continue
         resolved = resolve_installed(spec, installed)
         if resolved is None:
             continue
-        model_name = resolved
         warm = _normalise(resolved) in loaded
-
-        score = score_model(spec, task, complexity, needs_rag, warm)
+        score = score_model(spec, task, complexity, warm)
         if score is None:
             continue
+        if resolved not in best or score > best[resolved].score:
+            best[resolved] = Candidate(spec, resolved, score, _reason(spec, task, complexity, warm))
 
-        candidates.append(
-            Candidate(
-                spec=spec,
-                model=model_name,
-                score=score,
-                reason=_reason(spec, task, complexity, warm),
-            )
-        )
-
-    candidates.sort(key=lambda c: c.score, reverse=True)
-    return candidates
+    return sorted(best.values(), key=lambda c: c.score, reverse=True)
 
 
 def _reason(spec: ModelSpec, task: str, complexity: float, warm: bool = False) -> str:
-    where = "on this PC" if spec.is_local else "in the cloud"
     depth = "complex" if complexity >= 0.5 else "quick"
     detail = f" — {spec.note}" if spec.note else ""
     if warm:
         detail += " (already loaded)"
-    return f"{spec.name} {where}: strong on {task}, {depth} request{detail}"
-
-
-def describe_plan(task: str, query: str = "", needs_rag: bool = False) -> dict[str, Any]:
-    """Human-readable view of the automatic choice — used by the UIs."""
-    complexity = estimate_complexity(query)
-    avail = availability()
-    chain = plan(task, query, needs_rag, complexity, avail)
-    return {
-        "task": task,
-        "complexity": round(complexity, 2),
-        "chain": [{"model": c.model, "provider": c.spec.provider,
-                   "score": round(c.score, 3), "reason": c.reason} for c in chain],
-        "available": avail,
-    }
+    return f"{spec.name}: strong on {task}, {depth} request{detail}"

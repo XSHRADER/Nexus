@@ -12,26 +12,26 @@ Automatic stays the default everywhere. Every control has an Auto setting that
 reproduces the untouched behaviour exactly.
 """
 
-import io
 import json
-import sys
+import logging
 import time
-from contextlib import redirect_stdout
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
 
-from nexus import providers
-from nexus import store
+from nexus import config, log, providers, store
 from nexus.engine import Options, answer, apply_pending
+from nexus.retrieve import get_retriever
+from nexus.router import TaskRouter
 
-PROJECT_DIR = Path(__file__).resolve().parent
-DOCS_DIR = PROJECT_DIR / "documents"
-LOG_PATH = PROJECT_DIR / "router_logs.jsonl"
+log.setup()
+logger = logging.getLogger("nexus.app")
 
-TASKS = ["general", "coding", "reasoning", "planning", "vision", "speech", "system_agent"]
+DOCS_DIR = config.DOCS_DIR
+LOG_PATH = config.ROUTER_LOG
+TASKS = list(TaskRouter.TASKS)
 
 st.set_page_config(
     page_title="NEXUS AI",
@@ -74,13 +74,6 @@ st.markdown(
 # ---------------------------------------------------------------------------
 
 
-@st.cache_resource(show_spinner=False)
-def _retriever():
-    from nexus.retrieve import Retriever
-
-    return Retriever()
-
-
 @st.cache_data(ttl=5, show_spinner=False)
 def _availability():
     return providers.availability()
@@ -89,14 +82,10 @@ def _availability():
 def _index_summary():
     """Per-file chunk counts straight from the vector store."""
     try:
-        retriever = _retriever()
-        retriever._ensure_fresh()
-        counts: dict[str, int] = {}
-        for record in retriever._doc_by_id.values():
-            src = record["meta"].get("source", "unknown")
-            counts[src] = counts.get(src, 0) + 1
-        return retriever._indexed_count, counts
-    except Exception:
+        stats = get_retriever().stats()
+        return stats["chunks"], stats["files"]
+    except Exception as exc:
+        logger.warning("index unavailable: %s", exc)
         return 0, {}
 
 
@@ -125,7 +114,7 @@ def _persist(role: str, content: str, meta: dict | None = None) -> None:
             st.session_state.chat_id = store.create_chat(content)
         store.append_message(st.session_state.chat_id, role, content, meta)
     except Exception as exc:
-        print(f"[nexus] could not save message: {exc}", file=sys.stderr)
+        logger.warning("could not save message: %s", exc)
 
 
 def _history_for(regenerate: bool) -> list[dict]:
@@ -449,7 +438,7 @@ def _save_stopped(
             store.append_message(chat_id, "assistant", content, meta)
         store.record_turn({"chat_id": chat_id, "stopped": True})
     except Exception as exc:
-        print(f"[nexus] could not save the stopped answer: {exc}", file=sys.stderr)
+        logger.warning("could not save the stopped answer: %s", exc)
 
 
 def run_turn(question: str, opts: Options, regenerate: bool = False) -> None:
@@ -466,9 +455,8 @@ def run_turn(question: str, opts: Options, regenerate: bool = False) -> None:
 
         def on_thinking(text: str) -> None:
             thoughts.append(text)
-            with think_slot.container():
-                with st.expander("Reasoning…", expanded=True):
-                    st.markdown("".join(thoughts))
+            with think_slot.container(), st.expander("Reasoning…", expanded=True):
+                st.markdown("".join(thoughts))
             if not buffer:
                 placeholder.markdown("_thinking…_")
 
@@ -662,7 +650,7 @@ with tab_docs:
     if uploads:
         saved = []
         for f in uploads:
-            target = DOCS_DIR / f.name
+            target = DOCS_DIR / Path(f.name).name  # never a path from the browser
             target.write_bytes(f.getbuffer())
             saved.append(f.name)
         st.success(f"Saved {len(saved)} file(s): {', '.join(saved)} — now re-index.")
@@ -674,18 +662,16 @@ with tab_docs:
     if do_incremental or do_rebuild:
         from nexus import ingest
 
+        lines: list[str] = []
         with st.spinner("Indexing..."):
-            log = io.StringIO()
             try:
-                with redirect_stdout(log):
-                    ingest.main(force_rebuild=do_rebuild)
+                ingest.run(force_rebuild=do_rebuild, echo=lines.append)
                 ok = True
             except Exception as exc:
                 ok = False
-                log.write(f"\nFAILED: {exc}")
-        st.code(log.getvalue() or "(no output)", language="text")
+                lines.append(f"FAILED: {exc}")
+        st.code("\n".join(lines) or "(no output)", language="text")
         if ok:
-            _retriever().refresh()
             st.cache_data.clear()
             st.success("Index updated.")
 
@@ -710,7 +696,7 @@ with tab_lab:
             ("Hybrid + rerank", dict(use_vector=True, use_bm25=True, rerank=True)),
         ]
         cols = st.columns(len(arms))
-        retriever = _retriever()
+        retriever = get_retriever()
         for col, (name, kwargs) in zip(cols, arms):
             with col:
                 st.markdown(f"**{name}**")

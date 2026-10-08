@@ -172,3 +172,15 @@ Remaining:
   `ingest.py`), then re-run `python -m nexus.evaluate`.
 - Note: `data/router_logs.jsonl` still contains decisions from earlier test
   runs (model names `a`/`b`); safe to delete.
+
+### Router training data (2026-10-08)
+- Exemplars moved out of code into `nexus/router_examples.json`: 17 -> 285
+  labelled prompts across the five tasks. Add a line there to teach a phrasing.
+- New held-out set `eval/router_set.json` (150 prompts, 30 per task) and
+  `python -m nexus.evaluate_router`. Exemplars within 0.8 cosine of an eval
+  prompt were reworded or dropped so the score isn't inflated.
+- Semantic score is now the mean of the top 6 exemplar matches (was the single
+  best), weighted 8x (was 4x); `general`'s +1.2 head start removed. Chosen by
+  leave-one-out accuracy over the exemplars, not on the eval set.
+- Held-out accuracy 62.0% -> 89.3% (reasoning 23% -> 87%, planning 43% -> 87%,
+  coding 60% -> 90%). A test keeps it >= 85% and keeps the two sets disjoint.

@@ -155,5 +155,32 @@ class IntentPrecisionTests(unittest.TestCase):
         self.assert_task("compare the trade-off between cache and queue", "reasoning")
 
 
+class HeldOutAccuracyTests(unittest.TestCase):
+    """The exemplar file is what the router learns from; the eval set is what
+    it is judged on. Keep them apart, and keep the score from sliding back."""
+
+    def test_eval_prompts_are_not_exemplars(self):
+        from nexus.evaluate_router import load_set
+        from nexus.router import load_examples
+
+        taught = {q.lower() for qs in load_examples().values() for q in qs}
+        leaked = [item["q"] for item in load_set() if item["q"].lower() in taught]
+        self.assertEqual(leaked, [])
+
+    def test_every_task_has_exemplars(self):
+        from nexus.router import load_examples
+
+        examples = load_examples()
+        for task in TaskRouter.TASKS:
+            self.assertGreaterEqual(len(examples.get(task, [])), 20, task)
+
+    def test_held_out_accuracy(self):
+        # 62% before the exemplar set and top-k scoring; 89% after.
+        from nexus.evaluate_router import evaluate, load_set
+
+        result = evaluate(TaskRouter(), load_set())
+        self.assertGreaterEqual(result["accuracy"], 0.85, result["misses"])
+
+
 if __name__ == "__main__":
     unittest.main()

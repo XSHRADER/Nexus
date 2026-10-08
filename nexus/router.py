@@ -12,6 +12,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from nexus import config, providers
 from nexus.embeddings import get_sentence_transformer
 
@@ -19,6 +21,14 @@ log = logging.getLogger(__name__)
 
 LOG_MAX_BYTES = 5 * 1024 * 1024
 LOG_BACKUPS = 3
+
+EXAMPLES_FILE = Path(__file__).with_name("router_examples.json")
+
+
+def load_examples(path: str | Path = EXAMPLES_FILE) -> dict[str, list[str]]:
+    """Read the labelled exemplar prompts, one list per task."""
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)["examples"]
 
 
 class DecisionLogger:
@@ -82,35 +92,15 @@ class TaskRouter:
     }
     MODEL_MAP["system_agent"] = ["pc-toolkit"]
 
-    CATEGORY_EXAMPLES = {
-        "general": [
-            "Summarize this project in simple terms.",
-            "Explain the purpose of a local AI assistant.",
-        ],
-        "coding": [
-            "Fix a Python TypeError in a function.",
-            "Write a debugging plan for a failing API call.",
-        ],
-        "reasoning": [
-            "Compare the trade-offs between caching and message queues.",
-            "Analyze the pros and cons of a multi-step decision.",
-        ],
-        "planning": [
-            "Make me a step by step plan to finish this project.",
-            "Draft a roadmap for the next two weeks of work.",
-            "Break this task down into ordered steps I can follow.",
-            "How should I approach building this from scratch?",
-        ],
-        "system_agent": [
-            "Organize my downloads folder by file types.",
-            "Sort the files on my desktop into folders.",
-            "Tidy up this folder and clean out empty directories.",
-            "Undo the last folder organization.",
-            "Find duplicate files taking up space on my PC.",
-            "Scan directory for large files over 100MB.",
-            "Analyze disk usage and file clutter in a folder.",
-        ],
-    }
+    # Labelled prompts the semantic half of the classifier compares against.
+    # Kept as data so new phrasings can be taught without touching code.
+    CATEGORY_EXAMPLES = load_examples()
+    # A task's semantic score is the mean similarity of its TOP_K nearest
+    # exemplars (a single best match let one lucky phrasing decide), scaled by
+    # SEMANTIC_WEIGHT against the keyword rules. Both were picked by
+    # leave-one-out accuracy over the exemplars, not on eval/router_set.json.
+    TOP_K = 6
+    SEMANTIC_WEIGHT = 8.0
 
     def __init__(self, embedding_model: str = config.EMBED_MODEL):
         self.embed_model = get_sentence_transformer(embedding_model)
@@ -124,9 +114,9 @@ class TaskRouter:
     def _rule_scores(self, query: str) -> dict[str, float]:
         text = query.lower()
         scores = {name: 0.0 for name in self.TASKS}
-        # Chat is the safe default: without it, a short greeting has no keyword
-        # signal at all and embedding noise can hand it to any other task.
-        scores["general"] += 1.2
+        # No standing head start for chat any more: with a full exemplar set
+        # it mostly dragged real coding/planning prompts into "general".
+        # Greetings still get a strong explicit push here.
         if re.match(r"^\s*(hi|hey|hello|yo|sup|thanks|thank you|ok|okay|yes|no|cool|nice|good (morning|evening|night))\b[\s!.,?]*$", text):
             scores["general"] += 4.0
 
@@ -198,7 +188,8 @@ class TaskRouter:
         scores: dict[str, float] = {}
         for label, matrix in self.category_vectors.items():
             sims = matrix @ query_embedding
-            scores[label] = float(sims.max()) if len(sims) else 0.0
+            top = np.sort(sims)[-self.TOP_K:]
+            scores[label] = float(top.mean()) if len(top) else 0.0
         return scores
 
     def classify(self, query: str) -> dict[str, Any]:
@@ -212,9 +203,8 @@ class TaskRouter:
 
         rule_scores = self._rule_scores(text)
         semantic_scores = self._semantic_scores(text)
-        # Increase weight of semantic scoring to prevent regex misclassifications on multi-intent prompts
         combined = {
-            name: float(rule_scores.get(name, 0.0) + semantic_scores.get(name, 0.0) * 4.0)
+            name: float(rule_scores.get(name, 0.0) + semantic_scores.get(name, 0.0) * self.SEMANTIC_WEIGHT)
             for name in self.TASKS
         }
 

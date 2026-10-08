@@ -1,0 +1,845 @@
+{
+  "_comment": "Held-out routing set for eval_router.py: never used for training. Each prompt has the task a person would expect and whether it needs the user's own documents. It deliberately includes generic questions that mention 'project', 'file', 'folder', 'source' or 'context' without being about the user's documents, which a keyword gate gets wrong.",
+  "prompts": [
+    {
+      "id": "r001",
+      "prompt": "What's the difference between a virus and bacteria?",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r002",
+      "prompt": "Who painted the Mona Lisa?",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r003",
+      "prompt": "good morning!",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r004",
+      "prompt": "What does 'open source' mean?",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r005",
+      "prompt": "Explain what a project manager does.",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r006",
+      "prompt": "What is a file system?",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r007",
+      "prompt": "What is the source of the Nile river?",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r008",
+      "prompt": "In simple terms, what is context in a conversation?",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r009",
+      "prompt": "What is cloud computing?",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r010",
+      "prompt": "Tell me a joke about programmers.",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r011",
+      "prompt": "Which vector database does NEXUS rely on?",
+      "task": "general",
+      "needs_docs": true
+    },
+    {
+      "id": "r012",
+      "prompt": "What do my notes say about the Python environment folder?",
+      "task": "general",
+      "needs_docs": true
+    },
+    {
+      "id": "r013",
+      "prompt": "According to the readme, what does the first run download?",
+      "task": "general",
+      "needs_docs": true
+    },
+    {
+      "id": "r014",
+      "prompt": "What's listed as completed in my checklist?",
+      "task": "general",
+      "needs_docs": true
+    },
+    {
+      "id": "r015",
+      "prompt": "Which file stores the record of setup actions in this project?",
+      "task": "general",
+      "needs_docs": true
+    },
+    {
+      "id": "r016",
+      "prompt": "What is the speed of light?",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r017",
+      "prompt": "Summarize the plot of Romeo and Juliet.",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r018",
+      "prompt": "What are folders used for on a computer?",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r019",
+      "prompt": "What's a readme file in general?",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r020",
+      "prompt": "thank you so much",
+      "task": "general",
+      "needs_docs": false
+    },
+    {
+      "id": "r021",
+      "prompt": "Write a Python function to check if a string is a palindrome.",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r022",
+      "prompt": "Fix: AttributeError: 'list' object has no attribute 'split'",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r023",
+      "prompt": "How do I structure a Python project with packages and tests?",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r024",
+      "prompt": "My Node server says EADDRINUSE, what do I do?",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r025",
+      "prompt": "Write a SQL query that counts orders per month.",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r026",
+      "prompt": "Refactor this function to remove duplicate code.",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r027",
+      "prompt": "Write a function that flattens a nested list.",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r028",
+      "prompt": "Why does my Python loop print the same value every time?",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r029",
+      "prompt": "Implement quicksort in C++.",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r030",
+      "prompt": "How do I add a source file to a CMake project?",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r031",
+      "prompt": "Write tests for the chunking function in loaders.py.",
+      "task": "coding",
+      "needs_docs": true
+    },
+    {
+      "id": "r032",
+      "prompt": "Make retrieve.py print the BM25 rank of each result.",
+      "task": "coding",
+      "needs_docs": true
+    },
+    {
+      "id": "r033",
+      "prompt": "Fix the bug where ingest.py re-embeds unchanged files.",
+      "task": "coding",
+      "needs_docs": true
+    },
+    {
+      "id": "r034",
+      "prompt": "Write a Python decorator that times a function.",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r035",
+      "prompt": "Explain this error: KeyError: 'id' in my JSON parser.",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r036",
+      "prompt": "Write an HTML form with email and password fields.",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r037",
+      "prompt": "How do I read a file line by line in Rust?",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r038",
+      "prompt": "My pandas merge produces duplicate rows, how do I fix it?",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r039",
+      "prompt": "Write a regex that matches valid email addresses.",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r040",
+      "prompt": "Add type hints to this Python function.",
+      "task": "coding",
+      "needs_docs": false
+    },
+    {
+      "id": "r041",
+      "prompt": "Compare tabs versus spaces and pick one with reasons.",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r042",
+      "prompt": "Is it worth buying a more expensive GPU for local AI? Weigh it up.",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r043",
+      "prompt": "What are the pros and cons of electric cars?",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r044",
+      "prompt": "Should I store user sessions in Redis or in the database? Explain the trade-offs.",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r045",
+      "prompt": "Why do some projects fail even with good developers?",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r046",
+      "prompt": "Evaluate the argument that homework should be banned.",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r047",
+      "prompt": "A bat and a ball cost 1.10 in total and the bat costs 1.00 more than the ball. How much is the ball?",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r048",
+      "prompt": "Which is better for a beginner: Linux or Windows for programming? Justify.",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r049",
+      "prompt": "Why does NEXUS rerank with a cross-encoder after fusion, according to my docs?",
+      "task": "reasoning",
+      "needs_docs": true
+    },
+    {
+      "id": "r050",
+      "prompt": "Based on my notes, was moving top_k to 10 justified?",
+      "task": "reasoning",
+      "needs_docs": true
+    },
+    {
+      "id": "r051",
+      "prompt": "Compare hybrid retrieval with dense-only search using what the README measured.",
+      "task": "reasoning",
+      "needs_docs": true
+    },
+    {
+      "id": "r052",
+      "prompt": "What are the risks of relying on a single cloud provider?",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r053",
+      "prompt": "Analyze why open-plan offices can reduce productivity.",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r054",
+      "prompt": "Decide whether to rewrite an old codebase or improve it gradually.",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r055",
+      "prompt": "Why do larger language models hallucinate less, or do they?",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r056",
+      "prompt": "Weigh the benefits of learning by projects versus courses.",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r057",
+      "prompt": "Is it better to have one big exam or many small tests? Argue both sides.",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r058",
+      "prompt": "What are the implications of a four-day work week for productivity?",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r059",
+      "prompt": "Should I normalize this database or keep it denormalized for speed?",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r060",
+      "prompt": "Why do prices of flights change so much from day to day?",
+      "task": "reasoning",
+      "needs_docs": false
+    },
+    {
+      "id": "r061",
+      "prompt": "Make a plan to learn statistics for data science in a month.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r062",
+      "prompt": "Create a step by step plan for my final year project on image classification.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r063",
+      "prompt": "Plan a weekend trip to the mountains.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r064",
+      "prompt": "Outline a roadmap for turning my side project into a product.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r065",
+      "prompt": "How should I approach learning to play guitar as an adult?",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r066",
+      "prompt": "Break down the work of building a personal finance tracker app.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r067",
+      "prompt": "Make a schedule to prepare for the GRE in 8 weeks.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r068",
+      "prompt": "Plan the remaining NEXUS tasks from my checklist into a weekly schedule.",
+      "task": "planning",
+      "needs_docs": true
+    },
+    {
+      "id": "r069",
+      "prompt": "Using the setup guide in my documents, plan the steps to rebuild the index.",
+      "task": "planning",
+      "needs_docs": true
+    },
+    {
+      "id": "r070",
+      "prompt": "Give me milestones for a team project with four people over a semester.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r071",
+      "prompt": "Walk me through planning a podcast launch.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r072",
+      "prompt": "Create a 30-day plan to get better at public speaking.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r073",
+      "prompt": "Make a moving-house checklist with a timeline.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r074",
+      "prompt": "Plan a migration of my blog from WordPress to a static site.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r075",
+      "prompt": "Draft a step by step plan to apply for internships this summer.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r076",
+      "prompt": "Create a roadmap for learning Kubernetes.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r077",
+      "prompt": "How should I structure my day to study for 6 hours?",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r078",
+      "prompt": "Plan the sprints for a two-month app project.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r079",
+      "prompt": "Outline the steps to write and publish an ebook.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r080",
+      "prompt": "Make a step by step plan to start a YouTube channel about coding.",
+      "task": "planning",
+      "needs_docs": false
+    },
+    {
+      "id": "r081",
+      "prompt": "What is shown in this photo?",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r082",
+      "prompt": "Read the numbers on this screenshot of my bank app.",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r083",
+      "prompt": "Describe this chart and its key trend.",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r084",
+      "prompt": "What kind of bird is in this picture?",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r085",
+      "prompt": "Transcribe the sign in this image.",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r086",
+      "prompt": "Is there anything unusual in this X-ray image?",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r087",
+      "prompt": "Explain this diagram of a neural network.",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r088",
+      "prompt": "What does the error dialog in this screenshot mean?",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r089",
+      "prompt": "Describe the person's outfit in this photo.",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r090",
+      "prompt": "Read the ingredients from this photo of a food label.",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r091",
+      "prompt": "What is happening in this picture?",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r092",
+      "prompt": "Convert this photo of a table into text.",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r093",
+      "prompt": "Which room of a house is this image showing?",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r094",
+      "prompt": "Describe the architecture diagram in this screenshot.",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r095",
+      "prompt": "What brand logo is in this image?",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r096",
+      "prompt": "Is the graph in this picture going up or down?",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r097",
+      "prompt": "What does the map in this image show?",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r098",
+      "prompt": "Look at this photo of my code and find the typo.",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r099",
+      "prompt": "How many cars are in this picture?",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r100",
+      "prompt": "Describe the style of this logo design image.",
+      "task": "vision",
+      "needs_docs": false
+    },
+    {
+      "id": "r101",
+      "prompt": "Transcribe this recording of my lecture.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r102",
+      "prompt": "Turn this voice note into a to-do list.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r103",
+      "prompt": "What does the speaker say in this audio?",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r104",
+      "prompt": "Make a transcript of this phone call recording.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r105",
+      "prompt": "Summarize the main points of this recorded talk.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r106",
+      "prompt": "Write captions for this audio clip.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r107",
+      "prompt": "Listen to this recording and tell me the meeting time.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r108",
+      "prompt": "Convert this spoken recipe into written steps.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r109",
+      "prompt": "Which language is this voice recording in?",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r110",
+      "prompt": "Transcribe my voice memo from this morning.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r111",
+      "prompt": "Create subtitles for this podcast audio.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r112",
+      "prompt": "What are the action items in this recorded meeting?",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r113",
+      "prompt": "Turn the audio of this interview into text.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r114",
+      "prompt": "Listen to this clip and tell me who is speaking.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r115",
+      "prompt": "Transcribe this song's audio.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r116",
+      "prompt": "Summarize this audiobook chapter recording.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r117",
+      "prompt": "Convert my spoken notes into a paragraph.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r118",
+      "prompt": "Is the tone of the speaker in this recording friendly?",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r119",
+      "prompt": "Write down what was said in this voicemail.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r120",
+      "prompt": "Turn this lecture audio into study notes.",
+      "task": "speech",
+      "needs_docs": false
+    },
+    {
+      "id": "r121",
+      "prompt": "Organize my Downloads folder by file type.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r122",
+      "prompt": "Find duplicate files in my Documents.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r123",
+      "prompt": "Show large files on my desktop.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r124",
+      "prompt": "Clean up empty folders in my Downloads.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r125",
+      "prompt": "Undo the sort you did on my desktop.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r126",
+      "prompt": "Sort the files in \"E:\\Photos 2024\".",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r127",
+      "prompt": "What's taking up space in my Downloads folder?",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r128",
+      "prompt": "Tidy up my Documents folder.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r129",
+      "prompt": "Find files bigger than 500 MB in my Videos.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r130",
+      "prompt": "Check for duplicates in my Music folder.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r131",
+      "prompt": "Declutter my Downloads.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r132",
+      "prompt": "Remove empty folders from C:\\Work\\old",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r133",
+      "prompt": "Analyze the clutter on my desktop.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r134",
+      "prompt": "Put the files in my Downloads into folders.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r135",
+      "prompt": "Revert the last organize in Pictures.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r136",
+      "prompt": "Find duplicate images on my desktop.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r137",
+      "prompt": "Sort my Pictures folder by type.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r138",
+      "prompt": "Which big files can I delete in my Documents?",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r139",
+      "prompt": "Organise everything on my desktop.",
+      "task": "system_agent",
+      "needs_docs": false
+    },
+    {
+      "id": "r140",
+      "prompt": "Delete the empty directories in my Downloads.",
+      "task": "system_agent",
+      "needs_docs": false
+    }
+  ]
+}

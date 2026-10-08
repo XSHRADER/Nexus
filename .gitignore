@@ -18,6 +18,16 @@ vector_store/
 vector_store_legacy/
 router_logs.jsonl
 
+# Local state and personal settings
+nexus.db
+nexus.db-journal
+nexus.toml
+
+# Trained routers (rebuilt by `python run.py --train`) and downloaded public data
+models/
+train/data/arena55k_strong.jsonl
+train/data/arena55k_strong.info.json
+
 # OS / editor
 .DS_Store
 Thumbs.db

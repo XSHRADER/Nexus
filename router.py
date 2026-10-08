@@ -53,6 +53,31 @@ PROJECT_DIR = Path(__file__).resolve().parent
 LOG_FILE = PROJECT_DIR / "router_logs.jsonl"
 
 
+def preference_bonuses(task: str) -> dict[str, float]:
+    """Score adjustments from your Arena results for this task.
+
+    Only ratings that have settled (enough decided votes) count, scaled so
+    200 Elo points above or below the starting 1000 is the full
+    `preference_weight` -- enough to reorder near-equal models, not enough to
+    hand a coding task to a chat model.
+    """
+    from config import get_settings
+
+    weight = get_settings().preference_weight
+    if weight <= 0:
+        return {}
+    try:
+        import feedback
+
+        rows = feedback.leaderboard(task)
+    except Exception:
+        return {}
+    return {
+        r["model"]: weight * max(-1.0, min(1.0, (r["elo"] - feedback.ELO_START) / 200.0))
+        for r in rows if r.get("settled")
+    }
+
+
 class DecisionLogger:
     def __init__(self, log_file: str | Path = LOG_FILE):
         self.log_file = Path(log_file)
@@ -123,9 +148,23 @@ class TaskRouter:
         ],
     }
 
-    def __init__(self, embedding_model: str = "all-MiniLM-L6-v2"):
-        self.embed_model = get_sentence_transformer(embedding_model)
+    def __init__(self, embedding_model: str = "all-MiniLM-L6-v2", use_learned: bool = True):
         self.logger = DecisionLogger()
+        # The trained router (Phase 4), when one has been trained and passed
+        # its gate. Every decision it makes has the keyword rules below as a
+        # fallback: low confidence, a missing head, or mode = "rules".
+        self.use_learned = use_learned
+        self.learned = None
+        self.reload_learned()
+        # Without sentence-transformers installed the router still works on
+        # its keyword rules alone, the same way availability() degrades when
+        # Ollama is down, instead of taking the whole engine with it.
+        try:
+            self.embed_model = get_sentence_transformer(embedding_model)
+        except ImportError:
+            self.embed_model = None
+            self.category_vectors = {}
+            return
         # Pre-embed the category exemplars once; reused on every query.
         self.category_vectors = {
             label: self.embed_model.encode(examples, normalize_embeddings=True)
@@ -209,6 +248,8 @@ class TaskRouter:
         return scores
 
     def _semantic_scores(self, query: str) -> dict[str, float]:
+        if self.embed_model is None:
+            return {}
         # Encode the query once; score against the pre-embedded exemplars.
         query_embedding = self.embed_model.encode([query], normalize_embeddings=True)[0]
         scores: dict[str, float] = {}
@@ -217,6 +258,28 @@ class TaskRouter:
             scores[label] = float(sims.max()) if len(sims) else 0.0
         return scores
 
+    def reload_learned(self) -> None:
+        """Pick up a newly trained router (or drop it) without restarting."""
+        from config import get_settings
+
+        self.learned = None
+        if not self.use_learned or get_settings().router_mode == "rules":
+            return
+        try:
+            import learned_router
+
+            self.learned = learned_router.load_current()
+        except Exception:
+            self.learned = None
+
+    def _learned(self, query: str) -> dict[str, dict[str, float]] | None:
+        if self.learned is None:
+            return None
+        try:
+            return self.learned.predict(query)
+        except Exception:
+            return None
+
     def classify(self, query: str) -> dict[str, Any]:
         text = (query or "").strip()
         if not text:
@@ -224,8 +287,23 @@ class TaskRouter:
                 "task": "general",
                 "confidence": 0.0,
                 "scores": {name: 0.0 for name in self.TASKS},
+                "method": "rules",
             }
+        from config import get_settings
 
+        probs = (self._learned(text) or {}).get("task")
+        if probs:
+            task = max(probs, key=probs.get)
+            if probs[task] >= get_settings().router_min_confidence or \
+                    get_settings().router_mode == "learned":
+                return {"task": task, "confidence": probs[task],
+                        "scores": {name: float(probs.get(name, 0.0)) for name in self.TASKS},
+                        "method": f"learned {self.learned.version}"}
+        result = self._rule_classify(text)
+        result["method"] = "rules (learned router unsure)" if probs else "rules"
+        return result
+
+    def _rule_classify(self, text: str) -> dict[str, Any]:
         rule_scores = self._rule_scores(text)
         semantic_scores = self._semantic_scores(text)
         # Increase weight of semantic scoring to prevent regex misclassifications on multi-intent prompts
@@ -239,6 +317,26 @@ class TaskRouter:
         return {"task": task, "confidence": confidence, "scores": combined}
 
     def _needs_rag(self, query: str) -> bool:
+        """Does answering this need your documents? Learned when available."""
+        from config import get_settings
+
+        probs = (self._learned(query) or {}).get("docs")
+        if probs:
+            return probs.get("yes", 0.0) >= get_settings().docs_threshold
+        return self._rule_needs_rag(query)
+
+    def needs_strong(self, query: str) -> tuple[bool | None, float | None]:
+        """(is this a hard prompt for cloud purposes?, P(strong)) -- None when
+        no strong head is trained, which leaves the difficulty estimate in charge."""
+        from config import get_settings
+
+        probs = (self._learned(query) or {}).get("strong")
+        if not probs:
+            return None, None
+        p = probs.get("strong", 0.0)
+        return p >= get_settings().strong_threshold, p
+
+    def _rule_needs_rag(self, query: str) -> bool:
         text = query.lower()
         rag_signals = [
             "project",
@@ -262,12 +360,21 @@ class TaskRouter:
         query: str,
         available_models: list[str] | None = None,
         force_task: str | None = None,
+        policy: Any = None,
+        needs_image: bool = False,
+        rag_override: bool | None = None,
     ) -> dict[str, Any]:
         """Classify the query and pick the models to try, in order.
 
         Returns `model` (the first choice) plus `chain` — every reachable
         alternative, best first — so the engine can fall through without
-        re-routing. Nothing here is user-configurable by design.
+        re-routing.
+
+        `policy` (cloud.CloudPolicy) says whether cloud models may compete;
+        `needs_image` keeps only models that read images; `rag_override`
+        replaces the keyword guess about using your documents. That decision
+        has to be final *before* planning, because it decides whether a
+        request may leave this PC at all.
         """
         classification = self.classify(query)
         task = classification["task"]
@@ -276,11 +383,12 @@ class TaskRouter:
         if force_task and force_task in self.TASKS:
             classification = dict(classification, auto_task=task, forced=True)
             task = force_task
-        needs_rag = self._needs_rag(query)
+        needs_rag = self._needs_rag(query) if rag_override is None else bool(rag_override)
+        hard, p_strong = self.needs_strong(query)
 
         if task == "system_agent":
             chain: list[dict[str, Any]] = [
-                {"model": "pc-toolkit", "provider": "toolkit", "score": 1.0,
+                {"model": "pc-toolkit", "provider": "toolkit", "local": True, "score": 1.0,
                  "reason": "local file operation — no model needed"}
             ]
             complexity = 0.0
@@ -289,9 +397,11 @@ class TaskRouter:
             complexity = providers.estimate_complexity(query)
             avail = providers.availability(available_models)
             chain = [
-                {"model": c.model, "provider": c.spec.provider,
+                {"model": c.model, "provider": c.spec.provider, "local": c.spec.is_local,
                  "score": round(c.score, 3), "reason": c.reason}
-                for c in providers.plan(task, query, needs_rag, complexity, avail)
+                for c in providers.plan(task, query, needs_rag, complexity, avail,
+                                        policy=policy, needs_image=needs_image, hard=hard,
+                                        bonuses=preference_bonuses(task))
             ]
 
         top = chain[0] if chain else None
@@ -307,8 +417,13 @@ class TaskRouter:
             "scores": classification["scores"],
             "auto_task": classification.get("auto_task", task),
             "forced": bool(classification.get("forced")),
+            "router_method": classification.get("method", "rules"),
+            "p_strong": None if p_strong is None else round(p_strong, 3),
             "reason": (
-                f"Matched {task} intent using keyword and embedding cues; "
+                (f"Classified as {task} by the {classification['method']} router "
+                 f"({classification['confidence']:.0%} sure); "
+                 if str(classification.get("method", "")).startswith("learned")
+                 else f"Matched {task} intent using keyword and embedding cues; ")
                 + (top["reason"] if top else "no model reachable")
             ),
         }

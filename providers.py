@@ -10,10 +10,14 @@ right now. `engine.py` walks that chain top-down until one answers, so a model
 that is missing or fails to load degrades instead of failing outright.
 
 Design intent:
-  * Everything runs on this PC through Ollama — free, private, and offline.
+  * Local first. Everything can run on this PC through Ollama -- free,
+    private, and offline -- and with cloud switched off (the default) it does.
   * Within that, a specialist beats a generalist: the coder models take coding,
     the chain-of-thought models take planning and deep reasoning, and a model
     already resident in VRAM beats an equal peer that would need loading first.
+  * Cloud models (cloud_models.toml) compete on the same scores when the cloud
+    switch allows it. cloud.py decides whether one may see a request at all;
+    this module only ranks what is allowed.
 """
 
 from __future__ import annotations
@@ -36,15 +40,20 @@ class ModelSpec:
     quality:   raw capability on hard prompts (matters as complexity rises).
     speed:     responsiveness (matters when the prompt is easy).
     local:     runs on this PC — free, private, no network.
+    cost:      free | cheap | paid (cloud only; paid needs allow_paid).
+    modalities: input kinds it accepts -- "text", "image".
     """
 
     name: str
-    provider: str  # "ollama" | "toolkit"
+    provider: str  # "ollama" | "toolkit" | a cloud provider in cloud.PROVIDERS
     strengths: dict[str, float] = field(default_factory=dict)
     quality: float = 0.5
     speed: float = 0.5
     local: bool = True
     note: str = ""
+    cost: str = "free"
+    modalities: frozenset = frozenset({"text"})
+    context: int = 8192
 
     @property
     def is_local(self) -> bool:
@@ -101,15 +110,29 @@ CATALOG: list[ModelSpec] = [
         quality=0.74, speed=0.42,
     ),
     # --- local: vision -------------------------------------------------------
-    ModelSpec("llava:7b", "ollama", {"vision": 0.78}, quality=0.55, speed=0.70),
-    ModelSpec("qwen2.5vl:7b", "ollama", {"vision": 0.82}, quality=0.62, speed=0.66),
-    ModelSpec("bakllava:7b", "ollama", {"vision": 0.72}, quality=0.52, speed=0.70),
+    ModelSpec("llava:7b", "ollama", {"vision": 0.78}, quality=0.55, speed=0.70,
+              modalities=frozenset({"text", "image"})),
+    ModelSpec("qwen2.5vl:7b", "ollama", {"vision": 0.82}, quality=0.62, speed=0.66,
+              modalities=frozenset({"text", "image"})),
+    ModelSpec("bakllava:7b", "ollama", {"vision": 0.72}, quality=0.52, speed=0.70,
+              modalities=frozenset({"text", "image"})),
     # --- local: speech -------------------------------------------------------
     ModelSpec("whisper:small", "ollama", {"speech": 0.85}, quality=0.65, speed=0.70),
     ModelSpec("whisper:base", "ollama", {"speech": 0.72}, quality=0.55, speed=0.85),
 ]
 
 BY_NAME: dict[str, ModelSpec] = {spec.name: spec for spec in CATALOG}
+
+
+def all_specs() -> list[ModelSpec]:
+    """Local catalogue plus every catalogued cloud model."""
+    import cloud
+
+    return list(CATALOG) + list(cloud.cloud_specs())
+
+
+def spec_by_name(name: str) -> ModelSpec | None:
+    return BY_NAME.get(name) or next((s for s in all_specs() if s.name == name), None)
 
 # Tasks whose answers are built from the user's own documents. Keep these on
 # the machine unless nothing local is reachable.
@@ -126,6 +149,13 @@ RAG_LOCAL_BONUS = 0.18
 # So a model already resident answers *much* sooner. Small enough that a real
 # specialist (the coder model on a coding task) still displaces it.
 WARM_BONUS = 0.10
+
+# Cloud adjustments, applied only when the cloud switch lets cloud compete.
+# On a hard prompt, "hard"/"allowed" mode is the user asking for the stronger
+# cloud models, so they get a lift. On an easy prompt cloud stays a fallback
+# behind any local model -- large enough that no cloud model outranks one.
+CLOUD_HARD_BONUS = 0.15
+CLOUD_EASY_PENALTY = 0.60
 
 
 # ---------------------------------------------------------------------------
@@ -209,8 +239,13 @@ def resolve_installed(spec: ModelSpec, installed: list[str]) -> str | None:
 def availability(
     installed_ollama: list[str] | None = None,
     loaded_ollama: list[str] | None = None,
+    include_cloud: bool = True,
 ) -> dict[str, Any]:
-    """Snapshot of what NEXUS can reach right now."""
+    """Snapshot of what NEXUS can reach right now.
+
+    `cloud` maps each provider to its status (see cloud.provider_status); it
+    reflects keys, cooldowns and daily limits only -- no network calls.
+    """
     if installed_ollama is None:
         from router import get_installed_ollama_models
 
@@ -219,11 +254,20 @@ def availability(
         from router import get_loaded_ollama_models
 
         loaded_ollama = get_loaded_ollama_models()
-    return {
+    snapshot: dict[str, Any] = {
         "ollama": list(installed_ollama or []),
         "ollama_up": bool(installed_ollama),
         "loaded": list(loaded_ollama or []),
+        "cloud": {},
     }
+    if include_cloud:
+        import cloud
+
+        try:
+            snapshot["cloud"] = cloud.statuses()
+        except Exception:  # a broken store must never take routing down
+            snapshot["cloud"] = {}
+    return snapshot
 
 
 # ---------------------------------------------------------------------------
@@ -270,12 +314,27 @@ def plan(
     needs_rag: bool = False,
     complexity: float | None = None,
     avail: dict[str, Any] | None = None,
+    policy: Any = None,
+    needs_image: bool = False,
+    hard: bool | None = None,
+    bonuses: dict[str, float] | None = None,
 ) -> list[Candidate]:
-    """Ordered chain of reachable models for this request, best first."""
+    """Ordered chain of reachable models for this request, best first.
+
+    `policy` is a cloud.CloudPolicy (default: from settings, where cloud is
+    off unless switched on). `needs_image` keeps only models that read images.
+    `hard` is the learned "needs a strong model" verdict; None falls back to
+    complexity >= the policy threshold. `bonuses` are per-model score
+    adjustments from your Arena results.
+    """
+    import cloud
+
     if complexity is None:
         complexity = estimate_complexity(query)
     if avail is None:
         avail = availability()
+    if policy is None:
+        policy = cloud.CloudPolicy.from_settings()
 
     installed = avail.get("ollama", [])
     loaded = {_normalise(n) for n in avail.get("loaded", [])}
@@ -283,6 +342,8 @@ def plan(
     candidates: list[Candidate] = []
     for spec in CATALOG:
         if spec.provider != "ollama":
+            continue
+        if needs_image and "image" not in spec.modalities:
             continue
         resolved = resolve_installed(spec, installed)
         if resolved is None:
@@ -293,6 +354,7 @@ def plan(
         score = score_model(spec, task, complexity, needs_rag, warm)
         if score is None:
             continue
+        score += (bonuses or {}).get(model_name, 0.0)
 
         candidates.append(
             Candidate(
@@ -303,12 +365,64 @@ def plan(
             )
         )
 
+    candidates.extend(
+        _cloud_candidates(task, needs_rag, complexity, avail, policy, needs_image,
+                          has_local=bool(candidates), hard=hard, bonuses=bonuses)
+    )
     candidates.sort(key=lambda c: c.score, reverse=True)
     return candidates
 
 
+def _cloud_candidates(
+    task: str,
+    needs_rag: bool,
+    complexity: float,
+    avail: dict[str, Any],
+    policy: Any,
+    needs_image: bool,
+    has_local: bool,
+    hard: bool | None = None,
+    bonuses: dict[str, float] | None = None,
+) -> list[Candidate]:
+    import cloud
+
+    if policy.mode == "off":
+        return []
+    if hard is None:
+        hard = complexity >= policy.hard_threshold
+    # "hard" mode: cloud only when the prompt is hard, or nothing local can
+    # do the task at all (an image with no local vision model).
+    if policy.mode == "hard" and not hard and has_local:
+        return []
+
+    ready = {p for p, s in (avail.get("cloud") or {}).items() if s.get("status") == "ready"}
+    out: list[Candidate] = []
+    for spec in cloud.cloud_specs():
+        if needs_image and "image" not in spec.modalities:
+            continue
+        if not cloud.cloud_candidate_ok(spec, task, needs_rag, policy, ready):
+            continue
+        score = score_model(spec, task, complexity, needs_rag)
+        if score is None:
+            continue
+        if hard:
+            score += CLOUD_HARD_BONUS
+        elif has_local:
+            score -= CLOUD_EASY_PENALTY
+        score += (bonuses or {}).get(spec.name, 0.0)
+        out.append(Candidate(spec=spec, model=spec.name, score=score,
+                             reason=_reason(spec, task, complexity)))
+    return out
+
+
 def _reason(spec: ModelSpec, task: str, complexity: float, warm: bool = False) -> str:
-    where = "on this PC" if spec.is_local else "in the cloud"
+    if spec.is_local:
+        where = "on this PC"
+    else:
+        import cloud
+
+        label = cloud.PROVIDERS.get(spec.provider, {}).get("label", spec.provider)
+        where = f"in the cloud ({label}, {spec.cost})"
     depth = "complex" if complexity >= 0.5 else "quick"
     detail = f" — {spec.note}" if spec.note else ""
     if warm:
@@ -324,7 +438,7 @@ def describe_plan(task: str, query: str = "", needs_rag: bool = False) -> dict[s
     return {
         "task": task,
         "complexity": round(complexity, 2),
-        "chain": [{"model": c.model, "provider": c.spec.provider,
+        "chain": [{"model": c.model, "provider": c.spec.provider, "local": c.spec.is_local,
                    "score": round(c.score, 3), "reason": c.reason} for c in chain],
         "available": avail,
     }

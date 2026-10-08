@@ -12,6 +12,7 @@ Automatic stays the default everywhere. Every control has an Auto setting that
 reproduces the untouched behaviour exactly.
 """
 
+import base64
 import io
 import json
 import time
@@ -22,14 +23,28 @@ from pathlib import Path
 
 import streamlit as st
 
+import html
+import brain
+import cloud
+import feedback
 import providers
-from engine import Options, answer, apply_pending
+import truth_check
+from config import get_settings
+from engine import (Options, answer, apply_pending, arena, council, council_message_meta,
+                    council_recommended, transcribe)
+from store import get_store
 
 PROJECT_DIR = Path(__file__).resolve().parent
 DOCS_DIR = PROJECT_DIR / "documents"
 LOG_PATH = PROJECT_DIR / "router_logs.jsonl"
 
 TASKS = ["general", "coding", "reasoning", "planning", "vision", "speech", "system_agent"]
+
+CLOUD_CHOICES = {"Off — this PC only": "off", "Hard questions only": "hard", "Allowed": "allowed"}
+IMAGE_TYPES = ["png", "jpg", "jpeg", "webp", "gif"]
+AUDIO_TYPES = ["wav", "mp3", "m4a", "ogg", "webm", "flac"]
+STATUS_ICON = {"ready": "🟢", "no_key": "⚪", "invalid_key": "🔴",
+               "cooling_down": "🟠", "limit_reached": "🟠"}
 
 st.set_page_config(
     page_title="NEXUS AI",
@@ -52,6 +67,14 @@ st.markdown(
       .nx-rag     { background: rgba(46,160,67,.18); }
       .nx-time    { background: rgba(128,128,128,.14); }
       .nx-pin     { background: rgba(219,109,40,.20); }
+      .nx-mem     { background: rgba(236,72,153,.16); }
+      .nx-cloud   { background: rgba(167,139,250,.22); }
+      .nx-trust   { background: rgba(103,232,249,.18); }
+      .nx-claim-supported    { background: rgba(46,160,67,.20); border-bottom: 2px solid #2ea043; }
+      .nx-claim-not_found    { background: rgba(219,154,4,.18); border-bottom: 2px dashed #d29922; }
+      .nx-claim-contradicted { background: rgba(248,81,73,.20); border-bottom: 2px solid #f85149; }
+      .nx-hl { line-height: 1.75; font-size: .95rem; }
+      .nx-local   { background: rgba(46,160,67,.12); }
       .nx-src {
           border-left: 3px solid rgba(56,139,253,.55);
           padding: .45rem .7rem; margin-bottom: .55rem;
@@ -77,6 +100,15 @@ def _retriever():
     from retrieve import Retriever
 
     return Retriever()
+
+
+@st.cache_resource(show_spinner=False)
+def _brain():
+    """One background brain per app process, started once."""
+    b = brain.get_brain()
+    if get_settings().brain_enabled:
+        b.start()
+    return b
 
 
 @st.cache_data(ttl=5, show_spinner=False)
@@ -108,6 +140,47 @@ _state("messages", [])
 _state("pending_action", None)
 _state("last_question", None)
 _state("regenerate_with", None)
+_state("chat_id", None)
+_state("pending_images", [])
+_state("audio_widget", 0)
+_state("battle", None)          # an Arena battle waiting for your vote
+_state("card_revealed", False)
+
+
+def add_message(role: str, content: str, meta: dict | None = None) -> None:
+    """Append a turn to the screen and to the saved chat.
+
+    The chat row is created on the first message, titled after it, so empty
+    "New chat" clicks never leave blank chats behind.
+    """
+    store = get_store()
+    if st.session_state.chat_id is None:
+        st.session_state.chat_id = store.create_chat(content if role == "user" else "New chat")
+    message_id = store.add_message(st.session_state.chat_id, role, content, meta)
+    message = {"id": message_id, "role": role, "content": content}
+    if meta:
+        message["meta"] = meta
+    st.session_state.messages.append(message)
+
+
+def open_chat(chat_id: int) -> None:
+    st.session_state.chat_id = chat_id
+    st.session_state.messages = get_store().get_messages(chat_id)
+    st.session_state.pending_action = None
+    st.session_state.last_question = None
+
+
+def history_for(question: str, regenerate: bool) -> list[dict]:
+    """The conversation before `question`, which is the last message on screen.
+
+    A regenerate re-asks the previous question on another model. That model
+    should not see the first model's answer, or "answer again" just becomes
+    "rephrase what the other model said", so the earlier Q/A pair is dropped.
+    """
+    earlier = st.session_state.messages[:-1]
+    if regenerate and len(earlier) >= 2 and earlier[-2].get("content") == question:
+        earlier = earlier[:-2]
+    return earlier
 
 
 # ---------------------------------------------------------------------------
@@ -135,9 +208,54 @@ with st.sidebar:
     st.divider()
     st.markdown("#### Answer settings")
 
+    st.markdown("#### Cloud")
+    settings = get_settings()
+    default_label = next(k for k, v in CLOUD_CHOICES.items() if v == settings.cloud_mode)
+    cloud_label = st.radio(
+        "Cloud", list(CLOUD_CHOICES), index=list(CLOUD_CHOICES).index(default_label),
+        label_visibility="collapsed",
+        help=(
+            "Off: nothing leaves this PC. Hard questions only: cloud models are used "
+            "for hard prompts and for things no local model can do (like images). "
+            "Allowed: cloud competes on every prompt, but easy ones still go local first."
+        ),
+    )
+    cloud_mode = CLOUD_CHOICES[cloud_label]
+    allow_docs = st.checkbox(
+        "Send documents to cloud", value=settings.allow_docs_to_cloud,
+        disabled=cloud_mode == "off",
+        help="Off: questions that use your documents are always answered on this PC.",
+    )
+    allow_paid = st.checkbox(
+        "Allow paid models", value=settings.allow_paid, disabled=cloud_mode == "off",
+        help="OpenRouter auto is billed per token with no free tier.",
+    )
+    arena_on = st.toggle(
+        "⚔️ Arena mode", value=False,
+        help="Two models answer each question with their names hidden; you pick the "
+             "better one. Your votes build the leaderboard NEXUS will learn from.",
+    )
+    council_on = st.toggle(
+        "🏛️ Council mode", value=False,
+        help="Several models answer, a judge lists where they agree and disagree, "
+             "and writes one merged answer. Slower; best for hard questions.",
+    )
+    if arena_on and council_on:
+        st.caption("Arena and Council are both on — Council is used.")
+    cloud_status = avail.get("cloud") or {}
+    with st.expander("Providers", expanded=False):
+        for prov, info in cloud_status.items():
+            label = cloud.PROVIDERS[prov]["label"]
+            st.caption(f"{STATUS_ICON.get(info['status'], '⚪')} **{label}** · {info['detail']}")
+    ready_cloud_models = [
+        spec.name for spec in cloud.cloud_specs()
+        if cloud_mode != "off" and cloud_status.get(spec.provider, {}).get("status") == "ready"
+    ]
+
+    st.divider()
     model_choice = st.selectbox(
         "Model",
-        ["Auto (recommended)"] + installed,
+        ["Auto (recommended)"] + installed + ready_cloud_models,
         help=(
             "Auto scores every installed model against the task, how hard the "
             "prompt looks, and what is already in VRAM. Pin one to override it."
@@ -183,7 +301,31 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.pending_action = None
         st.session_state.last_question = None
+        st.session_state.chat_id = None
         st.rerun()
+
+    st.markdown("#### Past chats")
+    past_chats = get_store().list_chats(limit=30)
+    if not past_chats:
+        st.caption("Chats are saved here automatically.")
+    for chat in past_chats:
+        is_open = chat["id"] == st.session_state.chat_id
+        label = ("▸ " if is_open else "") + chat["title"]
+        if st.button(
+            label, key=f"chat_{chat['id']}", width='stretch',
+            help=f"{chat['message_count']} messages · "
+                 f"{datetime.fromtimestamp(chat['updated_at']):%d %b %H:%M}",
+            disabled=is_open,
+        ):
+            open_chat(chat["id"])
+            st.rerun()
+    if st.session_state.chat_id is not None:
+        if st.button("Delete this chat", width='stretch'):
+            get_store().delete_chat(st.session_state.chat_id)
+            st.session_state.chat_id = None
+            st.session_state.messages = []
+            st.session_state.pending_action = None
+            st.rerun()
 
     if st.session_state.messages:
         transcript = "\n\n".join(
@@ -203,6 +345,9 @@ options = Options(
     top_k=top_k,
     rerank=rerank,
     temperature=temperature,
+    cloud_mode=cloud_mode,
+    allow_docs=allow_docs,
+    allow_paid=allow_paid,
 )
 
 
@@ -234,13 +379,25 @@ def arm_ranks(hit: dict) -> str:
 
 
 def render_badges(meta: dict) -> None:
-    bits = [f"<span class='nx-badge nx-model'>{meta.get('model', '?')}</span>",
+    if meta.get("local") is False:
+        label = cloud.PROVIDERS.get(meta.get("provider"), {}).get("label", meta.get("provider"))
+        where = f"<span class='nx-badge nx-cloud'>🌐 cloud · {label}</span>"
+    else:
+        where = "<span class='nx-badge nx-local'>💻 this PC</span>"
+    bits = [where,
+            f"<span class='nx-badge nx-model'>{meta.get('model', '?')}</span>",
             f"<span class='nx-badge nx-task'>{meta.get('task', '?')}</span>"]
     if meta.get("forced_model"):
         bits.append("<span class='nx-badge nx-pin'>pinned</span>")
     if meta.get("needs_rag"):
         bits.append(
             f"<span class='nx-badge nx-rag'>{len(meta.get('sources', []))} sources</span>"
+        )
+    if meta.get("history_used"):
+        n = meta["history_used"]
+        bits.append(
+            f"<span class='nx-badge nx-mem'>remembers {n} earlier "
+            f"message{'s' if n != 1 else ''}</span>"
         )
     if meta.get("elapsed"):
         bits.append(f"<span class='nx-badge nx-time'>{meta['elapsed']:.1f}s</span>")
@@ -251,6 +408,7 @@ def render_why(meta: dict) -> None:
     with st.expander("Why this model"):
         st.markdown(
             f"**Task** `{meta.get('task')}`  ·  "
+            f"**Router** `{meta.get('router_method') or 'rules'}`  ·  "
             f"**Difficulty** `{meta.get('complexity', 0):.2f}`  ·  "
             f"**Prompt** `{meta.get('prompt_chars', 0)} chars`"
         )
@@ -303,7 +461,185 @@ def render_sources(meta: dict) -> None:
             )
 
 
-def run_turn(question: str, opts: Options) -> None:
+TRUTH_WORDS = {
+    "supported": "🟢 supported by your files",
+    "not_found": "🟡 not in your files",
+    "contradicted": "🔴 your files say otherwise",
+}
+
+
+def highlighted_html(text: str, claims: list[dict]) -> str:
+    out, at = [], 0
+    for c in sorted(claims, key=lambda c: c["start"]):
+        if c["start"] < at:
+            continue
+        out.append(html.escape(text[at:c["start"]]))
+        tip = TRUTH_WORDS[c["label"]] + (f" — {c['source']}" if c.get("source") else "")
+        out.append(f"<span class='nx-claim-{c['label']}' title='{html.escape(tip, quote=True)}'>"
+                   f"{html.escape(text[c['start']:c['end']])}</span>")
+        at = c["end"]
+    out.append(html.escape(text[at:]))
+    return "<div class='nx-hl'>" + "".join(out).replace("\n", "<br>") + "</div>"
+
+
+def render_truth(meta: dict, content: str) -> None:
+    report = meta.get("truth")
+    if not report:
+        return
+    if report.get("status") != "ok":
+        st.caption(f"Truth check: {report.get('status', '').replace('_', ' ')}")
+        return
+    c = report["counts"]
+    how = report["method"] + (" (approximate)" if report.get("approximate") else "")
+    st.markdown(
+        f"<span class='nx-badge nx-trust'>Trust {round((report['trust'] or 0) * 100)}%</span>"
+        f"<span class='nx-badge'>🟢 {c['supported']} supported</span>"
+        f"<span class='nx-badge'>🟡 {c['not_found']} not in your files</span>"
+        f"<span class='nx-badge'>🔴 {c['contradicted']} contradicted</span>",
+        unsafe_allow_html=True,
+    )
+    with st.expander(f"Truth check — checked by {how} against {report['evidence']}"):
+        st.markdown(highlighted_html(content, report["claims"]), unsafe_allow_html=True)
+        st.divider()
+        for claim in report["claims"]:
+            line = f"{TRUTH_WORDS[claim['label']]} · **{claim['text']}**"
+            if claim.get("source"):
+                line += f"  \n<span class='nx-dim'>{html.escape(claim['source'])}: “" \
+                        f"{html.escape((claim.get('evidence') or '')[:240])}”</span>"
+            st.markdown(line, unsafe_allow_html=True)
+
+
+def render_rating(message: dict) -> None:
+    """👍 / 👎 under an answer, with a reason after a 👎."""
+    meta = message.get("meta") or {}
+    if not message.get("id") or meta.get("model") in (None, "pc-toolkit"):
+        return
+    current = meta.get("rating") or 0
+    c1, c2, _ = st.columns([1, 1, 10])
+    clicked = None
+    if c1.button("👍", key=f"up_{message['id']}", type="primary" if current == 1 else "secondary"):
+        clicked = 0 if current == 1 else 1
+    if c2.button("👎", key=f"down_{message['id']}", type="primary" if current == -1 else "secondary"):
+        clicked = 0 if current == -1 else -1
+    if clicked is not None:
+        feedback.rate(message["id"], clicked)
+        meta.update(rating=clicked or None, rating_reason=None)
+        message["meta"] = meta
+        st.rerun()
+    if current == -1:
+        reasons = list(feedback.REASONS[:4])
+        reason = st.radio("What was wrong?", reasons, horizontal=True, key=f"why_{message['id']}",
+                          index=reasons.index(meta["rating_reason"])
+                          if meta.get("rating_reason") in reasons else None)
+        if reason and reason != meta.get("rating_reason"):
+            feedback.rate(message["id"], -1, reason)
+            meta["rating_reason"] = reason
+
+
+def run_council(question: str, opts: Options, history: list[dict], images: list[dict],
+                auto: bool = False) -> None:
+    with st.spinner("🏛️ The council is answering (several models, then a judge)..."):
+        out = council(question, options=opts, history=history, images=images)
+    if out.get("error"):
+        add_message("assistant", f"🏛️ Council: {out['error']}")
+        return
+    add_message("assistant", out["answer"], council_message_meta(out, auto=auto))
+
+
+def render_council(meta: dict) -> None:
+    c = meta.get("council")
+    if not c:
+        return
+    used = [m for m in c["members"] if m["model"] in c["used"]]
+    where = lambda m: ("🌐 " if m.get("local") is False else "💻 ") + m["model"]  # noqa: E731
+    head = f"🏛️ Council of {len(c['used'])}"
+    if c.get("auto"):
+        head += " (convened automatically: hard question)"
+    head += f" · judge {c['judge']}" if c.get("judged") else " · no judge"
+    if c.get("agreement") is not None:
+        head += f" · answers agree {round(c['agreement'] * 100)}% ({c['agreement_method']})"
+    st.caption(head)
+    if c["agreements"]:
+        st.markdown("**✅ They agree on**\n" + "\n".join(f"- {a}" for a in c["agreements"]))
+    if c["disagreements"]:
+        lines = ["**⚠️ They disagree on**"]
+        for d in c["disagreements"]:
+            lines.append(f"- {d['point']}")
+            for k, v in d["positions"].items():
+                k = int(k)
+                name = where(used[k - 1]) if 0 < k <= len(used) else f"Answer {k}"
+                lines.append(f"    - *{name}:* {v}")
+        st.markdown("\n".join(lines))
+    with st.expander(f"Show the {len(c['members'])} individual answers"):
+        for m in c["members"]:
+            st.markdown(f"**{where(m)}**" + (f" — failed: {m['error']}" if m.get("error") else ""))
+            st.markdown(m.get("answer") or "")
+
+
+def run_arena(question: str, opts: Options, history: list[dict], images: list[dict]) -> None:
+    with st.spinner("⚔️ Two models are answering..."):
+        out = arena(question, options=opts, history=history, images=images,
+                    chat_id=st.session_state.chat_id)
+    if out.get("error"):
+        add_message("assistant", f"⚔️ Arena: {out['error']}")
+        return
+    st.session_state.battle = out
+
+
+def render_battle(battle: dict) -> None:
+    """Blind A/B answers and the vote; names appear only after voting."""
+    st.markdown("#### ⚔️ Arena — which answer is better?")
+    if battle.get("note"):
+        st.caption(battle["note"])
+    cols = st.columns(2)
+    for col, side in zip(cols, ("a", "b")):
+        with col.container(border=True):
+            st.markdown(f"**Answer {side.upper()}**")
+            st.markdown(battle[side]["answer"])
+    v1, v2, v3, v4 = st.columns(4)
+    choice = None
+    if v1.button("A is better", type="primary", width='stretch'):
+        choice = "a"
+    if v2.button("B is better", type="primary", width='stretch'):
+        choice = "b"
+    if v3.button("Tie", width='stretch'):
+        choice = "tie"
+    if v4.button("Both bad", width='stretch'):
+        choice = "both_bad"
+    if choice is None:
+        return
+    decided = feedback.vote(battle["battle_id"], choice)
+    st.session_state.battle = None
+    reveal = (f"A was **{decided['model_a']}**, B was **{decided['model_b']}**.")
+    if choice == "both_bad":
+        add_message("assistant", f"⚔️ You marked both answers as bad. {reveal}",
+                    {"arena": {"battle_id": decided["id"], "winner": choice}})
+    else:
+        side = "b" if choice == "b" else "a"
+        model = decided[f"model_{side}"]
+        spec = providers.spec_by_name(model)
+        add_message("assistant", battle[side]["answer"], {
+            "model": model, "provider": decided[f"provider_{side}"],
+            "local": spec.is_local if spec else True, "task": battle.get("task"),
+            "sources": battle[side].get("sources"), "needs_rag": battle[side].get("needs_rag"),
+            "info": f"⚔️ Arena: you picked {'a tie' if choice == 'tie' else 'answer ' + side.upper()}. {reveal}",
+            "arena": {"battle_id": decided["id"], "winner": choice},
+        })
+    st.rerun()
+
+
+def run_truth(message: dict) -> None:
+    """Check one saved answer, keep the result with it, and show it."""
+    meta = dict(message.get("meta") or {})
+    with st.spinner("Checking each sentence against your documents..."):
+        meta["truth"] = truth_check.check(message["content"], sources=meta.get("sources"))
+    message["meta"] = meta
+    if message.get("id"):
+        get_store().update_meta(message["id"], {"truth": meta["truth"]})
+
+
+def run_turn(question: str, opts: Options, history: list[dict],
+             images: list[dict] | None = None) -> None:
     """Generate one answer, streaming it into the transcript."""
     with st.chat_message("assistant"):
         placeholder = st.empty()
@@ -314,7 +650,8 @@ def run_turn(question: str, opts: Options) -> None:
             placeholder.markdown("".join(buffer) + "▌")
 
         try:
-            result = answer(question, options=opts, on_token=on_token)
+            result = answer(question, options=opts, on_token=on_token, history=history,
+                            images=images)
         except Exception as exc:
             placeholder.empty()
             st.error(f"NEXUS could not answer: {exc}")
@@ -327,6 +664,7 @@ def run_turn(question: str, opts: Options) -> None:
             for k in (
                 "model", "task", "needs_rag", "sources", "elapsed", "chain",
                 "complexity", "attempts", "prompt_chars", "info", "auto_task",
+                "history_used", "provider", "local", "router_method",
             )
         }
         meta["forced_model"] = bool(opts.force_model)
@@ -336,9 +674,12 @@ def run_turn(question: str, opts: Options) -> None:
         render_why(meta)
         render_sources(meta)
 
-    st.session_state.messages.append(
-        {"role": "assistant", "content": result.get("answer", ""), "meta": meta}
-    )
+    add_message("assistant", result.get("answer", ""), meta)
+    message = st.session_state.messages[-1]
+    # Answers built from your documents are checked straight away; others
+    # get a button, since most of what they say won't be in your files.
+    if result.get("task") != "system_agent" and (meta.get("needs_rag") or meta.get("sources")):
+        run_truth(message)
     if result.get("requires_confirmation"):
         st.session_state.pending_action = result["pending"]
 
@@ -347,8 +688,12 @@ def run_turn(question: str, opts: Options) -> None:
 # Tabs
 # ---------------------------------------------------------------------------
 
-tab_chat, tab_docs, tab_lab, tab_diag = st.tabs(
-    ["Chat", "Documents", "Retrieval lab", "Diagnostics"]
+the_brain = _brain()
+unread = the_brain.unread()
+study = the_brain.study_stats()
+tab_chat, tab_inbox, tab_board, tab_docs, tab_lab, tab_diag = st.tabs(
+    ["Chat", f"Inbox ({unread}) · Study ({study['due']})", "Leaderboard", "Documents",
+     "Retrieval lab", "Diagnostics"]
 )
 
 
@@ -371,17 +716,29 @@ with tab_chat:
         for col, text in zip(cols, starters):
             if col.button(text, width='stretch'):
                 st.session_state.last_question = text
-                st.session_state.messages.append({"role": "user", "content": text})
+                add_message("user", text)
                 st.rerun()
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
+            for img in message.get("image_bytes") or []:
+                st.image(img, width=240)
             meta = message.get("meta")
-            if meta:
+            if meta and message["role"] == "user":
+                if meta.get("voice"):
+                    st.caption("🎤 from a voice recording")
+                if meta.get("images") and not message.get("image_bytes"):
+                    st.caption(f"📎 {meta['images']} image(s) attached")
+            elif meta:
                 render_badges(meta)
+                if (meta.get("arena") or meta.get("council")) and meta.get("info"):
+                    st.info(meta["info"])
+                render_council(meta)
                 render_why(meta)
                 render_sources(meta)
+                render_truth(meta, message["content"])
+                render_rating(message)
 
     # A queued question (from a starter button or a regenerate click).
     queued = st.session_state.last_question
@@ -395,8 +752,21 @@ with tab_chat:
         if alt:
             st.session_state.regenerate_with = None
             turn_options = replace(options, force_model=alt)
-        run_turn(queued, turn_options)
+        images = st.session_state.pending_images
+        st.session_state.pending_images = []
+        if council_on and not alt:
+            run_council(queued, turn_options, history_for(queued, regenerate=False), images)
+        elif arena_on and not alt:
+            run_arena(queued, turn_options, history_for(queued, regenerate=False), images)
+        elif not alt and not images and council_recommended(queued, turn_options):
+            run_council(queued, turn_options, history_for(queued, regenerate=False), images,
+                        auto=True)
+        else:
+            run_turn(queued, turn_options, history_for(queued, regenerate=bool(alt)), images)
         st.rerun()
+
+    if st.session_state.battle:
+        render_battle(st.session_state.battle)
 
     if st.session_state.pending_action:
         pending = st.session_state.pending_action
@@ -410,18 +780,21 @@ with tab_chat:
                     msg = apply_pending(pending)["answer"]
                 except Exception as exc:
                     msg = f"Action failed: {exc}"
-                st.session_state.messages.append({"role": "assistant", "content": msg})
+                add_message("assistant", msg)
                 st.session_state.pending_action = None
                 st.rerun()
             if c2.button("Cancel", width='stretch'):
-                st.session_state.messages.append(
-                    {"role": "assistant", "content": "Cancelled — nothing on disk changed."}
-                )
+                add_message("assistant", "Cancelled — nothing on disk changed.")
                 st.session_state.pending_action = None
                 st.rerun()
 
     # Offer a re-run on a different model, using the chain NEXUS already scored.
     last = st.session_state.messages[-1] if st.session_state.messages else None
+    if (last and last["role"] == "assistant" and last.get("meta")
+            and not last["meta"].get("truth") and last["meta"].get("model") not in (None, "pc-toolkit")):
+        if st.button("🔎 Check this answer against my files"):
+            run_truth(last)
+            st.rerun()
     if last and last["role"] == "assistant" and last.get("meta"):
         chain = last["meta"].get("chain") or []
         used = last["meta"].get("model")
@@ -437,19 +810,60 @@ with tab_chat:
                 cols = st.columns(len(alts))
                 for col, alt in zip(cols, alts):
                     if col.button(alt, key=f"regen_{alt}", width='stretch'):
-                        st.session_state.messages.append(
-                            {"role": "user", "content": question}
-                        )
+                        # Asking another model is a quiet 👎 for this one.
+                        feedback.record_signal("regenerate", question,
+                                               task=last["meta"].get("task"), model=used,
+                                               value=alt, message_id=last.get("id"))
+                        add_message("user", question)
                         st.session_state.last_question = question
                         st.session_state.regenerate_with = alt
                         st.rerun()
 
-    prompt = st.chat_input("Ask NEXUS AI...")
-    if prompt:
+    def submit_voice(audio_bytes: bytes, name: str, mime: str, typed: str = "") -> None:
+        try:
+            with st.spinner("Transcribing..."):
+                heard = transcribe(audio_bytes, name, mime, options)
+        except RuntimeError as exc:
+            st.error(str(exc))
+            return
+        text = f"{typed}\n{heard['text']}".strip() if typed else heard["text"]
         st.session_state.pending_action = None
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        st.session_state.last_question = prompt
+        add_message("user", text, {"voice": True})
+        st.session_state.last_question = text
         st.rerun()
+
+    with st.expander("🎤 Ask by voice"):
+        recording = st.audio_input("Record a question",
+                                   key=f"audio_{st.session_state.audio_widget}")
+        if recording is not None:
+            st.session_state.audio_widget += 1  # fresh widget next run
+            submit_voice(recording.getvalue(), "recording.wav", "audio/wav")
+
+    submitted = st.chat_input(
+        "Ask NEXUS AI... (attach an image or a voice recording with the clip)",
+        accept_file=True, file_type=IMAGE_TYPES + AUDIO_TYPES,
+    )
+    if submitted:
+        typed = (submitted.text or "").strip()
+        files = list(submitted.files or [])
+        audio = next((f for f in files if (f.type or "").startswith("audio/")), None)
+        if audio is not None:
+            submit_voice(audio.getvalue(), audio.name, audio.type or "audio/wav", typed)
+        else:
+            pics = [f for f in files if (f.type or "").startswith("image/")]
+            question = typed or ("What is in this image?" if pics else "")
+            if question:
+                st.session_state.pending_action = None
+                st.session_state.pending_images = [
+                    {"data": base64.b64encode(f.getvalue()).decode("ascii"),
+                     "mime": f.type or "image/png"}
+                    for f in pics
+                ]
+                add_message("user", question, {"images": len(pics)} if pics else None)
+                if pics:
+                    st.session_state.messages[-1]["image_bytes"] = [f.getvalue() for f in pics]
+                st.session_state.last_question = question
+                st.rerun()
 
 
 # -- Documents --------------------------------------------------------------
@@ -556,6 +970,149 @@ with tab_lab:
                     )
 
 
+# -- Inbox & Study ------------------------------------------------------------
+with tab_inbox:
+    st.markdown("#### 📥 Inbox")
+    st.caption("What NEXUS did on its own: indexing new files, flashcards from your notes and "
+               "the weekly digest. Everything here was made on this PC.")
+    a1, a2, a3, a4 = st.columns(4)
+    if a1.button("Check for changes now", width='stretch'):
+        with st.spinner("Looking for new and changed files..."):
+            the_brain.tick()
+        st.rerun()
+    if a2.button("Write the digest now", width='stretch'):
+        with st.spinner("Writing the digest..."):
+            the_brain.make_digest()
+        st.rerun()
+    if a3.button("Flashcards from all my notes", width='stretch'):
+        with st.spinner("Writing and checking flashcards..."):
+            the_brain.study_all()
+        st.rerun()
+    if a4.button("Mark all read", width='stretch', disabled=not unread):
+        the_brain.mark_read()
+        st.rerun()
+    icons = {"indexed": "📚", "digest": "🗞️", "cards": "🃏", "error": "⚠️"}
+    items = the_brain.inbox()
+    if not items:
+        st.info("Nothing yet. Add or edit a file in documents/ and NEXUS will notice within a minute.")
+    for item in items:
+        with st.container(border=True):
+            when = datetime.fromtimestamp(item["created_at"]).strftime("%d %b %H:%M")
+            st.markdown(f"{'🔵 ' if not item['read_at'] else ''}{icons.get(item['kind'], '•')} "
+                        f"**{item['title']}** · {when}")
+            if item["body"]:
+                st.markdown(item["body"])
+
+    st.divider()
+    st.markdown("#### 🎓 Study")
+    st.caption(f"{study['total']} flashcards · {study['verified']} verified against their source · "
+               f"{study['due']} due now · {study['mastered']} mastered. Know it and a card comes "
+               "back later (1, 3, 7, 14 days); miss it and it comes back soon.")
+    due = the_brain.due_cards(limit=1)
+    if not due:
+        st.success("Nothing due. New notes become flashcards automatically.")
+    else:
+        card = due[0]
+        with st.container(border=True):
+            st.caption(("✓ verified against " if card["check_label"] == "supported"
+                        else "unverified — not found word-for-word in ") + card["source"]
+                       + f" · box {card['box']} of 5")
+            st.markdown(f"### {card['question']}")
+            if not st.session_state.card_revealed:
+                if st.button("Show answer"):
+                    st.session_state.card_revealed = True
+                    st.rerun()
+            else:
+                st.markdown(card["answer"])
+                st.caption(f"From {card['source']}: “{(card['evidence'] or '')[:300]}”")
+                k1, k2 = st.columns(2)
+                for col, label, knew in ((k1, "I knew it", True), (k2, "I didn't", False)):
+                    if col.button(label, width='stretch', type="primary" if knew else "secondary"):
+                        the_brain.review(card["id"], knew)
+                        st.session_state.card_revealed = False
+                        st.rerun()
+
+
+# -- Leaderboard ------------------------------------------------------------
+with tab_board:
+    st.markdown("#### 🏆 Your model leaderboard")
+    counts = feedback.summary()
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Arena votes", counts["battles"])
+    c2.metric("👍/👎 ratings", counts["ratings"])
+    c3.metric("Corrections", counts["signals"])
+    st.caption(
+        "Elo ratings from your Arena votes (everyone starts at 1000; beating a stronger "
+        "model gains more), plus how often you gave each model a 👍. A rating marked "
+        "*settling* has fewer than 5 decided votes and can still move a lot. This is the "
+        "data the learning router will train on."
+    )
+    board_task = st.selectbox("Task", ["All tasks", "general", "coding", "reasoning",
+                                       "planning", "vision"])
+    rows = feedback.leaderboard(None if board_task == "All tasks" else board_task)
+    if rows:
+        st.dataframe(
+            [
+                {
+                    "model": ("💻 " if r["provider"] == "ollama" else "🌐 ") + r["model"],
+                    "Elo": round(r["elo"]),
+                    "": "" if r["settled"] else "settling",
+                    "won": r["wins"], "lost": r["losses"], "tied": r["ties"],
+                    "both bad": r["both_bad"],
+                    "👍 approval": (f"{round(r['approval'] * 100)}% of "
+                                   f"{r['thumbs_up'] + r['thumbs_down']}"
+                                   if r["approval"] is not None else "—"),
+                }
+                for r in rows
+            ],
+            width='stretch',
+            hide_index=True,
+        )
+    else:
+        st.info("No votes yet. Switch on ⚔️ Arena mode in the sidebar and compare a few answers.")
+
+    st.divider()
+    st.markdown("#### 🧠 Router")
+    import learned_router
+    from engine import get_router
+
+    router_meta = learned_router.current_meta()
+    in_use = get_router().learned
+    st.caption(
+        f"Routing now with **{'learned ' + in_use.version if in_use else 'keyword rules'}**. "
+        "Retraining uses the seed prompts plus your corrections and Arena votes, takes "
+        "seconds, and only switches if the new router measures at least as well on held-out prompts."
+    )
+    if router_meta:
+        g = router_meta["metrics"]["golden"]
+        st.dataframe(
+            [
+                {"router": name, "task accuracy": f"{r['task_accuracy']:.0%}",
+                 "docs precision": f"{r['docs_precision']:.0%}",
+                 "docs recall": f"{r['docs_recall']:.0%}",
+                 "docs false alarms": r["docs_false_alarms"]}
+                for name, r in (("keyword rules", g["rules"]),
+                                (f"learned {router_meta['version']}", g["new"]))
+            ],
+            width='stretch', hide_index=True,
+        )
+        strong = router_meta["metrics"].get("strong")
+        if strong:
+            st.caption(f"Strong-vs-weak head (when to use cloud): AUC {strong['auc']} on "
+                       f"{strong['held_out']} held-out votes — "
+                       f"{'in use' if strong['passed'] else 'not in use (no better than random)'}.")
+    if st.button("Retrain the router now"):
+        from train.train_router import main as train_main
+
+        with st.spinner("Training..."):
+            report = train_main([])
+        get_router().reload_learned()
+        if report["made_current"]:
+            st.success(f"{report['version']} measured at least as well and is now in use.")
+        else:
+            st.warning(f"{report['version']} measured worse than the router in use, so it was kept aside.")
+
+
 # -- Diagnostics ------------------------------------------------------------
 with tab_diag:
     st.markdown("#### Diagnostics")
@@ -566,6 +1123,42 @@ with tab_diag:
     c3.metric("Indexed chunks", chunk_total)
 
     st.caption("Installed: " + (", ".join(installed) if installed else "none"))
+
+    st.divider()
+    st.markdown("##### Cloud providers")
+    st.caption(
+        f"Cloud mode: **{cloud_label}**. Keys come from `.env`; limits and models from "
+        "`nexus.toml` and `cloud_models.toml`. Nothing here makes a network call "
+        "except the button."
+    )
+    st.dataframe(
+        [
+            {
+                "provider": cloud.PROVIDERS[p]["label"],
+                "status": f"{STATUS_ICON.get(i['status'], '')} {i['status']}",
+                "today": f"{i['used']}/{i['limit'] or '∞'}",
+                "detail": i["detail"],
+                "models": ", ".join(s.name for s in cloud.cloud_specs() if s.provider == p),
+            }
+            for p, i in cloud_status.items()
+        ],
+        width='stretch',
+        hide_index=True,
+    )
+    if st.button("Check model names with each provider"):
+        with st.spinner("Asking providers which models they serve..."):
+            report = cloud.verify_models()
+        if not report:
+            st.info("No provider keys are set, so there is nothing to check.")
+        for prov, r in report.items():
+            label = cloud.PROVIDERS[prov]["label"]
+            if r["error"]:
+                st.error(f"{label}: {r['error']}")
+            elif r["missing"]:
+                st.warning(f"{label}: not served any more → {', '.join(r['missing'])}. "
+                           "Update cloud_models.toml or nexus.toml.")
+            else:
+                st.success(f"{label}: all {len(r['ok'])} configured model(s) found.")
 
     st.divider()
     st.markdown("##### Index configuration")

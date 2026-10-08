@@ -1,0 +1,210 @@
+{"prompt": "What is the difference between RAM and storage?", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "Who wrote Pride and Prejudice?", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "Give me a short summary of how vaccines work.", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "hey, how's it going", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "Thanks, that helped a lot!", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "What does HTTP stand for?", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "Explain photosynthesis to a ten year old.", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "What's a good name for a study group chat?", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "Translate 'good morning' into Spanish and French.", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "What is machine learning in one paragraph?", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "Tell me a fun fact about octopuses.", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "What year did the first moon landing happen?", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "Define entropy in simple words.", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "What does the readme say NEXUS is for?", "task": "general", "needs_docs": true, "source": "seed"}
+{"prompt": "Summarize my notes on the NEXUS setup.", "task": "general", "needs_docs": true, "source": "seed"}
+{"prompt": "Which embedding model does this project use?", "task": "general", "needs_docs": true, "source": "seed"}
+{"prompt": "According to my documents, where is the vector index stored?", "task": "general", "needs_docs": true, "source": "seed"}
+{"prompt": "What file formats can I add to the documents folder?", "task": "general", "needs_docs": true, "source": "seed"}
+{"prompt": "Give me an overview of what's in the action log.", "task": "general", "needs_docs": true, "source": "seed"}
+{"prompt": "What does the local AI model map say llama3.1 is used for?", "task": "general", "needs_docs": true, "source": "seed"}
+{"prompt": "What is a GPU and why is it good for AI?", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "How many continents are there?", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "What's the capital of Australia?", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "Can you rephrase this sentence to sound more polite: send me the file now.", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "What is the meaning of the word 'ubiquitous'?", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "ok cool", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "What is an operating system?", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "What did the checklist list as the current blocker?", "task": "general", "needs_docs": true, "source": "seed"}
+{"prompt": "Explain what an API is without any code.", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "Who is Alan Turing?", "task": "general", "needs_docs": false, "source": "seed"}
+{"prompt": "Write a Python function that reverses a string.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Fix this error: TypeError: 'NoneType' object is not subscriptable", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "My Flask app crashes with a 500 error when I submit the form, how do I debug it?", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Refactor this loop into a list comprehension: for x in items: out.append(x*2)", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Write a SQL query to find the top 5 customers by total spend.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Why does my JavaScript fetch call return undefined?", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Write unit tests for a function that checks if a number is prime.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "How do I read a CSV file with pandas and drop empty rows?", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Implement binary search in Java.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "This recursive function hits maximum recursion depth, help me fix it.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Write a bash script that renames all .txt files to .md", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Convert this callback code to async/await.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "What's wrong with this regex: ^\\d{3}-\\d{4", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Write a React component that shows a counter with a button.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "How do I fix 'ModuleNotFoundError: No module named requests'?", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "In ingest.py, how does the hashing of files work?", "task": "coding", "needs_docs": true, "source": "seed"}
+{"prompt": "Add a command line flag to retrieve.py that sets top_k.", "task": "coding", "needs_docs": true, "source": "seed"}
+{"prompt": "Why does rag_pipeline.py fail when Ollama is not running? Show the fix.", "task": "coding", "needs_docs": true, "source": "seed"}
+{"prompt": "Write a Dockerfile for a small Python web app.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Optimize this nested loop that compares two lists for duplicates.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Explain this stack trace: IndexError: list index out of range in line 42", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Write a C program that prints the Fibonacci sequence.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "How do I make a git branch and push it?", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Create a Python class for a bank account with deposit and withdraw.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "My unit test fails only on Windows because of path separators, fix it.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Write a function to merge two sorted arrays in Go.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Implement an LRU cache in Python.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Debug: my CSS flexbox items won't center vertically.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Update loaders.py so it also reads .html files.", "task": "coding", "needs_docs": true, "source": "seed"}
+{"prompt": "Write a Python script that downloads a web page and counts the words.", "task": "coding", "needs_docs": false, "source": "seed"}
+{"prompt": "Compare SQL and NoSQL databases for a chat application.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Should I use a laptop or a desktop for machine learning work, and why?", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "What are the pros and cons of remote work for students?", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Is it better to learn Python or JavaScript first? Justify your answer.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Analyze the trade-offs between microservices and a monolith for a small team.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Why does adding more training data sometimes not improve a model?", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "If a train leaves at 3pm going 60 km/h and another at 4pm going 80 km/h, when does the second catch up?", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Evaluate whether caching or a message queue fits better for slow API calls.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Which is more important for a startup: speed or code quality? Argue both sides.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Why did the Roman Empire fall? Weigh the main explanations.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Compare dense retrieval and BM25 based on what my documents say.", "task": "reasoning", "needs_docs": true, "source": "seed"}
+{"prompt": "Given the README, why does NEXUS use reciprocal rank fusion instead of a weighted sum?", "task": "reasoning", "needs_docs": true, "source": "seed"}
+{"prompt": "Was chunking by tokens instead of characters the right call for this project? Use the docs.", "task": "reasoning", "needs_docs": true, "source": "seed"}
+{"prompt": "What are the implications of using a 7B model instead of a 70B model for accuracy?", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Is nuclear power a good solution to climate change? Consider both sides.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Decide between PostgreSQL and MongoDB for storing user profiles.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Why is the sky blue but sunsets are red?", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "What would happen to prices if a country printed twice as much money?", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Prove that the square root of 2 is irrational.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Weigh the risks and benefits of open-sourcing an AI model.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Which sorting algorithm should I choose for nearly sorted data, and why?", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Is a gap year a good idea before university?", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Compare renting versus buying a house over ten years.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Why might a model score high on training data but low on test data?", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "How should I choose between two job offers with different salaries and growth?", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Analyze why my retrieval results got worse after changing the chunk size, using my notes.", "task": "reasoning", "needs_docs": true, "source": "seed"}
+{"prompt": "What are the trade-offs of running models locally instead of in the cloud?", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Explain why correlation does not imply causation with an example.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Should a small shop use Instagram or a website first? Reason it out.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Critique this argument: everyone uses it, so it must be good.", "task": "reasoning", "needs_docs": false, "source": "seed"}
+{"prompt": "Make me a study plan for my machine learning exam in three weeks.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Give me a step by step plan to learn web development from scratch.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Create a roadmap for building a mobile app in two months.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Break down the task of writing a research paper into steps.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Plan a 5 day trip to Japan on a student budget.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "How should I approach preparing for coding interviews?", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Outline the milestones for launching a small online store.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Make a weekly workout schedule for a beginner.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Draft a plan to migrate our app from MySQL to PostgreSQL.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Walk me through setting up a home lab for learning networking.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Plan the next two weeks of work on NEXUS based on the checklist.", "task": "planning", "needs_docs": true, "source": "seed"}
+{"prompt": "Using my documents, make a step by step plan to finish the remaining setup.", "task": "planning", "needs_docs": true, "source": "seed"}
+{"prompt": "Create a plan for adding a new feature to the project according to the action log.", "task": "planning", "needs_docs": true, "source": "seed"}
+{"prompt": "Give me a timeline to finish my final year project by April.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Help me plan a birthday party for 20 people.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Make a step-by-step plan to reduce my screen time.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Outline how I should structure my thesis chapters.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Plan a schedule to read 12 books this year.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "What steps should I follow to deploy a Python app to a server?", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Create a learning roadmap for data science in 6 months.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Break this down for me: build a portfolio website, write three blog posts, apply to internships.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Plan a hackathon project for a 24 hour event.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "How should I organise my semester to balance classes and a part-time job?", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Make a plan to clean up and document this codebase over a month.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Draft a project plan with milestones for a chatbot assignment.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Create a revision timetable for five subjects before exams.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Give me a step by step approach to start investing small amounts.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Plan how to move my notes from paper to a digital system.", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Outline the phases for building a RAG app like the one in my notes.", "task": "planning", "needs_docs": true, "source": "seed"}
+{"prompt": "What's a good roadmap for learning Rust as a Python developer?", "task": "planning", "needs_docs": false, "source": "seed"}
+{"prompt": "Describe what is in this image.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "What does this screenshot show?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Read the text in this photo of a receipt.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Is there a cat in this picture?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Explain the trend in this chart.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "What breed is the dog in this photo?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Transcribe the handwriting in this image.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "What's wrong with the circuit in this diagram?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Describe the colours and mood of this painting.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Count the people in this photo.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "What error is shown in this screenshot of my terminal?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Turn this whiteboard photo into notes.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "What does the graph in this image say about sales?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Identify the plant in this picture.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Is this photo blurry or sharp?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Describe the layout of this UI mockup image.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "What landmark is in this photo?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Read the table in this scanned page image.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "What emotions does the person in this picture show?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Explain this meme image.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Look at this diagram and explain the architecture.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "What does the warning sign in this photo say?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Compare these two product photos.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Describe the flowchart in this image step by step.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "What food is on the plate in this picture?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "What is written on the slide in this photo?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Check this photo of my math homework for mistakes.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "What car model is in the picture?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Describe the weather in this photo.", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Is the code in this screenshot Python or Java?", "task": "vision", "needs_docs": false, "source": "seed"}
+{"prompt": "Transcribe this audio recording.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Convert my voice note into text.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Summarize this podcast episode recording.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "What is said in this audio clip?", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Turn this lecture recording into written notes.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Write captions for this audio.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Listen to this voice memo and list the tasks I mentioned.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Transcribe the meeting recording and mark who speaks.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "What language is spoken in this recording?", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Make subtitles from this speech audio.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Write down the lyrics from this song recording.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Summarize what my professor said in this voice recording.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Turn this interview audio into a transcript.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Listen to this and tell me the phone number mentioned.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Convert the spoken directions in this clip into steps.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Is the speaker in this audio angry or calm?", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Transcribe my dictated essay.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Extract the key points from this voice message.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Write captions for this video's audio track.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Transcribe this short recording in Hindi.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "What did they say at the end of this audio clip?", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Turn this spoken shopping list into a checklist.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Summarize the recorded lecture on neural networks.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Transcribe the voicemail I received.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Listen to this pronunciation and tell me if it's correct.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Make meeting minutes from this audio recording.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Convert this radio clip into text.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "How many speakers are in this recording?", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Write a transcript of this voice chat.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Turn my recorded ideas into a written list.", "task": "speech", "needs_docs": false, "source": "seed"}
+{"prompt": "Sort my Downloads folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Find duplicate files on my Desktop.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Show me the large files in my Documents folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Organize my desktop by file type.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Clean up empty folders in C:\\Users\\me\\Projects", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Undo the last folder organization.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Analyze disk usage in my Downloads.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Tidy up my Pictures folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Remove empty directories from this folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Which files are taking the most space in Videos?", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Find duplicate photos in my Pictures folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Declutter my desktop.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Arrange the files in my Downloads into folders by type.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Scan \"D:\\Backups\" for duplicate files.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "List files over 100 MB on my desktop.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Revert the sorting you did in my Downloads.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Organise my music folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Categorize everything in my Documents folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "How much clutter is in my downloads folder?", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Clean out the empty folders on my desktop.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Find big files I can delete in Downloads.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Sort the files in \"C:\\School\\Semester 5\".", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Check my Desktop for duplicate downloads.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Group my Downloads by file extension.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Undo organize in my Desktop.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "What's using up space in my Documents?", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Tidy my downloads folder please", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Move my desktop files into category folders.", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Find the largest files in C:\\Users\\me\\Videos", "task": "system_agent", "needs_docs": false, "source": "seed"}
+{"prompt": "Delete empty subfolders inside my Projects folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}

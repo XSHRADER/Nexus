@@ -220,6 +220,320 @@ one click instead of a settings change.
 
 ---
 
+## Conversation memory and saved chats
+
+NEXUS remembers the conversation. Each question goes to the model through
+Ollama's chat endpoint together with the last 8 messages (capped at about
+2,000 tokens), so "what is its population?" after "what is the capital of
+France?" knows what "its" means. A badge under the answer shows how many
+earlier messages were used.
+
+Retrieved document chunks are sent with the current question only and never
+stored in the history, so old context can't crowd out the conversation. A
+short follow-up is searched together with the previous question.
+
+Every chat is saved to `nexus.db` (SQLite, on this PC) and listed under
+**Past chats** in both UIs. Refreshing the page no longer loses anything.
+
+Both limits and the database path can be changed in `nexus.toml`; copy
+`nexus.toml.example` to start. Without that file the defaults apply.
+
+To see it without a model installed, run `python demos/mock_ollama.py` in one
+terminal and `python demos/phase0_demo.py` in another. With real Ollama
+running, skip the mock.
+
+---
+
+## Cloud models (optional, off by default)
+
+NEXUS runs fully on this PC until you switch cloud on. With it on, cloud
+models compete with your local ones on the same scores, and NEXUS still picks
+for you.
+
+**1. Add keys** — copy `.env.example` to `.env` and fill in the ones you have:
+
+| Provider | Key | Free tier | Used for |
+|---|---|---|---|
+| Gemini | `GEMINI_API_KEY` | yes | general use, long documents, **images** |
+| Groq | `GROQ_API_KEY` | yes | very fast chat, **voice input** (Whisper) |
+| Mistral | `MISTRAL_API_KEY` | yes | extra general model, images |
+| DeepSeek | `DEEPSEEK_API_KEY` | no (cheap) | deep reasoning |
+| OpenRouter | `OPENROUTER_API_KEY` | no (paid) | many models through one key |
+
+**2. Pick a cloud mode** in the sidebar (or `[cloud] mode` in `nexus.toml`):
+
+| Mode | What it does |
+|---|---|
+| **Off** (default) | Nothing leaves this PC. Exactly the old behaviour. |
+| **Hard questions only** | Cloud answers hard prompts (difficulty ≥ 0.6), and things no local model can do, like an image when you have no local vision model. |
+| **Allowed** | Cloud competes on every prompt, but easy ones still go local first; cloud is the fallback. |
+
+**Rules that always hold**, whatever model wins or is pinned:
+
+- Questions that use your documents stay on this PC unless **Send documents
+  to cloud** is ticked. Earlier answers drawn from your documents are also
+  removed from the history a cloud model sees.
+- PC actions (sorting folders and so on) never go to the cloud.
+- Paid models (OpenRouter auto) are used only with **Allow paid
+  models** ticked.
+- Each provider has a daily request limit (`[cloud.daily_limits]`); at the
+  limit it is skipped.
+
+**When a provider fails**, NEXUS moves to the next model and says why under
+the answer ("DeepSeek was rate-limited…"). A rate-limited provider cools down
+for 5 minutes, a rejected key stays off until you change it, and a retired
+model name is skipped. With no internet at all, local models answer as before.
+Every cloud answer carries a 🌐 badge naming the provider; local answers say
+💻 This PC.
+
+**Images and voice.** Attach an image with 📎 (browser UI) or the clip in the
+chat box (Streamlit); only models that can read images are considered.
+Attach or record audio and it is transcribed first: by Groq's Whisper when
+cloud is on, or by `faster-whisper` on this PC when it is installed.
+
+**Model names** live in `cloud_models.toml`, not in code, because providers
+rename them often. Diagnostics → *Check model names with each provider*
+flags any that a provider no longer serves. Add or replace models with
+`[[cloud.models]]` in `nexus.toml`.
+
+To try all of this without keys or internet:
+
+```bash
+python demos/mock_ollama.py      # terminal 1: stand-in for Ollama
+python demos/mock_cloud.py       # terminal 2: stand-in for every provider
+```
+
+then point the providers at the mock in `nexus.toml` (see the top of
+`demos/mock_cloud.py`) and set any non-empty keys.
+
+---
+
+## Truth check
+
+Every answer can be checked, sentence by sentence, against your own
+documents:
+
+| colour | means |
+|---|---|
+| 🟢 supported | a passage in your files says the same thing |
+| 🟡 not in your files | nothing in your files says it either way — the claim rests on the model's own knowledge |
+| 🔴 contradicted | a passage in your files says something different |
+
+The answer gets a **trust score** (the share of checked sentences that are
+supported), and clicking a sentence shows the passage behind its colour.
+Answers that used your documents are checked automatically; any other answer
+has a **Check against my files** button. Results are saved with the chat.
+
+Each sentence is compared with the passages retrieved for the answer plus the
+best-matching passages in `documents/`, by a small NLI (natural-language
+inference) cross-encoder, `cross-encoder/nli-deberta-v3-small`, running on the
+CPU like the reranker. Code blocks, questions, headings and greetings are
+skipped. When the model can't be loaded, a keyword checker stands in and the
+result is marked *approximate*.
+
+`python eval_truth.py` scores both checkers on 60 labelled claims in
+`eval/claims_golden.json` (20 of each label, paraphrased, with contradictions
+that change names and meanings rather than only numbers):
+
+| checker | mode | accuracy | macro-F1 | contradictions caught |
+|---|---|---|---|---|
+| keyword (baseline) | given passage | 0.533 | 0.490 | 0.150 |
+| keyword (baseline) | end to end | 0.533 | 0.506 | 0.200 |
+| **NLI** `nli-deberta-v3-small` | given passage | **0.850** | **0.851** | **0.950** |
+| **NLI** `nli-deberta-v3-small` | end to end | 0.750 | 0.754 | 0.700 |
+
+The NLI model catches 19 of 20 contradictions where keyword matching catches
+3, because most contradictions here change a name or a meaning (FAISS for
+Chroma, "requires a GPU") rather than a number. Its errors lean cautious: 5 of
+20 true statements came back *not found* (it hesitates when the supporting
+line sits inside a long passage), and 3 of 20 unknowable claims were called
+contradicted. A 🔴 is still worth reading as "go and look", not as a verdict.
+*Given passage* hands the checker the exact passage each claim was written
+against; *end to end* makes it find its own evidence in `documents/`, as it
+does inside NEXUS. Thresholds and the model are set under `[truth]` in
+`nexus.toml`.
+
+---
+
+## Feedback, Arena and your leaderboard
+
+NEXUS keeps track of which models actually work **for you**. Everything is
+stored in `nexus.db` on this PC, and it is the training data for the learning
+router that comes next.
+
+- **👍 / 👎** under every answer. After a 👎 you can say why: *wrong*, *too
+  slow*, *too long*, *off-topic*. Changing your mind overwrites the rating.
+- **⚔️ Arena mode** (toggle in the top bar or sidebar). Each question is
+  answered by two models with their names hidden. Pick *A*, *B*, *Tie* or
+  *Both bad*; the names are revealed and the chat continues from the answer
+  you chose. One side is always NEXUS's own first choice, so you are testing
+  its decision; the other is drawn from the rest of the routing chain, and
+  comes from the cloud when the first choice is local (or the other way
+  round) whenever cloud is on — Arena then answers "is cloud worth it for
+  me?". Every privacy and cost rule still applies.
+- **Corrections count too.** Asking another model to answer again is
+  recorded as a quiet 👎 for the first one; overriding the task NEXUS guessed,
+  or forcing documents on or off when it guessed the opposite, is recorded as
+  a correction.
+- **🏆 Leaderboard** (sidebar button / Leaderboard tab): an Elo rating per
+  model, overall or per task, from your Arena votes — everyone starts at
+  1000, beating a stronger model gains more, a tie is half a win and *both
+  bad* moves neither — next to each model's 👍 approval. Ratings with fewer
+  than 5 decided votes are marked *settling*: Elo needs a few games before a
+  3–0 start means anything.
+
+---
+
+## Learned router
+
+Before any model runs, NEXUS makes three routing decisions. Each one is now
+a small trained classifier, with the old keyword rules kept as a fallback:
+
+| decision | learned from |
+|---|---|
+| **Which task** is this (general, coding, reasoning, planning, vision, speech, PC action)? | 210 hand-labelled seed prompts, prompts labelled by a cloud "teacher" model, and **your corrections** (every time you override the task) |
+| **Does it need your documents?** | the same, plus your document on/off overrides |
+| **Does it need a strong (cloud) model?** | 55k human votes from the public [Chatbot Arena dataset](https://huggingface.co/datasets/lmarena-ai/arena-human-preference-55k) (the RouteLLM approach), plus **your Arena votes** between a local and a cloud model |
+
+On top of that, your settled Arena results nudge each model's score for that
+task, so models you keep preferring rise.
+
+**Measured, not assumed.** `python eval_router.py` scores routing on 140
+held-out prompts (`eval/router_golden.json`, 20 per task, never trained on),
+including generic questions that mention "project", "file" or "source"
+without being about your documents:
+
+| router | features | task accuracy | documents: precision | recall | false alarms |
+|---|---|---|---|---|---|
+| keyword rules | keywords only | 0.729 | 0.256 | 0.769 | 29 of 127 |
+| keyword rules | + MiniLM similarity | 0.821 | 0.256 | 0.769 | 29 of 127 |
+| **learned** (seed data only) | hashed n-grams | **0.964** | **0.909** | 0.769 | **1** |
+| **learned** (seed data only) | + MiniLM embeddings | **0.986** | **0.917** | **0.846** | **1** |
+
+(The MiniLM rows come from the *train-router* workflow, where
+sentence-transformers is installed, as it is on a normal NEXUS setup.)
+
+The keyword gate turned retrieval on for "Explain what a project manager
+does"; the learned one doesn't, and still catches "according to my notes…".
+Cross-validation on the training prompts gives 0.795 task accuracy (0.871
+with embeddings), lower than the golden set: the two sets were written by the same person, so expect
+real-world accuracy somewhere in between until your own corrections and
+teacher-labelled prompts are in the training data.
+
+**Training is safe to repeat.** `python run.py --train` (or *Retrain now* in
+the Leaderboard panel) takes seconds. Every version is saved in `models/`
+with its measurements, and the new one is used only if it is at least as good
+as both the rules and the router already in use on the held-out prompts —
+a bad batch of feedback can't make routing worse. On first start NEXUS
+trains itself. `[router] mode = "rules"` in `nexus.toml` switches it off.
+
+The classifier is multinomial logistic regression written in numpy, on
+hashed word and character n-grams, plus the MiniLM embedding when
+sentence-transformers is installed. It needs no extra packages.
+
+**More training data:**
+
+```bash
+# label any prompts with a cloud model (sends them to that provider)
+python train/teacher_label.py my_prompts.txt --provider gemini --model gemini-3.7-flash
+# or 2,000 prompts from the public dataset (pip install datasets)
+python train/teacher_label.py --from-arena55k 2000 --provider groq --model openai/gpt-oss-120b
+# learn "needs a strong model" from the 55k public votes
+python train/train_router.py --arena55k
+```
+
+The *train-router* GitHub Actions workflow runs the last command in the cloud
+and uploads the trained router as an artifact.
+
+**The "needs a strong model" head did not work on public data — and the gate
+caught it.** Trained on 16,686 battles between the dataset's strongest and
+weakest models (tiers set by win rate; dataset licence confirmed Apache-2.0
+on its card), it scored **AUC 0.526** on 3,338 held-out votes, barely above
+the 0.5 of a coin flip; routing by it beat random routing by at most 1.3
+percentage points at any budget. So it was left out, and cloud decisions
+keep using the difficulty estimate. This matches the RouteLLM paper, where
+routers trained on raw Arena votes alone were also near random: a prompt's
+wording says little about whether a weaker model will do. The head is
+retrained whenever you have enough Arena votes between a local and a cloud
+model (weighted 5x) — votes about *your* prompts and *your* models, which is
+the signal the public data lacks.
+
+---
+
+## Model council
+
+For questions where being wrong is costly, switch on **🏛️ Council**. Up to
+three different models answer the same question; a judge model then reads
+all of them and returns:
+
+- **what they agree on** — independent agreement is a good sign;
+- **what they disagree on**, with what each model said — the places to look
+  twice;
+- **one merged answer**, keeping what is right in each.
+
+Under the merged answer you also get an **agreement score**: how similar the
+answers are to each other, measured without any model (embedding
+similarity, or word overlap without sentence-transformers). If the judge
+fails or returns something unreadable, the answer most like the others is
+shown instead, and the note says so.
+
+Members are the best different models from the request's own routing chain,
+so the privacy and cost rules apply to every one of them and to the judge: a
+question about your documents is answered and judged only on this PC unless
+documents may go to the cloud. Cloud members run in parallel; local ones run
+one after another, since an 8 GB card holds one model at a time — a local-only
+council takes roughly three answers' time plus the judge's. The merged
+answer can be truth-checked, rated and continued like any other.
+
+Arena and Council are exclusive: Arena asks *you* to judge two answers,
+Council asks a model to judge several. With `[council] auto = "hard"` in
+`nexus.toml`, prompts the router marks as hard convene the council by
+themselves (marked "convened automatically"); the default is `"off"`.
+
+## Background brain
+
+While the server (or the Streamlit app) runs, NEXUS keeps working when you
+are not chatting. Everything below runs **on this PC with local models
+only**, whatever the cloud switch says.
+
+- **Watches your folders.** Every minute it looks at `documents/` (and any
+  `[brain] watch_folders`). A new, changed or deleted file in `documents/`
+  is indexed straight away, so questions use the new text without running
+  `python ingest.py`. The first look after install only remembers what is
+  there; it does not flood the inbox.
+- **Makes flashcards.** A local model writes short question/answer cards
+  from each new or changed file. Every answer is **truth-checked against the
+  passage it came from**: a card its own source contradicts is thrown away
+  and never shown; the rest are marked "verified" or "not found in source".
+  Extra watched folders (lecture notes, for example) get flashcards and
+  digest lines but are not added to the question index.
+- **Study.** 🎓 Study shows due cards one at a time. "I knew it" moves a card
+  up a box (it comes back after 1, 3, 7, then 14 days); "I didn't" sends it
+  back to box 1 and it returns in 10 minutes (the Leitner system).
+- **Weekly digest.** Once a week it writes a short report: files added and
+  changed, a one-line local summary of each, what you asked (count, task
+  mix, recurring topics), your 👍/👎 and Arena votes, and your study progress.
+  If no local model is running, the digest is still written without the
+  summaries.
+- **📥 Inbox.** Everything the brain did lands here with an unread count:
+  indexed files, new cards, the digest, and errors (for example "couldn't
+  index — chromadb missing"). Buttons run each job now: check for changes,
+  write the digest, make flashcards from all my notes.
+
+Settings in `nexus.toml`:
+
+```toml
+[brain]
+enabled = true          # false: no background thread (the buttons still work)
+scan_seconds = 60       # how often to look for changes (minimum 5)
+digest_days = 7         # 0 = no automatic digest
+study = true            # make flashcards from new and changed files
+cards_per_file = 6
+watch_folders = []      # extra folders for flashcards and digests, e.g. ["~/Lectures"]
+```
+
+---
+
 ## Retrieval pipeline
 
 Three stages, narrowing at each one:
@@ -290,8 +604,9 @@ now defaults to 10. Retrieval depth has to follow chunk size.
 and sent to whichever AI is strongest at that job among the ones actually
 reachable right now (`providers.py` → `router.py` → `engine.py`).
 
-Every model runs on this machine through Ollama. There is no cloud provider
-and no API key anywhere in the project — NEXUS works fully offline.
+By default every model runs on this machine through Ollama, with no API key
+needed — NEXUS works fully offline. Cloud models are an opt-in extra (see
+*Cloud models* above).
 
 | Your message looks like | Goes to | Why |
 |---|---|---|

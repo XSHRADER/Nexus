@@ -1,0 +1,104 @@
+# NEXUS settings. Copy to `nexus.toml` and edit.
+# Every value here is the default, so deleting a line changes nothing,
+# and running without this file at all is the same as these defaults.
+
+[memory]
+# How many earlier messages (yours and NEXUS's) go back to the model with
+# each question, so follow-ups like "explain that more simply" work.
+history_messages = 8
+# Cap on their total length. About 4 characters per token, so 8000 chars is
+# roughly 2,000 tokens.
+history_chars = 8000
+
+[storage]
+# Saved chats. A relative path is relative to the project folder.
+db_path = "nexus.db"
+
+[cloud]
+# off: nothing leaves this PC. hard: cloud for hard prompts and for things no
+# local model can do. allowed: cloud competes on every prompt, easy ones
+# still go local first. The sidebar switch overrides this per session.
+mode = "off"
+# Let questions that use your documents go to cloud models.
+allow_docs = false
+# Allow models billed per token with no free tier (OpenRouter auto).
+allow_paid = false
+# Difficulty (0..1) from which a prompt counts as hard.
+hard_threshold = 0.6
+# Minutes to skip a provider after a rate limit.
+cooldown_minutes = 5
+
+[cloud.daily_limits]
+gemini = 200
+groq = 500
+openrouter = 50
+deepseek = 100
+mistral = 100
+
+# Point a provider somewhere else (a proxy, or demos/mock_cloud.py):
+# [cloud.providers.gemini]
+# base_url = "http://127.0.0.1:11500/gemini/v1"
+
+# Add or replace cloud models (same fields as cloud_models.toml):
+# [[cloud.models]]
+# name = "gemini-3.6-flash"
+# provider = "gemini"
+# cost = "free"
+# modalities = ["text", "image"]
+# quality = 0.82
+# speed = 0.88
+# strengths = { general = 0.88, coding = 0.80, reasoning = 0.80, planning = 0.80, vision = 0.90 }
+
+[speech]
+provider = "groq"
+model = "whisper-large-v3-turbo"
+# Used with cloud off when faster-whisper is installed.
+local_model = "small"
+
+[truth]
+# auto: the NLI model when it can load, else the keyword checker.
+# nli / keyword force one; off disables the truth check.
+method = "auto"
+model = "cross-encoder/nli-deberta-v3-small"
+# Probability needed to call a sentence supported / contradicted.
+support_threshold = 0.5
+contradict_threshold = 0.5
+# At most this many sentences per answer, each against this many passages.
+max_claims = 20
+evidence_per_claim = 3
+
+[router]
+# auto: the trained router (models/current.json) when there is one, else
+# the keyword rules. rules / learned force one.
+mode = "auto"
+# Below this probability the learned task guess defers to the rules.
+min_confidence = 0.5
+# P(needs your documents) at which retrieval switches on.
+docs_threshold = 0.5
+# P(needs a strong model) at which a prompt counts as hard for cloud.
+strong_threshold = 0.5
+# How much settled Arena results move a model's score (0 = ignore them).
+preference_weight = 0.10
+
+[council]
+# How many different models answer (2-5).
+members = 3
+# off: only when you switch Council on. hard: also convene it by itself
+# for prompts the router marks as hard (slower: several answers + a judge).
+auto = "off"
+# Judge model; empty = the strongest model allowed for the request.
+judge = ""
+
+[brain]
+# Background work while NEXUS runs, on this PC with local models only.
+# false: no background thread (the Inbox buttons still work).
+enabled = true
+# How often to look for new, changed or deleted files (seconds, minimum 5).
+scan_seconds = 60
+# Write a digest every N days; 0 = never automatically.
+digest_days = 7
+# Make truth-checked flashcards from new and changed files.
+study = true
+cards_per_file = 6
+# Extra folders for flashcards and digests; only documents/ is indexed.
+watch_folders = []

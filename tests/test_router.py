@@ -5,7 +5,7 @@ from router import TaskRouter
 
 class TaskRouterTests(unittest.TestCase):
     def setUp(self):
-        self.router = TaskRouter()
+        self.router = TaskRouter(use_learned=False)
 
     def test_coding_query_routes_to_coding(self):
         decision = self.router.classify("Fix this Python TypeError and explain the cause")
@@ -73,7 +73,7 @@ class IntentPrecisionTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.router = TaskRouter()
+        cls.router = TaskRouter(use_learned=False)
 
     def assert_task(self, query, expected):
         got = self.router.classify(query)["task"]

@@ -14,8 +14,6 @@ from functools import lru_cache
 
 import requests
 
-from retrieve import Retriever
-
 OLLAMA_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "llama3.1:8b"  # swap for whichever model your router picks
 
@@ -36,7 +34,12 @@ Context:
 """
 
 
-def build_prompt(question: str, chunks: list) -> str:
+def build_system(chunks: list) -> str:
+    """The grounding instructions plus retrieved context, as a system message.
+
+    Chat-style generation keeps this separate from the question so the
+    context can ride on the latest turn only instead of piling up in history.
+    """
     if not chunks:
         context = "(No relevant local documents found.)"
     else:
@@ -45,9 +48,11 @@ def build_prompt(question: str, chunks: list) -> str:
             source = c["meta"].get("source", "unknown")
             context_parts.append(f"[{source}]\n{c['text']}")
         context = "\n\n---\n\n".join(context_parts)
+    return SYSTEM_TEMPLATE.format(context=context)
 
-    system = SYSTEM_TEMPLATE.format(context=context)
-    return f"{system}\n\nUser question: {question}\nAnswer:"
+
+def build_prompt(question: str, chunks: list) -> str:
+    return f"{build_system(chunks)}\n\nUser question: {question}\nAnswer:"
 
 
 def ask_ollama(prompt: str, model: str = DEFAULT_MODEL) -> str:
@@ -80,8 +85,16 @@ def check_ollama_model(model: str = DEFAULT_MODEL) -> None:
 
 
 @lru_cache(maxsize=1)
-def get_retriever() -> Retriever:
+def get_retriever():
+    # Imported here so the engine can load (and answer without documents)
+    # even when the retrieval stack isn't installed.
+    from retrieve import Retriever
+
     return Retriever()
+
+
+def retrieve_chunks(question: str, top_k: int = DEFAULT_TOP_K, rerank: bool = True) -> list[dict]:
+    return get_retriever().query(question, top_k=top_k, rerank=rerank)
 
 
 def retrieve_context(
@@ -93,7 +106,7 @@ def retrieve_context(
     grounded an answer -- which file, which score, and which retrieval arm
     found it -- instead of the user having to trust that retrieval worked.
     """
-    chunks = get_retriever().query(question, top_k=top_k, rerank=rerank)
+    chunks = retrieve_chunks(question, top_k=top_k, rerank=rerank)
     return build_prompt(question, chunks), chunks
 
 

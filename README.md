@@ -439,7 +439,13 @@ only**, whatever the cloud switch says.
 - **Makes flashcards.** A local model writes short question/answer cards
   from each new or changed file. Every answer is **truth-checked against the
   passage it came from**: a card its own source contradicts is thrown away
-  and never shown; the rest are marked "verified" or "not found in source".
+  and never shown; the rest are marked "verified" or "unverified".
+  Read "verified" as "the answer's wording is backed by the passage", not as
+  "this is the right answer to the question": the checker compares statements
+  with text and cannot tell which question an answer belongs to. In a live
+  run on the demo notes, 36 correct cards were written and 7 were marked
+  verified; most short answers ("Chroma", "Python 3.13.1.") stay unverified
+  because a fragment is not a statement it can confirm.
   Extra watched folders (lecture notes, for example) get flashcards and
   digest lines but are not added to the question index.
 - **Study.** The *Inbox & study* page shows due cards one at a time. "I knew it" moves a card

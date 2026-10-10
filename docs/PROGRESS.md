@@ -263,3 +263,30 @@ Google key that Google rejected on both its AI Studio and Vertex endpoints).
   got a 503 "high demand" from Google; the fallback and cooldown worked.
   (The first key was simply invalid; the `AQ.` 53-character format is fine.)
 
+### Live checks after 1.2.0 (2026-10-11)
+Run against real Ollama on a throwaway database and a scratch folder; no code
+changed.
+- Terminal chat: one-shot, a follow-up that needed memory, `/new`, `/quit`,
+  a document question with sources.
+- PC tools on a folder of dummy files: analyze, duplicates, large files,
+  organize (preview changed nothing; apply moved 8 files), undo (all
+  restored), empty-folder cleanup.
+- Chat page in the browser: thumbs-down with a reason saved against the
+  answer; "Wrong task?" saved a correction and replaced the control with a
+  note. The corrected prompt happened to be a held-out test prompt and was
+  correctly dropped from training; an ordinary one became a 3x-weighted row.
+- Inbox page: 36 flashcards from the six demo notes in about 50 s; a digest;
+  a card reviewed and rescheduled (box 2, due in 1 day).
+- Finding, not fixed: only 7 of the 36 (correct) cards were marked verified.
+  `truth_check.check` is given the answer alone; 12 answers were too short to
+  be treated as a claim. Tried on these cards plus 34 deliberately wrong ones
+  (another card's answer from the same passage): answer-only per line
+  verified 34/36 right but 32/34 wrong; question+answer per line 26/36 and
+  17/34; the current check 8/36 and 6/34. None separates right from wrong,
+  so nothing was changed. On `claims_golden.json`, per-line premises gave
+  0.867 vs 0.833 but one wrong "supported" where the current check has none.
+- Not done: image and voice through the UI's upload and recorder (the browser
+  automation used here cannot pick a file or record audio; both were run
+  through the engine in 1.2.0). Cosmetic: the duplicates report says "0.0 MB
+  could be freed" for very small files.
+

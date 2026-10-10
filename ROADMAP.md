@@ -84,6 +84,8 @@ set the rules and examples score 91.0%.
 | **1.4.0** | Idea | Learns when cloud is worth it | The learned router's "needs a strong model" head trains on your own Arena votes between a local and a cloud model, once there are enough |
 | **1.5.0** | Idea | Scales to a bigger library | Retrieval measured on a corpus large enough for the numbers to discriminate; indexing speed measured |
 
+| **1.6.0** | Idea | Flashcards that are really verified | A card is checked by answering its question from the passage and comparing, instead of checking the answer's wording alone. Measured first: of four wording-based checks tried, none could tell a right card from one carrying another card's answer |
+
 Ideas are not commitments; they are listed so they are not lost.
 
 ## How versions are numbered

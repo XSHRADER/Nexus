@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from nexus import log
+from nexus import __version__, log
 from nexus.engine import Options, answer, apply_pending
 
 
@@ -20,6 +20,7 @@ def main() -> int:
     parser.add_argument("--model", help="Pin a model instead of choosing automatically.")
     parser.add_argument("--docs", choices=["auto", "always", "never"], default="auto",
                         help="Whether to use your documents (default: auto).")
+    parser.add_argument("--version", action="version", version=f"NEXUS {__version__}")
     args = parser.parse_args()
     # Windows consoles default to cp1252, which can't print the emoji and
     # arrows models (and the PC tools) use.

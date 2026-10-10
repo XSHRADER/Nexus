@@ -2,6 +2,8 @@
 
 [![tests](https://github.com/XSHRADER/Nexus/actions/workflows/tests.yml/badge.svg)](https://github.com/XSHRADER/Nexus/actions/workflows/tests.yml)
 
+**Versions.** What changed in each one: [CHANGELOG.md](CHANGELOG.md). What is planned next: [ROADMAP.md](ROADMAP.md).
+
 ## Quick start
 
 **Windows: double-click `start.bat`.**

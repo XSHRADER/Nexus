@@ -1,0 +1,30 @@
+name: release
+
+# Pushing a version tag (v1.0.0) publishes a GitHub release whose notes are
+# that version's section of CHANGELOG.md. Tag only commits whose tests passed.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # Fails if the tag, pyproject.toml, nexus/__init__.py and the newest
+      # changelog entry do not all name the same version.
+      - name: Check the version and collect the notes
+        run: python scripts/release_notes.py "$GITHUB_REF_NAME" > notes.md
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "NEXUS $GITHUB_REF_NAME" --notes-file notes.md --verify-tag

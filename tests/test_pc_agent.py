@@ -104,7 +104,9 @@ class ToolkitSafetyTests(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        # Resolved: Windows can hand out the 8.3 short form of the temp folder
+        # (RUNNER~1), while the toolkit reports full, resolved paths.
+        self.root = Path(self._tmp.name).resolve()
         self.kit = PCToolkit()
 
     def test_empty_dir_cleanup_never_enters_ignored_folders(self):

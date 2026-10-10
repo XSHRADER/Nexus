@@ -1,0 +1,173 @@
+{"prompt": "morning! how are you today", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "cheers, got it", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "that makes sense, thank you", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "what can I ask you about?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "is this running on my computer or online?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "what is a neural network, briefly?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "explain tokens in language models to a beginner", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "what does GPU stand for and what is it for?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "who discovered penicillin?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "when was the first iPhone released?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "what is the boiling point of water at sea level?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "how many continents are there?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "give me a one-paragraph overview of the French Revolution", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "what does the word 'pragmatic' mean?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "write a two-line toast for a wedding", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "make this message friendlier: your report is late", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "translate 'where is the station' into German", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "summarize the idea of supply and demand", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "what is a file extension?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "tell me something interesting about octopuses", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "suggest a name for a pet parrot", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "what's a context window in an LLM?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "what is the difference between a folder and a file?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "explain what an API key is", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "how does a search engine rank pages, roughly?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "what is quantisation of a model, in one sentence?", "task": "general", "needs_docs": false, "source": "curated"}
+{"prompt": "what do my notes say about the embedding model?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "according to my documents, which port does Ollama use?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "summarize the checklist in my files", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "what does the action log say happened first?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "from my notes: which models are installed?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "what does the readme in my documents say about adding files?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "in my documents, what is the virtual environment called?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "what does the project info file say about supported formats?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "give me a summary of nexus_project_info.md", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "based on my files, where is the vector index stored?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "what do my documents say about PC actions?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "per my notes, what version of Python is used?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "what does my knowledge base say about the truth check?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "look in my documents: how is a model chosen?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "what do the local docs say about the Downloads folder?", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "quote what my notes say about Chroma", "task": "general", "needs_docs": true, "source": "curated"}
+{"prompt": "why does my for loop skip the last element?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "my function returns None instead of the list, why?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "why is this React hook running twice?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "how do I remove duplicates from a list in Python while keeping order?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "turn this recursive function into an iterative one", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "write a JavaScript function that debounces another function", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "what's the cleanest way to read a YAML file in Python?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "this query returns duplicate rows, how do I fix the JOIN?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "add input validation to this Flask route", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "why do I get 'undefined is not iterable' here?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "write a Python script that renames every .txt file in a folder", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "how do I write a unit test for a function that calls an API?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "my Docker build fails at pip install, what should I check?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "make this code run faster: it loops over a list inside another loop", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "convert this class component to a function component", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "how do I catch a timeout with the requests library?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "write a bash one-liner to count lines in all .py files", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "what does this error mean: 'int' object is not subscriptable", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "show me how to paginate results in SQL", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "write a C function that reverses an array in place", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "how do I sort a list of dicts by two keys?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "my tests pass locally but fail in CI with an import error", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "write a regex that matches a UK postcode", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "how do I make a POST request with fetch?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "clean up this function: it is 80 lines long", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "implement a stack with push, pop and peek in Java", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "why is my pandas merge producing NaN values?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "write a small CLI that prints the size of a directory", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "how do I read command-line arguments in Go?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "git rejected my push as non-fast-forward, what do I run?", "task": "coding", "needs_docs": false, "source": "curated"}
+{"prompt": "why does the ingest script in my project skip empty files? show the code path", "task": "coding", "needs_docs": true, "source": "curated"}
+{"prompt": "using my project files, write a test for the retrieve module", "task": "coding", "needs_docs": true, "source": "curated"}
+{"prompt": "according to my notes, which command starts the server? write a batch file for it", "task": "coding", "needs_docs": true, "source": "curated"}
+{"prompt": "fix the bug described in my action log", "task": "coding", "needs_docs": true, "source": "curated"}
+{"prompt": "write a function that parses the checklist format used in my documents", "task": "coding", "needs_docs": true, "source": "curated"}
+{"prompt": "based on my readme, write the command to rebuild the index", "task": "coding", "needs_docs": true, "source": "curated"}
+{"prompt": "is it better to buy a used car or lease a new one?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "which matters more for a chat model, speed or accuracy?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "what are the downsides of storing everything in one database file?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "weigh up Linux against Windows for a developer laptop", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "why would a smaller model sometimes answer better than a bigger one?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "is caching always a good idea? when does it hurt?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "two trains are 300 km apart and approach at 70 and 80 km/h; when do they meet?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "if it takes 5 machines 5 minutes to make 5 widgets, how long do 100 machines take for 100?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "what is 18% of 350? show the working", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "should a startup build its own model or use an API? argue both sides", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "which is the safer default, opt-in or opt-out, and why?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "what are the trade-offs of long chunks versus short chunks in retrieval?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "evaluate the claim that tests slow teams down", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "what could go wrong if two programs write to the same file?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "is a monolith a reasonable choice for a three-person team?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "compare paying monthly with paying yearly for a service I may cancel", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "which is riskier, a big rewrite or many small refactors?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "why do averages mislead when the data has outliers?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "is it worth learning Vim in 2026?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "what are the arguments for and against remote-only teams?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "does more training data always improve a classifier?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "analyse why a project keeps missing deadlines", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "which would you pick for local search, SQLite full-text or a vector index, and why?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "if all A are B and no B are C, can any A be C?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "what are the second-order effects of making a tool free?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "explain the reasoning behind keeping a held-out test set", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "is 8 GB of VRAM a hard limit for local models, or are there ways round it?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "assess the risk of running a server that accepts requests from any website", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "which is the better investment of a weekend, tests or docs?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "why might two reviewers disagree about the same answer?", "task": "reasoning", "needs_docs": false, "source": "curated"}
+{"prompt": "based on my notes, was choosing Chroma the right decision? weigh it up", "task": "reasoning", "needs_docs": true, "source": "curated"}
+{"prompt": "according to my documents, what are the weaknesses of the current setup?", "task": "reasoning", "needs_docs": true, "source": "curated"}
+{"prompt": "compare the two retrieval methods described in my readme", "task": "reasoning", "needs_docs": true, "source": "curated"}
+{"prompt": "from my action log, what was the riskiest step and why?", "task": "reasoning", "needs_docs": true, "source": "curated"}
+{"prompt": "judging by my checklist, is the project ready to release?", "task": "reasoning", "needs_docs": true, "source": "curated"}
+{"prompt": "do my notes justify using a separate virtual environment?", "task": "reasoning", "needs_docs": true, "source": "curated"}
+{"prompt": "what should I do first, second and third to learn SQL?", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "list the tasks needed to launch a small online shop", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "give me a timeline for writing a 20-page report in two weeks", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "what are my next steps after finishing a Python basics course?", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "lay out the stages of moving a website to a new host", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "how do I get started with weight training?", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "set out a week-by-week schedule to prepare for a marathon", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "break the job of repainting a room into steps", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "what needs to happen before we can ship version two?", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "organise these chores into a sensible order for Saturday", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "draw up a revision schedule for four subjects over three weeks", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "what is a sensible order to read these five textbooks?", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "make a checklist for publishing a blog post", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "map out the first 90 days in a new team lead role", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "how should I split a big essay into manageable parts?", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "give me a study routine for evenings after work", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "put together an agenda for a one-hour planning meeting", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "what milestones should a six-month side project have?", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "outline how to prepare for a technical interview in ten days", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "I want to start a podcast; where do I start?", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "sequence these features so the most valuable ships first", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "create a packing and travel schedule for a week in the mountains", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "prioritise these ten tasks for this week", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "how would you phase the rollout of a new login system?", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "give me a to-do list for setting up a home office", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "draft a learning path from spreadsheets to data analysis", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "what are the steps to register a small business?", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "plan a budget for the next three months", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "set goals for my first year of learning to program", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "divide this refactor into tickets a junior could pick up", "task": "planning", "needs_docs": false, "source": "curated"}
+{"prompt": "using my checklist, plan what is left to do this week", "task": "planning", "needs_docs": true, "source": "curated"}
+{"prompt": "based on my notes, lay out the steps to set this project up on a new PC", "task": "planning", "needs_docs": true, "source": "curated"}
+{"prompt": "from my documents, make a roadmap for the next release", "task": "planning", "needs_docs": true, "source": "curated"}
+{"prompt": "according to my action log, what should the next three steps be?", "task": "planning", "needs_docs": true, "source": "curated"}
+{"prompt": "turn the readme in my files into a step-by-step setup checklist", "task": "planning", "needs_docs": true, "source": "curated"}
+{"prompt": "plan the remaining work described in my notes", "task": "planning", "needs_docs": true, "source": "curated"}
+{"prompt": "sort out my Downloads", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "put the pictures on my desktop into one folder", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "how big is my Documents folder?", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "find files I have two copies of", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "delete the empty folders in my Pictures directory", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "group everything in D:\\work by file type", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "what is filling up my hard drive?", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "tidy up the files on my desktop", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "look for duplicate videos in my Videos folder", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "show me what is taking space in C:\\Users\\me\\Downloads", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "clean out the empty directories on my D drive", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "put my files back where they were", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "scan my Music folder for the biggest files", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "organise the installers and archives in my downloads", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "move the spreadsheets on my desktop into their own folder", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "list the ten largest files on this PC", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "reverse the last folder clean-up", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "sort my screenshots into folders", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "how much room would I free by removing duplicates in Downloads?", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "categorise the files in my Videos folder", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "tidy the folder C:\\temp\\exports", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "which folders in my home directory are the largest?", "task": "system_agent", "needs_docs": false, "source": "curated"}
+{"prompt": "organize my Pictures by type", "task": "system_agent", "needs_docs": false, "source": "curated"}

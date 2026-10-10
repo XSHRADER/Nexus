@@ -16,8 +16,8 @@ __pycache__/
 
 # Generated at runtime: the vector index (rebuilt by `python -m nexus.ingest`)
 # and data/ -- saved chats, metrics, logs, the legacy eval index.
-vector_store/
-data/
+/vector_store/
+/data/
 
 # Old locations of generated files, from before they moved under data/
 router_logs.jsonl

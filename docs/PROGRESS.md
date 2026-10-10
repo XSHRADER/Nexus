@@ -165,8 +165,8 @@ Done:
 - CI: separate lint job; tests run with one command on Ubuntu *and* Windows.
 
 Remaining after 1.0.0:
-- Cloud providers have only been exercised against `demos/mock_cloud.py`. Try
-  each with a real key (version 1.1.0).
+- Gemini, Mistral and DeepSeek have only been exercised against
+  `demos/mock_cloud.py`. Try each with a real key (version 1.3.0).
 - `data/router_logs.jsonl` still contains decisions from earlier test runs
   (model names `a`/`b`); safe to delete.
 
@@ -236,4 +236,23 @@ into `main`. Not a textual merge: both sides had rewritten `engine`, `server`,
   0.971 on the 137 clean prompts).
 - UI: "Wrong task?" under the last answer records a task_override signal.
 - Tests 329 -> 335.
+
+### Version 1.2.0 (2026-10-11)
+First run against real providers (keys in `.env`: Groq, OpenRouter, and a
+Google key that Google rejected on both its AI Studio and Vertex endpoints).
+- Model names confirmed with each provider's own listing. Added
+  `qwen/qwen3.8-27b` (Groq) and `openrouter/free` (OpenRouter's free router;
+  a named free model was rate-limited upstream, the router was not).
+- Live: chat + streaming on three Groq models and OpenRouter; Whisper
+  transcription of a generated WAV; an image through `openrouter/free`; and
+  through the engine: hard/easy routing, documents staying local, a pinned
+  cloud model refused for a document question, allow_docs, an image with a
+  local vision model, daily usage counted. Chat page and Diagnostics checked
+  with cloud on.
+- Bugs found by the real services: Gemini's error body is a list and its
+  bad-key status is 400, which crashed `_error_text` and hid the AuthError;
+  all-candidates-blocked with no local model raised instead of explaining;
+  the paid model was listed for pinning with paid off.
+- Known and left: voice usage counts the audio's bytes as "characters in".
+- Tests -> 339.
 

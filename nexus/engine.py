@@ -760,6 +760,22 @@ def answer(
         _finish(result, started, chat_id)
         return result
 
+    # Nothing was even tried: every candidate was held back by a rule (cloud
+    # off, documents stay local, paid models off). That is NEXUS working as
+    # set up, so say what was held back and why instead of raising.
+    if result["attempts"] and all((a.get("error") or "").startswith("skipped: ")
+                                  for a in result["attempts"]):
+        reasons = list(dict.fromkeys(a["error"][len("skipped: "):] for a in result["attempts"]))
+        local_hint = ("" if decision.get("available", {}).get("ollama")
+                      else " Ollama isn't reachable, so no local model could answer either: "
+                           "start it with `ollama serve`.")
+        result["answer"] = ("⚠️ No model was allowed to answer this: " + "; ".join(reasons) + "."
+                            + local_hint)
+        result["model"] = result["provider"] = None
+        result["info"] = "No model was allowed to answer this request."
+        _finish(result, started, chat_id, error=result["info"])
+        return result
+
     message = "Every available model failed for this request:\n  " + "\n  ".join(errors)
     _finish(result, started, chat_id, error=message)
     raise RuntimeError(message)

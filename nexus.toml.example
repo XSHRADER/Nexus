@@ -22,7 +22,7 @@ history_chars = 8000
 mode = "off"
 # Let questions that use your documents go to cloud models.
 allow_docs = false
-# Allow models billed per token with no free tier (OpenRouter auto).
+# Allow models billed per token (OpenRouter auto). Free models don't need this.
 allow_paid = false
 # Difficulty (0..1) from which a prompt counts as hard.
 hard_threshold = 0.6

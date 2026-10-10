@@ -4,6 +4,36 @@ Every released version of NEXUS, newest first. Planned versions are in
 [ROADMAP.md](ROADMAP.md). Each heading below is a git tag (`v0.4.0`) and a
 GitHub release.
 
+## [1.2.0] - 2026-10-11
+
+Cloud models tried with real keys for the first time, on Groq and OpenRouter.
+
+### Checked for this release
+- Against the real services: chat and streaming on three Groq models and on
+  OpenRouter; voice input transcribed by Groq; an image read by OpenRouter's
+  free models and, with cloud off, by a local vision model.
+- The rules, end to end: easy questions stay local; questions about your
+  documents stay on this PC and say so; a pinned cloud model is refused for a
+  document question; with "Send documents to cloud" on, it is used; a rejected
+  key is skipped, recorded, and not retried.
+- Not checked: Gemini (the key supplied was rejected by Google), Mistral and
+  DeepSeek. Those are still tested only against a stand-in.
+
+### Added
+- `openrouter/free`: OpenRouter's router for free models, which uses whichever
+  one is available. Free, so it needs no "Allow paid models".
+- Groq's `qwen/qwen3.8-27b`.
+
+### Fixed
+- A rejected Gemini key crashed the error reader: Gemini wraps its errors in a
+  list and reports a bad key as 400, not 401. The key was never marked bad, so
+  Gemini was retried on every question. It is now recognised, recorded, and
+  skipped until the key changes.
+- When every candidate was held back by a rule and no local model was
+  running, NEXUS raised an error. It now explains what was held back and why.
+- The paid OpenRouter model was offered in the model list with paid models
+  switched off.
+
 ## [1.1.0] - 2026-10-10
 
 The router learns from more data and from your corrections, and its scores

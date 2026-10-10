@@ -12,6 +12,7 @@ later" from "bad key" from "no internet" and fall through to the next model.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -58,14 +59,26 @@ def _retry_after(response: requests.Response) -> float | None:
 
 
 def _error_text(response: requests.Response) -> str:
+    """The provider's own explanation, whatever shape it arrives in.
+
+    Most send {"error": {"message": ...}}. Gemini's OpenAI-style endpoint
+    wraps that in a list, and some gateways send a bare string.
+    """
     try:
         body = response.json()
-        err = body.get("error", body)
-        if isinstance(err, dict):
-            return str(err.get("message") or err)[:300]
-        return str(err)[:300]
     except ValueError:
         return (response.text or response.reason or "")[:300]
+    if isinstance(body, list):
+        body = body[0] if body else {}
+    err = body.get("error", body) if isinstance(body, dict) else body
+    if isinstance(err, dict):
+        return str(err.get("message") or err)[:300]
+    return str(err)[:300]
+
+
+# Providers that answer a bad key with 400 instead of 401 (Gemini does).
+_BAD_KEY = re.compile(r"api[ _]?key (?:is )?(?:not valid|invalid)|invalid (?:api|auth)[ _]?key|"
+                      r"api_key_invalid|incorrect api key", re.I)
 
 
 def raise_for(provider: str, response: requests.Response, model: str = "") -> None:
@@ -74,7 +87,7 @@ def raise_for(provider: str, response: requests.Response, model: str = "") -> No
     if status < 400:
         return
     detail = _error_text(response)
-    if status in (401, 403):
+    if status in (401, 403) or (status == 400 and _BAD_KEY.search(detail)):
         raise AuthError(provider, f"key rejected ({status}): {detail}")
     if status == 429:
         raise RateLimited(provider, f"rate-limited: {detail}", _retry_after(response))

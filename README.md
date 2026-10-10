@@ -147,12 +147,14 @@ the same features without Streamlit.
 
 ---
 
-## Cloud models (optional, off by default, experimental)
+## Cloud models (optional, off by default)
 
-> **Experimental.** Everything in this section is tested against a stand-in
-> for the providers, not against the real services with real keys. Expect
-> rough edges the first time you switch it on, such as a model name a provider
-> has since renamed (Diagnostics has a button that checks them).
+> **What has been tried with real keys.** Groq and OpenRouter's free models:
+> chat, streaming, voice input (Groq) and image questions (OpenRouter), with
+> the privacy rules and fallbacks below checked against the real services.
+> Gemini, Mistral and DeepSeek are still only tested against a stand-in, so
+> expect rough edges there, such as a model name a provider has since renamed
+> (Diagnostics has a button that checks them).
 
 NEXUS runs fully on this PC until you switch cloud on. With it on, cloud
 models compete with your local ones on the same scores, and NEXUS still picks
@@ -162,11 +164,14 @@ for you.
 
 | Provider | Key | Free tier | Used for |
 |---|---|---|---|
-| Gemini | `GEMINI_API_KEY` | yes | general use, long documents, **images** |
 | Groq | `GROQ_API_KEY` | yes | very fast chat, **voice input** (Whisper) |
-| Mistral | `MISTRAL_API_KEY` | yes | extra general model, images |
+| OpenRouter | `OPENROUTER_API_KEY` | yes, about 50 requests a day | whichever free model is available, including ones that read **images**; paid models only if you allow them |
+| Gemini | `GEMINI_API_KEY` | yes | general use, long documents, images |
+| Mistral | `MISTRAL_API_KEY` | depends on your account | extra general model, images |
 | DeepSeek | `DEEPSEEK_API_KEY` | no (cheap) | deep reasoning |
-| OpenRouter | `OPENROUTER_API_KEY` | no (paid) | many models through one key |
+
+Groq and OpenRouter together cover chat, images and voice at no cost. Free
+tiers change; check each provider's own page.
 
 **2. Pick a cloud mode** under **Answer settings** in the chat (or `[cloud] mode` in `nexus.toml`):
 

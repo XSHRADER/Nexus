@@ -35,8 +35,9 @@ import mock_judge  # noqa: E402
 
 MODELS = {
     "gemini": ["gemini-3.7-flash"],
-    "groq": ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "whisper-large-v3-turbo"],
-    "openrouter": ["openrouter/auto"],
+    "groq": ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b",
+             "whisper-large-v3-turbo"],
+    "openrouter": ["openrouter/auto", "openrouter/free"],
     "deepseek": ["deepseek-reasoner", "deepseek-chat"],
     "mistral": ["mistral-large-latest"],
 }

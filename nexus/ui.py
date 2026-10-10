@@ -153,12 +153,15 @@ def background_brain() -> brain.Brain:
 
 
 def ready_cloud_models(avail: dict[str, Any]) -> list[str]:
-    """Cloud models that could be pinned right now (cloud on, provider ready)."""
+    """Cloud models that could be pinned right now: cloud on, provider ready,
+    and not a paid model unless paid models are allowed."""
     if cloud_mode() == "off":
         return []
     status = avail.get("cloud") or {}
+    paid_ok = bool(st.session_state.get("opt_allow_paid"))
     return [spec.name for spec in cloud.cloud_specs()
-            if status.get(spec.provider, {}).get("status") == "ready"]
+            if status.get(spec.provider, {}).get("status") == "ready"
+            and (paid_ok or spec.cost != "paid")]
 
 
 def index_summary() -> tuple[int, dict[str, int]]:

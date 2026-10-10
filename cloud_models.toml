@@ -56,6 +56,17 @@ note = "fastest option for quick chat"
 strengths = { general = 0.84, coding = 0.70, reasoning = 0.68, planning = 0.66 }
 
 [[model]]
+name = "qwen/qwen3.8-27b"
+provider = "groq"
+cost = "free"
+modalities = ["text"]
+quality = 0.76
+speed = 0.98
+context = 131072
+note = "fast mid-size model on Groq hardware"
+strengths = { general = 0.84, coding = 0.78, reasoning = 0.76, planning = 0.74 }
+
+[[model]]
 name = "deepseek-reasoner"
 provider = "deepseek"
 cost = "cheap"
@@ -85,6 +96,21 @@ quality = 0.80
 speed = 0.72
 context = 128000
 strengths = { general = 0.86, coding = 0.80, reasoning = 0.78, planning = 0.78, vision = 0.80 }
+
+# OpenRouter's free models come and go and are throttled at busy times, so
+# this entry names its free router, which hands each request to whichever
+# free model is available, including one that reads images when you attach
+# one. Limit: about 50 requests a day on a key with no credits.
+[[model]]
+name = "openrouter/free"
+provider = "openrouter"
+cost = "free"
+modalities = ["text", "image"]
+quality = 0.72
+speed = 0.60
+context = 128000
+note = "whichever free model OpenRouter has available"
+strengths = { general = 0.80, coding = 0.74, reasoning = 0.74, planning = 0.72, vision = 0.76 }
 
 [[model]]
 name = "openrouter/auto"

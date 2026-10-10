@@ -374,6 +374,50 @@ class ClientTests(CloudTestCase):
             with self.assertRaises(cloud.ModelNotFound):
                 cloud_client.chat("gemini", "nope", [{"role": "user", "content": "x"}])
 
+    def test_gemini_reports_a_bad_key_as_400_inside_a_list(self):
+        # Exactly what the real service returned for a rejected key. The list
+        # used to crash the error reader, so the key was never marked bad and
+        # Gemini was retried on every question.
+        class Reply:
+            status_code = 400
+            headers: dict = {}
+            reason = "Bad Request"
+            text = ""
+
+            def json(self):
+                return [{"error": {"code": 400, "message": "Invalid Auth key.",
+                                   "status": "INVALID_ARGUMENT"}}]
+
+        with self.assertRaises(cloud.AuthError) as caught:
+            cloud_client.raise_for("gemini", Reply())
+        self.assertIn("Invalid Auth key", str(caught.exception))
+
+    def test_a_400_that_is_not_about_the_key_stays_a_plain_error(self):
+        class Reply:
+            status_code = 400
+            headers: dict = {}
+            reason = "Bad Request"
+            text = "temperature must be between 0 and 2"
+
+            def json(self):
+                raise ValueError("not json")
+
+        with self.assertRaises(cloud.CloudError) as caught:
+            cloud_client.raise_for("groq", Reply())
+        self.assertNotIsInstance(caught.exception, cloud.AuthError)
+        self.assertIn("temperature", str(caught.exception))
+
+    def test_blocked_by_the_rules_with_no_local_model_explains_instead_of_raising(self):
+        chunks = [{"text": "secret plan", "meta": {"source": "s.md"}, "score": 1.0}]
+        with self.settings(), mock.patch.object(
+                engine, "get_retriever", return_value=fakes.FakeRetriever(chunks)):
+            result = self.ask("what is in my notes?", FakeRouter(needs_rag=True, installed=[]),
+                              engine.Options(cloud_mode="allowed", force_model="gemini-3.7-flash"))
+        self.assertIn("stay on this PC", result["answer"])
+        self.assertIn("Ollama isn't reachable", result["answer"])
+        self.assertIsNone(result["model"])
+        self.assertEqual(mock_cloud.STATE["requests"], [])   # nothing left this PC
+
     def test_list_models_and_verify(self):
         with self.settings():
             self.assertIn("gemini-3.7-flash", cloud_client.list_models("gemini"))

@@ -244,6 +244,23 @@ class AppFlowTests(unittest.TestCase):
         self.assertFalse(options.allow_docs)   # documents still stay on this PC
         self.assertFalse(options.allow_paid)
 
+    def test_paid_cloud_models_are_not_offered_until_allowed(self):
+        ready = {"status": "ready", "detail": "0/50 requests today", "used": 0, "limit": 50}
+        avail = {"ollama": ["a", "b"], "ollama_up": True, "loaded": [], "cloud": {"openrouter": ready}}
+        from nexus import ui
+
+        with mock.patch.object(providers, "availability", lambda *a, **k: avail):
+            ui.availability.clear()   # cached for a few seconds, across sessions
+            self.addCleanup(ui.availability.clear)
+            at = self.start()
+            self.assertEqual(at.selectbox(key="opt_model").options, ["Auto", "a", "b"])  # cloud off
+            next(g for g in at.button_group if g.key == "opt_cloud").set_value("Allowed").run()
+            offered = at.selectbox(key="opt_model").options
+            self.assertIn("openrouter/free", offered)
+            self.assertNotIn("openrouter/auto", offered)
+            at.toggle(key="opt_allow_paid").set_value(True).run()
+            self.assertIn("openrouter/auto", at.selectbox(key="opt_model").options)
+
     def test_an_answer_from_your_documents_is_flagged_in_later_history(self):
         real = self.fake_answer
 

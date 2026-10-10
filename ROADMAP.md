@@ -18,50 +18,52 @@ size of the test suite at that tag; every one passed on GitHub before tagging.
 | **0.5.0** | Released | 2026-10-10 | [v0.5.0](https://github.com/XSHRADER/Nexus/releases/tag/v0.5.0) | 328 | Feature merge: cloud, truth check, Arena, learned router, council, brain |
 | **1.0.0** | Released | 2026-10-10 | [v1.0.0](https://github.com/XSHRADER/Nexus/releases/tag/v1.0.0) | 329 | Complete local assistant: refreshed demo documents, routing log keeps questions |
 | **1.1.0** | Released | 2026-10-10 | [v1.1.0](https://github.com/XSHRADER/Nexus/releases/tag/v1.1.0) | 335 | Router learns from more data and your corrections; leaked test prompts removed |
+| **1.2.0** | Released | 2026-10-11 | [v1.2.0](https://github.com/XSHRADER/Nexus/releases/tag/v1.2.0) | 339 | Cloud tried with real keys on Groq and OpenRouter; three bugs fixed |
 
 ## What each version contains
 
 A filled cell is the version a capability arrived in; it is in every later
 version too.
 
-| Capability | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 1.0 | 1.1 |
-|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Answers from your documents (vector + keyword search, re-ranked) | ● | ● | ● | ● | ● | ● | ● |
-| Picks a local model per question | ● | ● | ● | ● | ● | ● | ● |
-| PC tools: organize, duplicates, large files, undo | ● | ● | ● | ● | ● | ● | ● |
-| Streamlit UI and a dependency-free web UI | ● | ● | ● | ● | ● | ● | ● |
-| Measured retrieval quality | ● | ● | ● | ● | ● | ● | ● |
-| Local server refuses requests from other websites |  | ● | ● | ● | ● | ● | ● |
-| Saved chats and conversation memory |  | ● | ● | ● | ● | ● | ● |
-| Streaming answers with Stop |  | ● | ● | ● | ● | ● | ● |
-| Uses installed models outside the catalogue |  | ● | ● | ● | ● | ● | ● |
-| Terminal chat (`python -m nexus`) |  |  | ● | ● | ● | ● | ● |
-| Multipage dark UI with live progress and per-answer details |  |  | ● | ● | ● | ● | ● |
-| One config module; tests isolated from your data; CI on Windows |  |  | ● | ● | ● | ● | ● |
-| Router trained on labelled examples, with a measured score |  |  |  | ● | ● | ● | ● |
-| Version labels, changelog, automatic GitHub releases |  |  |  | ● | ● | ● | ● |
-| Settings file (`nexus.toml`) and memory budget |  |  |  |  | ● | ● | ● |
-| Optional cloud models (off by default), with privacy rules |  |  |  |  | ● | ● | ● |
-| Image and voice input |  |  |  |  | ● | ● | ● |
-| Truth check against your documents |  |  |  |  | ● | ● | ● |
-| Ratings, Arena and a personal leaderboard |  |  |  |  | ● | ● | ● |
-| Learned router with a measured gate |  |  |  |  | ● | ● | ● |
-| Model council with a judge |  |  |  |  | ● | ● | ● |
-| Background brain: folder watcher, inbox, digest, flashcards |  |  |  |  | ● | ● | ● |
-| Correct the router from the chat; trains on curated data and your corrections |  |  |  |  |  |  | ● |
+| Capability | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 1.0 | 1.1 | 1.2 |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Answers from your documents (vector + keyword search, re-ranked) | ● | ● | ● | ● | ● | ● | ● | ● |
+| Picks a local model per question | ● | ● | ● | ● | ● | ● | ● | ● |
+| PC tools: organize, duplicates, large files, undo | ● | ● | ● | ● | ● | ● | ● | ● |
+| Streamlit UI and a dependency-free web UI | ● | ● | ● | ● | ● | ● | ● | ● |
+| Measured retrieval quality | ● | ● | ● | ● | ● | ● | ● | ● |
+| Local server refuses requests from other websites |  | ● | ● | ● | ● | ● | ● | ● |
+| Saved chats and conversation memory |  | ● | ● | ● | ● | ● | ● | ● |
+| Streaming answers with Stop |  | ● | ● | ● | ● | ● | ● | ● |
+| Uses installed models outside the catalogue |  | ● | ● | ● | ● | ● | ● | ● |
+| Terminal chat (`python -m nexus`) |  |  | ● | ● | ● | ● | ● | ● |
+| Multipage dark UI with live progress and per-answer details |  |  | ● | ● | ● | ● | ● | ● |
+| One config module; tests isolated from your data; CI on Windows |  |  | ● | ● | ● | ● | ● | ● |
+| Router trained on labelled examples, with a measured score |  |  |  | ● | ● | ● | ● | ● |
+| Version labels, changelog, automatic GitHub releases |  |  |  | ● | ● | ● | ● | ● |
+| Settings file (`nexus.toml`) and memory budget |  |  |  |  | ● | ● | ● | ● |
+| Optional cloud models (off by default), with privacy rules |  |  |  |  | ● | ● | ● | ● |
+| Image and voice input |  |  |  |  | ● | ● | ● | ● |
+| Truth check against your documents |  |  |  |  | ● | ● | ● | ● |
+| Ratings, Arena and a personal leaderboard |  |  |  |  | ● | ● | ● | ● |
+| Learned router with a measured gate |  |  |  |  | ● | ● | ● | ● |
+| Model council with a judge |  |  |  |  | ● | ● | ● | ● |
+| Background brain: folder watcher, inbox, digest, flashcards |  |  |  |  | ● | ● | ● | ● |
+| Correct the router from the chat; trains on curated data and your corrections |  |  |  |  |  |  | ● | ● |
+| Cloud verified with real keys (Groq, OpenRouter); free OpenRouter models |  |  |  |  |  |  |  | ● |
 
 ## Measured at each version
 
-| Measure | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 1.0 | 1.1 |
-|---|---|---|---|---|---|---|---|
-| Tests | 73 | 133 | 172 | 179 | 328 | 329 | 335 |
-| Routing accuracy, rules and examples (150 held-out prompts) | — | — | 62.0% | 89.3% | 89.3% | 89.3% | 89.3% |
-| Routing accuracy, learned router (150 held-out prompts) | — | — | — | — | 97.3%* | 97.3%* | 98.7% |
-| Routing accuracy, learned router (100 held-out prompts) | — | — | — | — | 99.0% | 99.0% | 100% |
-| Learned router: finds questions that need your documents (recall) | — | — | — | — | 84.6% | 84.6% | 100% |
-| Retrieval: answer found in the top 5 passages (18 questions) | 94.4% | 94.4% | 94.4% | 94.4% | 94.4% | 88.9% | 88.9% |
-| Retrieval: answer found in the top 10 passages, the app's default | — | — | — | — | — | 100% | 100% |
-| Truth check accuracy, given the passage (60 labelled claims) | — | — | — | — | 85.0% | 83.3% | 83.3% |
+| Measure | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 1.0 | 1.1 | 1.2 |
+|---|---|---|---|---|---|---|---|---|
+| Tests | 73 | 133 | 172 | 179 | 328 | 329 | 335 | 339 |
+| Routing accuracy, rules and examples (150 held-out prompts) | — | — | 62.0% | 89.3% | 89.3% | 89.3% | 89.3% | 89.3% |
+| Routing accuracy, learned router (150 held-out prompts) | — | — | — | — | 97.3%* | 97.3%* | 98.7% | 98.7% |
+| Routing accuracy, learned router (100 held-out prompts) | — | — | — | — | 99.0% | 99.0% | 100% | 100% |
+| Learned router: finds questions that need your documents (recall) | — | — | — | — | 84.6% | 84.6% | 100% | 100% |
+| Retrieval: answer found in the top 5 passages (18 questions) | 94.4% | 94.4% | 94.4% | 94.4% | 94.4% | 88.9% | 88.9% | 88.9% |
+| Retrieval: answer found in the top 10 passages, the app's default | — | — | — | — | — | 100% | 100% | 100% |
+| Truth check accuracy, given the passage (60 labelled claims) | — | — | — | — | 85.0% | 83.3% | 83.3% | 83.3% |
 
 \* Inflated: until 1.1.0 the training data held near-copies of 13 of those 150
 prompts. On the 137 clean ones that router scored 97.1%.
@@ -78,9 +80,9 @@ set the rules and examples score 91.0%.
 
 | Version | Status | Goal | Done when |
 |---|---|---|---|
-| **1.2.0** | Next | Cloud is no longer experimental | Each cloud provider has been tried with a real key, including an image and a voice question; the model names in `cloud_models.toml` are confirmed current |
-| **1.3.0** | Idea | Learns when cloud is worth it | The learned router's "needs a strong model" head trains on your own Arena votes between a local and a cloud model, once there are enough |
-| **1.4.0** | Idea | Scales to a bigger library | Retrieval measured on a corpus large enough for the numbers to discriminate; indexing speed measured |
+| **1.3.0** | Next | The remaining cloud providers | Gemini, Mistral and DeepSeek tried with real keys, as Groq and OpenRouter were in 1.2.0 |
+| **1.4.0** | Idea | Learns when cloud is worth it | The learned router's "needs a strong model" head trains on your own Arena votes between a local and a cloud model, once there are enough |
+| **1.5.0** | Idea | Scales to a bigger library | Retrieval measured on a corpus large enough for the numbers to discriminate; indexing speed measured |
 
 Ideas are not commitments; they are listed so they are not lost.
 
@@ -95,8 +97,8 @@ Ideas are not commitments; they are listed so they are not lost.
 | PATCH | Only fixes, no new features | 1.1.1 would fix a crash |
 
 Versions before 1.0.0 were development versions. From 1.0.0 the local
-assistant is called complete; cloud models stay marked experimental until
-they have been tried with real keys (planned for 1.2.0).
+assistant is called complete. Cloud models were first tried with real keys in
+1.2.0 (Groq and OpenRouter); the other three providers are planned for 1.3.0.
 
 ## Branches
 

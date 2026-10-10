@@ -165,7 +165,7 @@ Done:
 - CI: separate lint job; tests run with one command on Ubuntu *and* Windows.
 
 Remaining after 1.0.0:
-- Gemini, Mistral and DeepSeek have only been exercised against
+- Mistral and DeepSeek have only been exercised against
   `demos/mock_cloud.py`. Try each with a real key (version 1.3.0).
 - `data/router_logs.jsonl` still contains decisions from earlier test runs
   (model names `a`/`b`); safe to delete.
@@ -255,4 +255,11 @@ Google key that Google rejected on both its AI Studio and Vertex endpoints).
   the paid model was listed for pinning with paid off.
 - Known and left: voice usage counts the audio's bytes as "characters in".
 - Tests -> 339.
+- Later the same day, with a working Google key: `gemini-3.7-flash` confirmed
+  in Google's own listing; text, streaming and an image answered; through the
+  engine a hard prompt went to Gemini (8 s warm, first token after 7 s), a
+  document question stayed local with Gemini pinned, and allow_docs sent it
+  to Gemini with sources. No code changes were needed. About 2 of 10 requests
+  got a 503 "high demand" from Google; the fallback and cooldown worked.
+  (The first key was simply invalid; the `AQ.` 53-character format is fine.)
 

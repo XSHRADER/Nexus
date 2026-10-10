@@ -18,7 +18,7 @@ size of the test suite at that tag; every one passed on GitHub before tagging.
 | **0.5.0** | Released | 2026-10-10 | [v0.5.0](https://github.com/XSHRADER/Nexus/releases/tag/v0.5.0) | 328 | Feature merge: cloud, truth check, Arena, learned router, council, brain |
 | **1.0.0** | Released | 2026-10-10 | [v1.0.0](https://github.com/XSHRADER/Nexus/releases/tag/v1.0.0) | 329 | Complete local assistant: refreshed demo documents, routing log keeps questions |
 | **1.1.0** | Released | 2026-10-10 | [v1.1.0](https://github.com/XSHRADER/Nexus/releases/tag/v1.1.0) | 335 | Router learns from more data and your corrections; leaked test prompts removed |
-| **1.2.0** | Released | 2026-10-11 | [v1.2.0](https://github.com/XSHRADER/Nexus/releases/tag/v1.2.0) | 339 | Cloud tried with real keys on Groq and OpenRouter; three bugs fixed |
+| **1.2.0** | Released | 2026-10-11 | [v1.2.0](https://github.com/XSHRADER/Nexus/releases/tag/v1.2.0) | 339 | Cloud tried with real keys on Groq, Gemini and OpenRouter; three bugs fixed |
 
 ## What each version contains
 
@@ -50,7 +50,7 @@ version too.
 | Model council with a judge |  |  |  |  | ● | ● | ● | ● |
 | Background brain: folder watcher, inbox, digest, flashcards |  |  |  |  | ● | ● | ● | ● |
 | Correct the router from the chat; trains on curated data and your corrections |  |  |  |  |  |  | ● | ● |
-| Cloud verified with real keys (Groq, OpenRouter); free OpenRouter models |  |  |  |  |  |  |  | ● |
+| Cloud verified with real keys (Groq, Gemini, OpenRouter); free OpenRouter models |  |  |  |  |  |  |  | ● |
 
 ## Measured at each version
 
@@ -80,7 +80,7 @@ set the rules and examples score 91.0%.
 
 | Version | Status | Goal | Done when |
 |---|---|---|---|
-| **1.3.0** | Next | The remaining cloud providers | Gemini, Mistral and DeepSeek tried with real keys, as Groq and OpenRouter were in 1.2.0 |
+| **1.3.0** | Next | The remaining cloud providers | Mistral and DeepSeek tried with real keys, as Groq, Gemini and OpenRouter were in 1.2.0. Neither has a free tier you could use, so this waits until you want one of them |
 | **1.4.0** | Idea | Learns when cloud is worth it | The learned router's "needs a strong model" head trains on your own Arena votes between a local and a cloud model, once there are enough |
 | **1.5.0** | Idea | Scales to a bigger library | Retrieval measured on a corpus large enough for the numbers to discriminate; indexing speed measured |
 
@@ -98,7 +98,8 @@ Ideas are not commitments; they are listed so they are not lost.
 
 Versions before 1.0.0 were development versions. From 1.0.0 the local
 assistant is called complete. Cloud models were first tried with real keys in
-1.2.0 (Groq and OpenRouter); the other three providers are planned for 1.3.0.
+1.2.0 (Groq, Gemini and OpenRouter); the other two providers are planned for
+1.3.0.
 
 ## Branches
 

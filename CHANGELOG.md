@@ -6,18 +6,21 @@ GitHub release.
 
 ## [1.2.0] - 2026-10-11
 
-Cloud models tried with real keys for the first time, on Groq and OpenRouter.
+Cloud models tried with real keys for the first time, on Groq, Gemini and
+OpenRouter.
 
 ### Checked for this release
-- Against the real services: chat and streaming on three Groq models and on
-  OpenRouter; voice input transcribed by Groq; an image read by OpenRouter's
-  free models and, with cloud off, by a local vision model.
+- Against the real services: chat and streaming on Gemini, three Groq models
+  and OpenRouter; voice input transcribed by Groq; an image read by Gemini, by
+  OpenRouter's free models and, with cloud off, by a local vision model.
 - The rules, end to end: easy questions stay local; questions about your
   documents stay on this PC and say so; a pinned cloud model is refused for a
   document question; with "Send documents to cloud" on, it is used; a rejected
   key is skipped, recorded, and not retried.
-- Not checked: Gemini (the key supplied was rejected by Google), Mistral and
-  DeepSeek. Those are still tested only against a stand-in.
+- Seen in practice: Gemini's free tier answered "high demand" on about one
+  request in five. NEXUS used the next model and said so each time.
+- Not checked: Mistral and DeepSeek. Those are still tested only against a
+  stand-in.
 
 ### Added
 - `openrouter/free`: OpenRouter's router for free models, which uses whichever

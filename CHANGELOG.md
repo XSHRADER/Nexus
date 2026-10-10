@@ -4,6 +4,36 @@ Every released version of NEXUS, newest first. Planned versions are in
 [ROADMAP.md](ROADMAP.md). Each heading below is a git tag (`v0.4.0`) and a
 GitHub release.
 
+## [1.1.0] - 2026-10-10
+
+The router learns from more data and from your corrections, and its scores
+are kept honest.
+
+### Added
+- *Wrong task?* under an answer: say what a question really was. The
+  correction is saved and used the next time the router is trained.
+- 173 new hand-labelled training prompts (`train/data/curated_tasks.jsonl`),
+  aimed at phrasings the router got wrong, each with a "needs your documents"
+  label.
+- The learned router also trains on the 276 labelled examples the rules use.
+- The Leaderboard page shows what the router in use was trained on and its
+  score on both held-out sets.
+
+### Changed
+- The gate a new router must pass now checks both held-out sets (100 and 150
+  prompts), so a gain on one cannot hide a loss on the other.
+- Learned router retrained: 100% on the 100-prompt set (was 99.0%), 98.7% on
+  the 150-prompt set (the rules and examples: 89.3%), and it now recognises
+  every question that needs your documents (recall 84.6% to 100%).
+
+### Fixed
+- Test prompts had leaked into training. 21 starter prompts and 9 examples
+  were near-copies of held-out prompts (13 of the 150-prompt set had one),
+  which flattered the earlier scores. They are removed; held-out prompts are
+  now dropped from training data at training time, including your own
+  corrections; and a test fails if a shipped training prompt is a close
+  rewording of a test prompt.
+
 ## [1.0.0] - 2026-10-10
 
 The first version called complete: a private assistant that answers from your

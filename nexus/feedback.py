@@ -116,6 +116,22 @@ def record_signal(kind: str, question: str | None = None, task: str | None = Non
         )
 
 
+def correct_task(question: str, wrong: str | None, right: str,
+                 message_id: int | None = None, store: ChatStore | None = None) -> None:
+    """You said a question was routed as the wrong task.
+
+    Stored as a `task_override` signal, the same thing the Task setting
+    records, so the next router training learns from it (weighted 3x).
+    """
+    question = (question or "").strip()
+    if not question:
+        raise ValueError("no question to correct")
+    if right == wrong:
+        raise ValueError("that is the task it was already routed as")
+    record_signal("task_override", question, task=wrong, value=right,
+                  message_id=message_id, store=store)
+
+
 def signals(kind: str | None = None, store: ChatStore | None = None) -> list[dict[str, Any]]:
     query, args = "SELECT * FROM signals", ()
     if kind:

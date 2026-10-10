@@ -5,10 +5,20 @@ Where the router's training examples come from. Every row is
 
   task / docs heads
     seed      train/data/seed_tasks.jsonl: hand-labelled starter prompts
+    curated   train/data/curated_tasks.jsonl: more hand-labelled prompts, aimed
+              at phrasings the router got wrong (plans that never say "plan",
+              coding questions phrased as "why", generic mentions of files)
+    examples  nexus/router_examples.json: the labelled examples the rule-based
+              router matches against. Task labels only.
     teacher   train/data/teacher_labels.jsonl: prompts labelled by a cloud
               model (train/teacher_label.py), e.g. public prompts
     yours     your corrections: task overrides and document on/off overrides
               (weighted 3x -- they are about *your* use, not the average)
+
+  A prompt that is in a held-out test set (eval/router_set.json,
+  eval/router_golden.json) is never trained on, whichever source it came
+  from -- including your own corrections. Otherwise the scores that decide
+  whether a new router replaces the old one would stop meaning anything.
 
   strong head
     arena55k  lmarena-ai/arena-human-preference-55k: 55k human votes between
@@ -22,6 +32,7 @@ Where the router's training examples come from. Every row is
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -31,7 +42,10 @@ from nexus.learned_router import iter_jsonl
 
 DATA_DIR = PROJECT_DIR / "train" / "data"
 SEED = DATA_DIR / "seed_tasks.jsonl"
+CURATED = DATA_DIR / "curated_tasks.jsonl"
 TEACHER = DATA_DIR / "teacher_labels.jsonl"
+EXAMPLES = PROJECT_DIR / "nexus" / "router_examples.json"
+HELD_OUT = (PROJECT_DIR / "eval" / "router_set.json", PROJECT_DIR / "eval" / "router_golden.json")
 ARENA55K = DATA_DIR / "arena55k_strong.jsonl"
 ARENA55K_REPO = "lmarena-ai/arena-human-preference-55k"
 
@@ -55,6 +69,39 @@ def labelled_rows(path: Path, source: str) -> tuple[list[dict], list[dict]]:
         if isinstance(r.get("needs_docs"), bool):
             docs.append(_row(prompt, "yes" if r["needs_docs"] else "no", 1.0, source))
     return task, docs
+
+
+def normalise(prompt: str) -> str:
+    """Case, punctuation and spacing don't make a prompt a different prompt."""
+    return " ".join(re.sub(r"[^\w\s]", " ", prompt.lower()).split())
+
+
+def held_out_prompts() -> set[str]:
+    """Every prompt a router is scored on, normalised."""
+    held: set[str] = set()
+    for path in HELD_OUT:
+        if not path.exists():
+            continue
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for item in data.get("queries") or data.get("prompts") or []:
+            held.add(normalise(item.get("q") or item.get("prompt") or ""))
+    held.discard("")
+    return held
+
+
+def without_held_out(rows: list[dict]) -> list[dict]:
+    held = held_out_prompts()
+    return [r for r in rows if normalise(r["prompt"]) not in held]
+
+
+def example_rows(path: Path = EXAMPLES) -> list[dict]:
+    """The rule-based router's labelled examples, as task training rows."""
+    if not path.exists():
+        return []
+    examples = json.loads(path.read_text(encoding="utf-8")).get("examples") or {}
+    return [_row(prompt.strip(), task, 1.0, "examples")
+            for task, prompts in examples.items() if task in TASKS
+            for prompt in prompts if prompt.strip()]
 
 
 def own_rows(store=None) -> tuple[list[dict], list[dict]]:
@@ -204,9 +251,11 @@ def arena55k_rows(path: Path | None = None) -> list[dict]:
 
 def task_and_docs_rows(store=None, include_own: bool = True) -> tuple[list[dict], list[dict]]:
     task, docs = labelled_rows(SEED, "seed")
-    t2, d2 = labelled_rows(TEACHER, "teacher")
-    task += t2
-    docs += d2
+    for path, source in ((CURATED, "curated"), (TEACHER, "teacher")):
+        more_task, more_docs = labelled_rows(path, source)
+        task += more_task
+        docs += more_docs
+    task += example_rows()
     if include_own:
         try:
             t3, d3 = own_rows(store)
@@ -214,7 +263,7 @@ def task_and_docs_rows(store=None, include_own: bool = True) -> tuple[list[dict]
             docs += d3
         except Exception:
             pass
-    return task, docs
+    return without_held_out(task), without_held_out(docs)
 
 
 def strong_head_rows(store=None, include_own: bool = True) -> list[dict]:

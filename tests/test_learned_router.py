@@ -285,6 +285,59 @@ class TeacherTests(TempModels):
         self.assertEqual(data_sources.counts(task)["teacher"], 2)
 
 
+class TrainingDataTests(TempModels):
+    """What the router learns from, and what it must never learn from."""
+
+    def test_every_shipped_source_feeds_the_task_head(self):
+        task, docs = data_sources.task_and_docs_rows(include_own=False)
+        by_source = data_sources.counts(task)
+        for source in ("seed", "curated", "examples"):
+            self.assertGreater(by_source.get(source, 0), 100, source)
+        # The examples carry a task label only, so they stay out of the documents head.
+        self.assertNotIn("examples", data_sources.counts(docs))
+        self.assertGreater(data_sources.counts(docs).get("curated", 0), 100)
+
+    def test_a_held_out_prompt_is_never_trained_on_even_as_your_correction(self):
+        held = eval_router.load_golden()[0]["prompt"]
+        feedback.record_signal("task_override", held.upper() + " !!", task="general", value="coding")
+        feedback.record_signal("task_override", "a brand new question of mine", task="general",
+                               value="coding")
+        task, _ = data_sources.task_and_docs_rows()
+        yours = [r["prompt"] for r in task if r["source"] == "yours"]
+        self.assertEqual(yours, ["a brand new question of mine"])
+        self.assertFalse(data_sources.held_out_prompts()
+                         & {data_sources.normalise(r["prompt"]) for r in task})
+
+    def test_no_shipped_training_prompt_is_a_near_copy_of_a_test_prompt(self):
+        # Word-for-word copies are filtered at training time; this catches the
+        # reworded ones ("weigh the trade-offs of X" / "analyze the trade-offs
+        # between X"), which inflate a score just as well.
+        import json
+
+        from nexus.embeddings import get_sentence_transformer
+
+        model = get_sentence_transformer(config.EMBED_MODEL)
+        held = []
+        for path in data_sources.HELD_OUT:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            held += [i.get("q") or i.get("prompt") for i in data.get("queries") or data.get("prompts")]
+        task, _ = data_sources.task_and_docs_rows(include_own=False)
+        prompts = sorted({r["prompt"] for r in task})
+        sims = (model.encode(prompts, normalize_embeddings=True)
+                @ model.encode(held, normalize_embeddings=True).T)
+        close = [(prompts[i], held[int(sims[i].argmax())]) for i in range(len(prompts))
+                 if sims[i].max() > 0.85]
+        self.assertEqual(close, [])
+
+    def test_the_gate_checks_the_larger_set_too(self):
+        report = self.train("--no-own")
+        wide = report["metrics"]["wide"]
+        self.assertIn("wide_set_not_worse_than_rules", report["gate"])
+        self.assertIn("wide_set_not_worse_than_current", report["gate"])
+        self.assertGreater(wide["new"], 0.5)
+        self.assertIsNone(wide["previous"])
+
+
 class GoldenSetTests(unittest.TestCase):
     def test_golden_is_balanced_and_separate_from_training(self):
         # Only the tasks a text prompt can be routed to are scored: "vision"

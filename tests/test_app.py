@@ -189,6 +189,19 @@ class AppFlowTests(unittest.TestCase):
                          (answer_id, -1, "rate me"))
         self.assertEqual(store.get_message(answer_id)["meta"]["rating"], -1)
 
+    def test_wrong_task_correction_is_saved_for_training(self):
+        at = self.start()
+        self.ask(at, "why is my loop slow?")
+        answer_id = store.load_messages(store.list_chats()[0]["id"])[-1]["id"]
+        at.pills(key=f"correct_{answer_id}").set_value("coding").run()
+        self.assertFalse(at.exception, at.exception)
+        [signal] = feedback.signals("task_override")
+        self.assertEqual((signal["question"], signal["task"], signal["value"]),
+                         ("why is my loop slow?", "general", "coding"))
+        self.assertEqual(store.get_message(answer_id)["meta"]["task_corrected"], "coding")
+        # Asked once: the control is replaced by a note, not offered again.
+        self.assertFalse([p for p in at.pills if p.key == f"correct_{answer_id}"])
+
     def test_arena_hides_the_models_until_the_vote(self):
         at = self.start()
         self.set_mode(at, "Arena")

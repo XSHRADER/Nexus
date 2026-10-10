@@ -143,6 +143,16 @@ class SignalTests(FeedbackTestCase):
         (sig,) = feedback.signals("rag_override")
         self.assertEqual(sig["value"], "always")
 
+    def test_a_correction_from_the_ui_is_a_task_override(self):
+        feedback.correct_task("  why is my loop slow?  ", "reasoning", "coding", message_id=7)
+        [signal] = feedback.signals("task_override")
+        self.assertEqual((signal["question"], signal["task"], signal["value"], signal["message_id"]),
+                         ("why is my loop slow?", "reasoning", "coding", 7))
+        with self.assertRaises(ValueError):
+            feedback.correct_task("q", "coding", "coding")   # not a correction
+        with self.assertRaises(ValueError):
+            feedback.correct_task("   ", "general", "coding")
+
     def test_no_override_no_signal(self):
         engine.answer("Explain a hash table")
         self.assertEqual(feedback.signals(), [])

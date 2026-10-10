@@ -1,5 +1,5 @@
 {
-  "description": "Labelled example prompts the task router compares every query against (nearest-neighbour on embeddings). Add a line to teach it a phrasing; check the effect with `python -m nexus.evaluate_router`. Never copy prompts from eval/router_set.json into here.",
+  "description": "Labelled example prompts the task router compares every query against (nearest-neighbour on embeddings), and that the learned router trains on. Add a line to teach it a phrasing; check the effect with `python -m nexus.evaluate_router`. Never copy prompts from eval/router_set.json or eval/router_golden.json into here.",
   "examples": {
     "general": [
       "Summarize this project in simple terms.",
@@ -7,7 +7,6 @@
       "hello",
       "hi, how are you doing?",
       "good evening",
-      "thank you so much",
       "nice, that works",
       "yes please",
       "what's your name?",
@@ -69,7 +68,6 @@
       "write a python function that checks if a number is prime",
       "how do I sort a dictionary by value in Python?",
       "my script fails with KeyError: 'name'",
-      "AttributeError: 'NoneType' object has no attribute 'split'",
       "why am I getting a syntax error on line 12?",
       "write a class for a bank account with deposit and withdraw",
       "refactor this function to be shorter",
@@ -82,7 +80,6 @@
       "create a React component with a counter",
       "convert this JavaScript to TypeScript",
       "how do I read a file line by line in Python?",
-      "write a regex to validate an email address",
       "my loop never ends, what's wrong?",
       "fix the off by one error in this loop",
       "how do I install packages with pip in a virtual environment?",
@@ -145,7 +142,6 @@
       "argue both sides: should students use AI for homework?",
       "walk through the logic of this puzzle: three boxes, all labels are wrong",
       "if all bloops are razzies and all razzies are lazzies, are all bloops lazzies?",
-      "a bat and ball cost 1.10 total, the bat costs 1 more than the ball; what does the ball cost?",
       "calculate how long it takes to download 8GB at 20 Mbps",
       "what is 15% of 240 and how did you get it?",
       "estimate how many tokens per second I need for a smooth chat",
@@ -243,7 +239,6 @@
       "make an itinerary for a weekend in Jaipur"
     ],
     "system_agent": [
-      "Organize my downloads folder by file types.",
       "Sort the files on my desktop into folders.",
       "Tidy up this folder and clean out empty directories.",
       "Undo the last folder organization.",
@@ -259,14 +254,10 @@
       "group the files in this directory by type",
       "my downloads folder is a mess, organise it",
       "declutter my desktop",
-      "tidy my documents directory",
-      "clean out empty folders in Downloads",
-      "delete empty directories on my desktop",
       "remove all the empty subfolders",
       "find duplicates in my Downloads",
       "check for duplicate files on the desktop",
       "are there identical files in my documents?",
-      "find duplicate songs in my music folder",
       "find large files on my PC",
       "list files bigger than 2GB in Downloads",
       "which files are taking up the most space?",

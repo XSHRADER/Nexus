@@ -63,6 +63,16 @@ if meta:
         ],
         hide_index=True,
     )
+    wide = meta["metrics"].get("wide")
+    if wide:
+        st.caption(f"On the larger held-out set (150 prompts, task only): rules and examples "
+                   f"{wide['rules']:.1%}, learned {meta['version']} {wide['new']:.1%}.")
+    trained_on = (meta.get("heads") or {}).get("task", {}).get("rows") or {}
+    if trained_on:
+        names = {"seed": "starter prompts", "curated": "curated prompts", "examples": "router examples",
+                 "teacher": "teacher-labelled", "yours": "your corrections"}
+        st.caption("Trained on: " + ", ".join(f"{n} {names.get(src, src)}"
+                                              for src, n in trained_on.items()) + ".")
     strong = meta["metrics"].get("strong")
     if strong:
         st.caption(f"Strong-or-weak head (when to use cloud): AUC {strong['auc']} on "

@@ -472,6 +472,32 @@ if (answered and ui.rateable(last) and not last["meta"].get("truth")
         ui.run_truth(last)
     st.rerun()
 
+# Tell NEXUS it read the question as the wrong kind of task. The correction
+# becomes training data for the router, not a re-run of this answer.
+if answered and last["meta"].get("task") in TaskRouter.TASKS and not last["meta"].get("council"):
+    question = next((m["content"] for m in reversed(ss.messages) if m["role"] == "user"), None)
+    routed = last["meta"]["task"]
+    corrected = last["meta"].get("task_corrected")
+    if corrected:
+        st.caption(f":material/school: You marked this as **{corrected}**, not {routed}. "
+                   "The router learns from it the next time it is trained (Leaderboard page).")
+    elif question:
+        with st.popover("Wrong task?", icon=":material/alt_route:", type="tertiary"):
+            st.caption(f"NEXUS treated this as **{routed}**. If that was wrong, say what it was; "
+                       "the router trains on your corrections.")
+            right = st.pills("It was really", [t for t in TaskRouter.TASKS if t != routed],
+                             key=f"correct_{last.get('id')}")
+            if right:
+                try:
+                    feedback.correct_task(question, routed, right, message_id=last.get("id"))
+                    last["meta"]["task_corrected"] = right
+                    if last.get("id"):
+                        store.update_meta(last["id"], {"task_corrected": right})
+                except Exception as exc:
+                    st.error(f"Could not save the correction: {exc}", icon=":material/error:")
+                else:
+                    st.rerun()
+
 # Offer a re-run on a different model, using the chain NEXUS already scored.
 if answered:
     used = last["meta"].get("model")

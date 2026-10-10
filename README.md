@@ -300,44 +300,55 @@ as a fallback:
 
 | decision | learned from |
 |---|---|
-| **Which task** is this (general, coding, reasoning, planning, PC action)? | 210 hand-labelled seed prompts, prompts labelled by a cloud "teacher" model, and **your corrections** (every time you override the task) |
+| **Which task** is this (general, coding, reasoning, planning, PC action)? | 189 starter prompts, 173 curated prompts, the 276 labelled examples the rules use, prompts labelled by a cloud "teacher" model if you add any, and **your corrections** |
 | **Does it need your documents?** | the same, plus your document on/off overrides |
 | **Does it need a strong (cloud) model?** | 55k human votes from the public [Chatbot Arena dataset](https://huggingface.co/datasets/lmarena-ai/arena-human-preference-55k) (the RouteLLM approach), plus **your Arena votes** between a local and a cloud model |
 
 On top of that, your settled Arena results nudge each model's score for that
 task, so models you keep preferring rise.
 
-**Measured, not assumed.** `python -m nexus.evaluate_learned_router` scores
-routing on 100 held-out prompts (`eval/router_golden.json`, 20 per task, never
-trained on), including generic questions that mention "project", "file" or
-"source" without being about your documents:
+**Correcting it.** Under an answer, *Wrong task?* lets you say what a question
+really was. So does overriding the Task in Answer settings. Either way the
+question and your label are saved, weighted three times a shipped prompt, and
+used the next time the router is trained.
 
-| router | task accuracy | documents: precision | recall | false alarms |
-|---|---|---|---|---|
-| rules and examples | 0.910 | 0.270 | 0.769 | 27 |
-| **learned** (seed data, hashed n-grams + MiniLM) | **0.990** | **0.917** | **0.846** | **1** |
+**Measured, not assumed.** Two held-out sets, neither ever trained on:
 
-The file also holds 40 "vision" and "speech" prompts. They are left out of the
-score: a text prompt is never routed to those (a vision model is only used when
-an image is attached), so no router could be right on them.
+| router | 100 prompts: task | documents: precision | recall | false alarms | 150 prompts: task |
+|---|---|---|---|---|---|
+| rules and examples | 0.900 | 0.270 | 0.769 | 27 | 0.893 |
+| **learned** (hashed n-grams + MiniLM) | **1.000** | **0.929** | **1.000** | **1** | **0.987** |
 
-The keyword gate turned retrieval on for "Explain what a project manager
-does"; the learned one doesn't, and still catches "according to my notes…".
-Cross-validation on the training prompts gives 0.871 task accuracy, lower than
-the held-out set: the two sets were written by the same person, so expect
-real-world accuracy somewhere in between until your own corrections and
-teacher-labelled prompts are in the training data.
+`python -m nexus.evaluate_learned_router` scores the first set
+(`eval/router_golden.json`, 20 per task, with a "needs your documents" label,
+including generic questions that mention "project", "file" or "source" without
+being about your documents). `python -m nexus.evaluate_router` scores the
+second (`eval/router_set.json`, 30 per task).
+
+The first file also holds 40 "vision" and "speech" prompts. They are left out
+of the score: a text prompt is never routed to those (a vision model is only
+used when an image is attached), so no router could be right on them.
+
+**Test prompts stay out of training.** A prompt that is in either held-out set
+is dropped from the training data whichever source it came from, including
+your own corrections, and a test fails if any shipped training prompt is a
+close rewording of a test prompt. This matters: an earlier version of the
+training data contained 13 near-copies of test prompts, which flattered the
+score.
+
+Cross-validation on the training prompts gives 0.95 task accuracy. The test
+sets were written by the same people as the training data, so expect
+real-world accuracy somewhat lower until your own corrections are in it.
 
 **The fallback is measured too.** When no router is trained, or it is unsure,
-NEXUS classifies with keyword rules plus the nearest of 285 labelled example
-prompts (`nexus/router_examples.json`). `python -m nexus.evaluate_router`
-scores that on its own 150 held-out prompts: 89.3%. Add a line to the examples
-file to teach it a phrasing.
+NEXUS classifies with keyword rules plus the nearest of 276 labelled example
+prompts (`nexus/router_examples.json`): the "rules and examples" row above.
+Add a line to the examples file to teach it a phrasing.
 
 **Training is safe to repeat.** `python run.py --train` (or *Retrain the router now* on
 the Leaderboard page) takes seconds. Every version is saved in `models/`
 with its measurements, and the new one is used only if it is at least as good
-as both the rules and the router already in use on the held-out prompts —
+as both the rules and the router already in use on both held-out sets —
 a bad batch of feedback can't make routing worse. On first start NEXUS
 trains itself. `[router] mode = "rules"` in `nexus.toml` switches it off.
 

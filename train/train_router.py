@@ -190,8 +190,20 @@ def main(argv: list[str] | None = None) -> dict:
     prev = (eval_router.evaluate(*eval_router.learned_functions(previous), golden)
             if previous is not None and {"task", "docs"} <= set(previous.heads) else None)
 
+    # A second, larger held-out set (task only): a router must not get worse
+    # on either, so a gain on one set can't hide a loss on the other.
+    from nexus import evaluate_router
+
+    wide = {
+        "rules": evaluate_router.accuracy(eval_router.rules_functions()[0]),
+        "new": evaluate_router.accuracy(eval_router.learned_functions(new_router)[0]),
+        "previous": (evaluate_router.accuracy(eval_router.learned_functions(previous)[0])
+                     if prev is not None else None),
+    }
     gate = {
         "task_beats_rules": new["task"]["accuracy"] > rules["task"]["accuracy"],
+        "wide_set_not_worse_than_rules": wide["new"] >= wide["rules"],
+        "wide_set_not_worse_than_current": wide["previous"] is None or wide["new"] >= wide["previous"],
         "docs_not_worse_than_rules": new["docs"]["f1"] >= rules["docs"]["f1"],
         "task_not_worse_than_current": prev is None or new["task"]["accuracy"] >= prev["task"]["accuracy"],
         "docs_not_worse_than_current": prev is None or new["docs"]["f1"] >= prev["docs"]["f1"],
@@ -199,6 +211,7 @@ def main(argv: list[str] | None = None) -> dict:
     passed = all(gate.values())
     meta["metrics"]["golden"] = {"rules": _brief(rules), "new": _brief(new),
                                  "previous": _brief(prev) if prev else None}
+    meta["metrics"]["wide"] = {k: (None if v is None else round(v, 3)) for k, v in wide.items()}
     meta["gate"] = gate
     meta["passed_gate"] = passed
     meta["train_seconds"] = round(time.time() - started, 1)
@@ -238,6 +251,12 @@ def print_report(report: dict, previous_version: str | None) -> None:
             print(f"  {name:<14} {r['task_accuracy']:>9.3f} {r['task_macro_f1']:>8.3f} "
                   f"{r['docs_precision']:>7.3f} {r['docs_recall']:>7.3f} {r['docs_f1']:>8.3f} "
                   f"{r['docs_false_alarms']:>13}")
+    w = m.get("wide")
+    if w:
+        line = f"rules {w['rules']:.3f}, new {w['new']:.3f}"
+        if w.get("previous") is not None:
+            line += f", previous {w['previous']:.3f}"
+        print(f"\nLarger held-out set (eval/router_set.json, task only): {line}")
     s = m.get("strong")
     if s:
         print(f"\nStrong-vs-weak head on {s['held_out']} held-out votes: AUC {s['auc']}, "

@@ -1,12 +1,9 @@
-{"prompt": "What is the difference between RAM and storage?", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "Who wrote Pride and Prejudice?", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "Give me a short summary of how vaccines work.", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "hey, how's it going", "task": "general", "needs_docs": false, "source": "seed"}
-{"prompt": "Thanks, that helped a lot!", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "What does HTTP stand for?", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "Explain photosynthesis to a ten year old.", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "What's a good name for a study group chat?", "task": "general", "needs_docs": false, "source": "seed"}
-{"prompt": "Translate 'good morning' into Spanish and French.", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "What is machine learning in one paragraph?", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "Tell me a fun fact about octopuses.", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "What year did the first moon landing happen?", "task": "general", "needs_docs": false, "source": "seed"}
@@ -20,10 +17,7 @@
 {"prompt": "What does the local AI model map say llama3.1 is used for?", "task": "general", "needs_docs": true, "source": "seed"}
 {"prompt": "What is a GPU and why is it good for AI?", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "How many continents are there?", "task": "general", "needs_docs": false, "source": "seed"}
-{"prompt": "What's the capital of Australia?", "task": "general", "needs_docs": false, "source": "seed"}
-{"prompt": "Can you rephrase this sentence to sound more polite: send me the file now.", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "What is the meaning of the word 'ubiquitous'?", "task": "general", "needs_docs": false, "source": "seed"}
-{"prompt": "ok cool", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "What is an operating system?", "task": "general", "needs_docs": false, "source": "seed"}
 {"prompt": "What did the checklist list as the current blocker?", "task": "general", "needs_docs": true, "source": "seed"}
 {"prompt": "Explain what an API is without any code.", "task": "general", "needs_docs": false, "source": "seed"}
@@ -62,9 +56,7 @@
 {"prompt": "Should I use a laptop or a desktop for machine learning work, and why?", "task": "reasoning", "needs_docs": false, "source": "seed"}
 {"prompt": "What are the pros and cons of remote work for students?", "task": "reasoning", "needs_docs": false, "source": "seed"}
 {"prompt": "Is it better to learn Python or JavaScript first? Justify your answer.", "task": "reasoning", "needs_docs": false, "source": "seed"}
-{"prompt": "Analyze the trade-offs between microservices and a monolith for a small team.", "task": "reasoning", "needs_docs": false, "source": "seed"}
 {"prompt": "Why does adding more training data sometimes not improve a model?", "task": "reasoning", "needs_docs": false, "source": "seed"}
-{"prompt": "If a train leaves at 3pm going 60 km/h and another at 4pm going 80 km/h, when does the second catch up?", "task": "reasoning", "needs_docs": false, "source": "seed"}
 {"prompt": "Evaluate whether caching or a message queue fits better for slow API calls.", "task": "reasoning", "needs_docs": false, "source": "seed"}
 {"prompt": "Which is more important for a startup: speed or code quality? Argue both sides.", "task": "reasoning", "needs_docs": false, "source": "seed"}
 {"prompt": "Why did the Roman Empire fall? Weigh the main explanations.", "task": "reasoning", "needs_docs": false, "source": "seed"}
@@ -122,7 +114,6 @@
 {"prompt": "What does this screenshot show?", "task": "vision", "needs_docs": false, "source": "seed"}
 {"prompt": "Read the text in this photo of a receipt.", "task": "vision", "needs_docs": false, "source": "seed"}
 {"prompt": "Is there a cat in this picture?", "task": "vision", "needs_docs": false, "source": "seed"}
-{"prompt": "Explain the trend in this chart.", "task": "vision", "needs_docs": false, "source": "seed"}
 {"prompt": "What breed is the dog in this photo?", "task": "vision", "needs_docs": false, "source": "seed"}
 {"prompt": "Transcribe the handwriting in this image.", "task": "vision", "needs_docs": false, "source": "seed"}
 {"prompt": "What's wrong with the circuit in this diagram?", "task": "vision", "needs_docs": false, "source": "seed"}
@@ -138,7 +129,6 @@
 {"prompt": "Read the table in this scanned page image.", "task": "vision", "needs_docs": false, "source": "seed"}
 {"prompt": "What emotions does the person in this picture show?", "task": "vision", "needs_docs": false, "source": "seed"}
 {"prompt": "Explain this meme image.", "task": "vision", "needs_docs": false, "source": "seed"}
-{"prompt": "Look at this diagram and explain the architecture.", "task": "vision", "needs_docs": false, "source": "seed"}
 {"prompt": "What does the warning sign in this photo say?", "task": "vision", "needs_docs": false, "source": "seed"}
 {"prompt": "Compare these two product photos.", "task": "vision", "needs_docs": false, "source": "seed"}
 {"prompt": "Describe the flowchart in this image step by step.", "task": "vision", "needs_docs": false, "source": "seed"}
@@ -152,21 +142,16 @@
 {"prompt": "Convert my voice note into text.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Summarize this podcast episode recording.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "What is said in this audio clip?", "task": "speech", "needs_docs": false, "source": "seed"}
-{"prompt": "Turn this lecture recording into written notes.", "task": "speech", "needs_docs": false, "source": "seed"}
-{"prompt": "Write captions for this audio.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Listen to this voice memo and list the tasks I mentioned.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Transcribe the meeting recording and mark who speaks.", "task": "speech", "needs_docs": false, "source": "seed"}
-{"prompt": "What language is spoken in this recording?", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Make subtitles from this speech audio.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Write down the lyrics from this song recording.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Summarize what my professor said in this voice recording.", "task": "speech", "needs_docs": false, "source": "seed"}
-{"prompt": "Turn this interview audio into a transcript.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Listen to this and tell me the phone number mentioned.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Convert the spoken directions in this clip into steps.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Is the speaker in this audio angry or calm?", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Transcribe my dictated essay.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Extract the key points from this voice message.", "task": "speech", "needs_docs": false, "source": "seed"}
-{"prompt": "Write captions for this video's audio track.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Transcribe this short recording in Hindi.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "What did they say at the end of this audio clip?", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Turn this spoken shopping list into a checklist.", "task": "speech", "needs_docs": false, "source": "seed"}
@@ -179,8 +164,6 @@
 {"prompt": "Write a transcript of this voice chat.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Turn my recorded ideas into a written list.", "task": "speech", "needs_docs": false, "source": "seed"}
 {"prompt": "Sort my Downloads folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}
-{"prompt": "Find duplicate files on my Desktop.", "task": "system_agent", "needs_docs": false, "source": "seed"}
-{"prompt": "Show me the large files in my Documents folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "Organize my desktop by file type.", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "Clean up empty folders in C:\\Users\\me\\Projects", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "Undo the last folder organization.", "task": "system_agent", "needs_docs": false, "source": "seed"}
@@ -188,9 +171,7 @@
 {"prompt": "Tidy up my Pictures folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "Remove empty directories from this folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "Which files are taking the most space in Videos?", "task": "system_agent", "needs_docs": false, "source": "seed"}
-{"prompt": "Find duplicate photos in my Pictures folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "Declutter my desktop.", "task": "system_agent", "needs_docs": false, "source": "seed"}
-{"prompt": "Arrange the files in my Downloads into folders by type.", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "Scan \"D:\\Backups\" for duplicate files.", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "List files over 100 MB on my desktop.", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "Revert the sorting you did in my Downloads.", "task": "system_agent", "needs_docs": false, "source": "seed"}
@@ -204,7 +185,5 @@
 {"prompt": "Group my Downloads by file extension.", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "Undo organize in my Desktop.", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "What's using up space in my Documents?", "task": "system_agent", "needs_docs": false, "source": "seed"}
-{"prompt": "Tidy my downloads folder please", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "Move my desktop files into category folders.", "task": "system_agent", "needs_docs": false, "source": "seed"}
 {"prompt": "Find the largest files in C:\\Users\\me\\Videos", "task": "system_agent", "needs_docs": false, "source": "seed"}
-{"prompt": "Delete empty subfolders inside my Projects folder.", "task": "system_agent", "needs_docs": false, "source": "seed"}

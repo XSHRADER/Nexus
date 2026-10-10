@@ -10,6 +10,9 @@ score look better without the router getting any better.
 Usage
     python -m nexus.evaluate_router            # accuracy, per task, misses
     python -m nexus.evaluate_router --quiet    # summary only
+
+The first block scores the rules and examples alone. When a learned router
+has been trained, a second line scores it on the same prompts.
 """
 
 import argparse
@@ -52,6 +55,12 @@ def evaluate(router: TaskRouter, queries: list[dict]) -> dict:
     }
 
 
+def accuracy(classify, queries: list[dict] | None = None) -> float:
+    """Share of the held-out prompts `classify(prompt) -> task` gets right."""
+    queries = queries if queries is not None else load_set()
+    return sum(classify(q["q"]) == q["task"] for q in queries) / max(len(queries), 1)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Evaluate NEXUS task routing.")
     parser.add_argument("--quiet", action="store_true", help="Print the summary only.")
@@ -73,6 +82,14 @@ def main() -> int:
         print(f"\nMisses ({len(result['misses'])}):")
         for q, expected, got in result["misses"]:
             print(f"  [{expected} -> {got}] {q}")
+
+    from nexus import learned_router
+    from nexus.evaluate_learned_router import learned_functions
+
+    current = learned_router.load_current()
+    if current is not None and "task" in current.heads:
+        classify, _docs = learned_functions(current)
+        print(f"\nLearned router {current.version} on the same prompts: {accuracy(classify):.1%}")
     return 0
 
 

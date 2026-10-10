@@ -221,3 +221,19 @@ into `main`. Not a textual merge: both sides had rewritten `engine`, `server`,
   run in tests). Found on the way: with Ollama down they asked for "another
   model" instead of saying nothing was reachable. Fixed.
 - Tests 328 -> 329.
+
+### Version 1.1.0 (2026-10-10)
+- Found on measuring the learned router on `eval/router_set.json` for the
+  first time: 13 of its 150 prompts had a near-copy (cosine > 0.85) in
+  `seed_tasks.jsonl`, several word for word. Removed 21 seed rows and 9
+  examples that were within 0.85 of a prompt in either held-out set.
+- Training now drops held-out prompts whatever their source (exact match after
+  normalising), and a test checks shipped data for near-copies by embedding.
+- Fed: `train/data/curated_tasks.jsonl` (173 rows, task + needs_docs) and the
+  276 router examples (task only) as training rows.
+- Gate extended to the 150-prompt set. Router v2: golden 1.000 task, docs
+  P 0.929 / R 1.000; wide set 0.987 (rules 0.893; v1 0.973 with the leak,
+  0.971 on the 137 clean prompts).
+- UI: "Wrong task?" under the last answer records a task_override signal.
+- Tests 329 -> 335.
+

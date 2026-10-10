@@ -4,6 +4,7 @@ Not a test module itself (CI only runs tests/test_*.py).
 """
 
 import json as _json
+import os as _os
 
 import requests
 
@@ -65,7 +66,7 @@ class FakeRouter:
     def __init__(self, task="general", chain=("a",), needs_rag=False):
         self.task, self.chain, self.needs_rag = task, list(chain), needs_rag
 
-    def route(self, query, available_models=None, force_task=None):
+    def route(self, query, available_models=None, force_task=None, **_cloud):
         task = force_task or self.task
         chain = [
             {"model": m, "provider": "ollama", "score": round(1.0 - i / 10, 2),
@@ -97,3 +98,30 @@ def chunk(i, words=50):
         "meta": {"source": f"doc{i}.md", "chunk_index": 0},
         "score": 1.0 / (i + 1), "vector_rank": i, "bm25_rank": i,
     }
+
+
+_saved_db: list[str | None] = []
+
+
+def use_db(path):
+    """Point NEXUS at its own database file; returns the store for it.
+
+    Pair with `restore_db()` in tearDown, before the temp folder is removed:
+    Windows won't delete a database a connection still holds open.
+    """
+    from nexus import store
+
+    _saved_db.append(_os.environ.get("NEXUS_DB"))
+    _os.environ["NEXUS_DB"] = str(path)
+    return store.get_store()
+
+
+def restore_db():
+    from nexus import store
+
+    store.close()
+    previous = _saved_db.pop() if _saved_db else None
+    if previous is None:
+        _os.environ.pop("NEXUS_DB", None)
+    else:
+        _os.environ["NEXUS_DB"] = previous

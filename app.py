@@ -24,9 +24,19 @@ st.set_page_config(
 log.setup()
 ui.init_state()
 
+# The background brain (folder watcher, digest, flashcards) starts with the
+# app; its unread count rides on the Inbox entry so new items are noticed.
+try:
+    unread = ui.background_brain().unread()
+except Exception:
+    unread = 0
+
 page = st.navigation(
     [
         st.Page("app_pages/chat.py", title="Chat", icon=":material/forum:", default=True),
+        st.Page("app_pages/inbox.py", icon=":material/inbox:",
+                title=f"Inbox & study ({unread})" if unread else "Inbox & study"),
+        st.Page("app_pages/leaderboard.py", title="Leaderboard", icon=":material/leaderboard:"),
         st.Page("app_pages/documents.py", title="Documents", icon=":material/folder_open:"),
         st.Page("app_pages/lab.py", title="Retrieval lab", icon=":material/science:"),
         st.Page("app_pages/diagnostics.py", title="Diagnostics", icon=":material/monitoring:"),

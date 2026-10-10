@@ -1,5 +1,5 @@
 """
-eval_rag.py
+evaluate.py
 Measures retrieval quality against a fixed set of questions, so changes to
 the pipeline can be judged instead of guessed at.
 

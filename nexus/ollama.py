@@ -168,13 +168,23 @@ def chat(
     think: bool = False,
     on_token: Callable[[str], None] | None = None,
     on_thinking: Callable[[str], None] | None = None,
+    images: list[dict[str, str]] | None = None,
 ) -> ChatReply:
     """One streamed /api/chat call.
+
+    `images` ({"data": <base64>, ...}) are attached to the newest user
+    message, which is how Ollama's vision models take them.
 
     Raises on HTTP errors, error chunks and empty replies. Callback exceptions
     propagate unchanged; the `with` block closes the socket on the way out,
     which is what makes Ollama stop generating.
     """
+    if images:
+        messages = [dict(m) for m in messages]
+        for message in reversed(messages):
+            if message["role"] == "user":
+                message["images"] = [img["data"] for img in images]
+                break
     payload: dict[str, Any] = {
         "model": model,
         "messages": messages,

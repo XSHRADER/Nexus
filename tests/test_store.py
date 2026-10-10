@@ -107,6 +107,82 @@ class TurnTests(StoreTestCase):
         self.assertEqual(stats["b"]["failure_rate"], 0.0)
 
 
+class MessageIdTests(StoreTestCase):
+    """Ratings and later truth checks attach to a message by its id."""
+
+    def test_append_returns_the_id_load_messages_reports(self):
+        chat = store.create_chat("ids", conn=self.conn)
+        first = store.append_message(chat, "user", "q", conn=self.conn)
+        second = store.append_message(chat, "assistant", "a", {"model": "m"}, conn=self.conn)
+        self.assertEqual([m["id"] for m in store.load_messages(chat, conn=self.conn)],
+                         [first, second])
+        message = store.get_message(second, conn=self.conn)
+        self.assertEqual((message["chat_id"], message["content"]), (chat, "a"))
+        self.assertIsNone(store.get_message(9999, conn=self.conn))
+
+    def test_update_meta_merges(self):
+        chat = store.create_chat("meta", conn=self.conn)
+        mid = store.append_message(chat, "assistant", "a", {"model": "m"}, conn=self.conn)
+        store.update_meta(mid, {"truth": {"supported": 2}}, conn=self.conn)
+        store.update_meta(9999, {"ignored": True}, conn=self.conn)  # no such message: no error
+        self.assertEqual(store.get_message(mid, conn=self.conn)["meta"],
+                         {"model": "m", "truth": {"supported": 2}})
+
+
+class UsageTests(StoreTestCase):
+    def test_requests_are_counted_per_provider_per_day(self):
+        store.record_usage("groq", 100, 40, day="2026-10-01", conn=self.conn)
+        store.record_usage("groq", 10, 5, day="2026-10-01", conn=self.conn)
+        store.record_usage("groq", 1, 1, day="2026-10-02", conn=self.conn)
+        self.assertEqual(store.usage_today("groq", day="2026-10-01", conn=self.conn), 2)
+        self.assertEqual(store.usage_today("gemini", day="2026-10-01", conn=self.conn), 0)
+        self.assertEqual(store.usage_for_day("2026-10-01", conn=self.conn),
+                         {"groq": {"requests": 2, "chars_in": 110, "chars_out": 45}})
+
+
+class HandleAndUpgradeTests(unittest.TestCase):
+    def test_chat_store_handle_shares_the_file_with_module_functions(self):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+            handle = store.ChatStore(Path(d) / "h.db")
+            chat = handle.create_chat("via handle")
+            mid = handle.add_message(chat, "assistant", "a", {"k": 1})
+            handle.update_meta(mid, {"j": 2})
+            self.assertEqual(handle.get_message(mid)["meta"], {"k": 1, "j": 2})
+            self.assertEqual([m["id"] for m in handle.get_messages(chat)], [mid])
+            handle.record_usage("groq", 5, 5)
+            self.assertEqual(handle.usage_today("groq"), 1)
+            conn = store.connect(handle.path)
+            try:
+                self.assertEqual(store.list_chats(conn=conn)[0]["title"], "via handle")
+            finally:
+                conn.close()
+
+    def test_a_version_1_database_gains_the_new_tables_and_keeps_its_chats(self):
+        import sqlite3
+
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+            path = Path(d) / "old.db"
+            old = sqlite3.connect(path)
+            old.executescript(
+                "CREATE TABLE chats (id TEXT PRIMARY KEY, title TEXT NOT NULL, "
+                "created REAL NOT NULL, updated REAL NOT NULL);"
+                "CREATE TABLE messages (id INTEGER PRIMARY KEY AUTOINCREMENT, chat_id TEXT NOT NULL, "
+                "role TEXT NOT NULL, content TEXT NOT NULL, meta TEXT, created REAL NOT NULL);"
+                "INSERT INTO chats VALUES ('c1', 'kept', 1.0, 1.0);"
+                "PRAGMA user_version = 1;"
+            )
+            old.commit()
+            old.close()
+            conn = store.connect(path)
+            try:
+                tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                self.assertTrue({"usage", "feedback", "battles", "inbox", "cards"} <= tables)
+                self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], store.SCHEMA_VERSION)
+                self.assertEqual(store.list_chats(conn=conn)[0]["title"], "kept")
+            finally:
+                conn.close()
+
+
 class DefaultConnectionTests(unittest.TestCase):
     def test_nexus_db_env_var_picks_the_file(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:

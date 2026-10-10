@@ -165,8 +165,6 @@ Done:
 - CI: separate lint job; tests run with one command on Ubuntu *and* Windows.
 
 Remaining:
-- Rewrite `README.md` (still the old phase-by-phase guide that mentions
-  `rag_pipeline.py` and `nexus_rag/`).
 - Refresh the demo knowledge base in `documents/` so it describes the current
   project, update the golden set (q07 asks about `program_info/`, q15 expects
   `ingest.py`), then re-run `python -m nexus.evaluate`.
@@ -184,3 +182,29 @@ Remaining:
   leave-one-out accuracy over the exemplars, not on the eval set.
 - Held-out accuracy 62.0% -> 89.3% (reasoning 23% -> 87%, planning 43% -> 87%,
   coding 60% -> 90%). A test keeps it >= 85% and keeps the two sets disjoint.
+
+### Feature merge, version 0.5.0 (2026-10-10)
+`nexus-features` (Phases 0-6, written on the September flat layout) merged
+into `main`. Not a textual merge: both sides had rewritten `engine`, `server`,
+`store`, `config`, `router`, `providers` and the Streamlit app.
+
+- **Kept from main**: the `nexus` package, the server's same-origin and
+  pending-id checks, context-window fitting with numbered sources, the
+  relevance probe, progress callbacks, per-answer metrics, the page-per-screen
+  UI, test isolation.
+- **Added from the feature branch**: `cloud`, `cloud_client`, `speech`,
+  `truth_check`, `feedback`, `learned_router`, `council`, `brain`, the
+  `train/` scripts, the mock Ollama and cloud servers the tests run against.
+- **Reconciled**: one `config.py` (environment paths plus `nexus.toml`/`.env`
+  settings); one `store.py` (schema v2 adds nine tables, v1 files upgrade in
+  place; chat ids stay text); `providers.plan()` takes cloud policy, images
+  and Arena bonuses as keywords; the engine walks one chain of local and
+  cloud candidates with the privacy check at call time.
+- **Dropped as superseded**: the feature branch's own chat store and message
+  shapes (main's are newer), its `confirm` flag on file actions (replaced by
+  main's preview-then-apply), `demos/phase0_demo.py`.
+- **Bug found**: the learned router's gate counted 40 "vision"/"speech"
+  prompts that text is never routed to. Fixed; rules 91.0%, learned 99.0% on
+  the remaining 100.
+- Tests 179 -> 328, lint clean. Checked in the browser against real Ollama:
+  a document question (truth check 100%, NLI), every page, and the plain web UI.

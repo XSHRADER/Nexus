@@ -1,5 +1,7 @@
 # NEXUS runtime dependencies -- exact, tested versions (Python 3.11-3.13).
 # Everything runs on CPU except generation, which Ollama does separately.
+# Cloud models are optional and off by default (see .env.example); they need
+# nothing extra installed.
 
 # Retrieval
 chromadb==1.5.5
@@ -14,3 +16,7 @@ python-docx==1.1.2
 # UI and HTTP
 streamlit==1.62.0
 requests==2.32.3
+
+# Voice input on this PC (optional, large): uncomment to transcribe locally
+# when cloud is off. With cloud on, Groq's hosted Whisper needs nothing.
+# faster-whisper>=1.0

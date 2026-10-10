@@ -3,7 +3,8 @@
 Every test module imports this first (`import isolate`). `nexus.config` reads
 its paths once, at import, so this has to run before the first `nexus`
 import -- otherwise the suite writes routing decisions, logs and chats into
-the user's real data/ folder, and reads their real documents and index.
+the user's real data/ folder, and reads their real documents, index,
+settings and API keys.
 """
 
 import atexit
@@ -21,3 +22,13 @@ if "NEXUS_TEST_ROOT" not in os.environ:
         os.makedirs(path, exist_ok=True)
         os.environ[name] = path
     os.environ.setdefault("NEXUS_DB", os.path.join(root, "data", "nexus.db"))
+    # No personal settings, API keys or trained router leak into the tests.
+    os.environ["NEXUS_CONFIG"] = os.path.join(root, "nexus.toml")
+    os.environ["NEXUS_ENV_FILE"] = os.path.join(root, ".env")
+    os.environ["NEXUS_MODELS_DIR"] = os.path.join(root, "models")
+    # Nothing runs in the background unless a test starts it. Left on, the
+    # UI tests would start the real watcher thread, which then opens whatever
+    # database is current once a minute -- by then another test's temp file,
+    # which Windows refuses to delete while it is open.
+    with open(os.environ["NEXUS_CONFIG"], "w", encoding="utf-8") as fh:
+        fh.write("[brain]\nenabled = false\n")

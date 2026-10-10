@@ -1,0 +1,425 @@
+{
+  "_comment": "Labelled claims for nexus/evaluate_truth.py. Each claim is judged against one passage from documents/ (the premise). supported = the passage says it; contradicted = the passage says something incompatible; not_found = the passage neither says nor rules it out. Claims are paraphrased rather than copied, and contradictions include swapped names and meanings, not only numbers, so word overlap alone cannot pass.",
+  "claims": [
+    {
+      "id": "c01",
+      "source": "nexus_project_info.md",
+      "premise": "The project uses Chroma for persistent vector storage, the all-MiniLM-L6-v2 model for document embeddings, and BM25 keyword search for hybrid retrieval. Ollama provides local answer generation with the llama3.1:8b model.",
+      "claim": "NEXUS keeps its vectors in Chroma.",
+      "label": "supported"
+    },
+    {
+      "id": "c02",
+      "source": "nexus_project_info.md",
+      "premise": "The project uses Chroma for persistent vector storage, the all-MiniLM-L6-v2 model for document embeddings, and BM25 keyword search for hybrid retrieval. Ollama provides local answer generation with the llama3.1:8b model.",
+      "claim": "Keyword search in the hybrid retriever is done with BM25.",
+      "label": "supported"
+    },
+    {
+      "id": "c03",
+      "source": "nexus_project_info.md",
+      "premise": "The project uses Chroma for persistent vector storage, the all-MiniLM-L6-v2 model for document embeddings, and BM25 keyword search for hybrid retrieval. Ollama provides local answer generation with the llama3.1:8b model.",
+      "claim": "Answers are generated locally by llama3.1:8b running in Ollama.",
+      "label": "supported"
+    },
+    {
+      "id": "c04",
+      "source": "nexus_project_info.md",
+      "premise": "The project uses Chroma for persistent vector storage, the all-MiniLM-L6-v2 model for document embeddings, and BM25 keyword search for hybrid retrieval. Ollama provides local answer generation with the llama3.1:8b model.",
+      "claim": "Document embeddings come from the all-MiniLM-L6-v2 model.",
+      "label": "supported"
+    },
+    {
+      "id": "c05",
+      "source": "nexus_project_info.md",
+      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running ingest.py. Questions are answered by running rag_pipeline.py.",
+      "claim": "You can index Word documents, PDFs, Markdown and plain text files.",
+      "label": "supported"
+    },
+    {
+      "id": "c06",
+      "source": "nexus_project_info.md",
+      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running ingest.py. Questions are answered by running rag_pipeline.py.",
+      "claim": "Running ingest.py indexes the files in the documents folder.",
+      "label": "supported"
+    },
+    {
+      "id": "c07",
+      "source": "nexus_project_info.md",
+      "premise": "The Python environment is stored in nexus-env. The vector index is stored in vector_store.",
+      "claim": "The virtual environment lives in the nexus-env folder.",
+      "label": "supported"
+    },
+    {
+      "id": "c08",
+      "source": "nexus_project_info.md",
+      "premise": "NEXUS AI is a local retrieval-augmented generation (RAG) assistant.",
+      "claim": "NEXUS is a retrieval-augmented assistant that runs locally.",
+      "label": "supported"
+    },
+    {
+      "id": "c09",
+      "source": "local_ai_models.txt",
+      "premise": "MODEL 2: llama3.1:8b. TYPE: Ollama text-generation model. JOB: Generate the final answer after retrieval or direct routing. RUNTIME: Ollama at http://localhost:11434 (GPU acceleration when available).",
+      "claim": "Ollama listens on port 11434 of the local machine.",
+      "label": "supported"
+    },
+    {
+      "id": "c10",
+      "source": "local_ai_models.txt",
+      "premise": "MODEL 1: all-MiniLM-L6-v2. TYPE: Sentence-transformers embedding model. JOB: Embed document chunks and user questions for retrieval. RUNTIME: Python virtual environment in Nexus/nexus-env (CPU).",
+      "claim": "The embedding model runs on the CPU.",
+      "label": "supported"
+    },
+    {
+      "id": "c11",
+      "source": "nexus_readme.md",
+      "premise": "Everything here runs on CPU except the final generation step (which uses Ollama and your RTX 4060, exactly as it already does today).",
+      "claim": "Only the final generation step uses the graphics card.",
+      "label": "supported"
+    },
+    {
+      "id": "c12",
+      "source": "nexus_readme.md",
+      "premise": "First run will also download the small all-MiniLM-L6-v2 embedding model (~80MB) — one-time download, then it's cached locally.",
+      "claim": "The embedding model is about 80 MB and is downloaded once.",
+      "label": "supported"
+    },
+    {
+      "id": "c13",
+      "source": "nexus_readme.md",
+      "premise": "Check that a vector_store/ folder was created — this is your local, persistent index. It survives restarts; you don't need to rebuild it unless documents change.",
+      "claim": "The index is kept after a restart, so it does not need rebuilding each time.",
+      "label": "supported"
+    },
+    {
+      "id": "c14",
+      "source": "nexus_readme.md",
+      "premise": "Add or edit a document later? Just re-run python ingest.py. It hashes files and only re-embeds what changed — so this stays fast even with a growing document set.",
+      "claim": "Re-running ingestion only re-embeds files that changed.",
+      "label": "supported"
+    },
+    {
+      "id": "c15",
+      "source": "nexus_readme.md",
+      "premise": "Scanned/image-only PDFs won't have selectable text and will need OCR first (a separate step, not covered by this base pipeline).",
+      "claim": "PDFs that are only scanned images need OCR before their text can be used.",
+      "label": "supported"
+    },
+    {
+      "id": "c16",
+      "source": "action_log.txt",
+      "premise": "Created a lightweight browser UI for the application and started the local server at http://127.0.0.1:8000.",
+      "claim": "The browser interface is served at 127.0.0.1 on port 8000.",
+      "label": "supported"
+    },
+    {
+      "id": "c17",
+      "source": "action_log.txt",
+      "premise": "Identified compatibility problems caused by older dependency versions on Python 3.13. Updated the dependency versions to Python 3.13-compatible releases without changing the project APIs.",
+      "claim": "Dependency versions were updated to work with Python 3.13.",
+      "label": "supported"
+    },
+    {
+      "id": "c18",
+      "source": "action_log.txt",
+      "premise": "Built the enhanced NEXUS router to classify general, coding, reasoning, vision, and speech tasks.",
+      "claim": "The router can classify vision and speech tasks.",
+      "label": "supported"
+    },
+    {
+      "id": "c19",
+      "source": "file_and_folder_info.txt",
+      "premise": "Nexus/__pycache__/ - Python compiled bytecode cache generated during execution. Usually used for faster import times and can be ignored safely.",
+      "claim": "The __pycache__ folder holds compiled bytecode and can be safely ignored.",
+      "label": "supported"
+    },
+    {
+      "id": "c20",
+      "source": "nexus_readme.md",
+      "premise": "First run will also download the small all-MiniLM-L6-v2 embedding model (~80MB) — one-time download, then it's cached locally.",
+      "claim": "After the first download the embedding model is cached locally.",
+      "label": "supported"
+    },
+    {
+      "id": "c21",
+      "source": "nexus_project_info.md",
+      "premise": "The project uses Chroma for persistent vector storage, the all-MiniLM-L6-v2 model for document embeddings, and BM25 keyword search for hybrid retrieval. Ollama provides local answer generation with the llama3.1:8b model.",
+      "claim": "NEXUS stores its vectors in FAISS.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c22",
+      "source": "nexus_project_info.md",
+      "premise": "The project uses Chroma for persistent vector storage, the all-MiniLM-L6-v2 model for document embeddings, and BM25 keyword search for hybrid retrieval. Ollama provides local answer generation with the llama3.1:8b model.",
+      "claim": "Keyword search is done with TF-IDF instead of BM25.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c23",
+      "source": "nexus_project_info.md",
+      "premise": "The project uses Chroma for persistent vector storage, the all-MiniLM-L6-v2 model for document embeddings, and BM25 keyword search for hybrid retrieval. Ollama provides local answer generation with the llama3.1:8b model.",
+      "claim": "Answers are generated by GPT-4 in the cloud.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c24",
+      "source": "nexus_project_info.md",
+      "premise": "The project uses Chroma for persistent vector storage, the all-MiniLM-L6-v2 model for document embeddings, and BM25 keyword search for hybrid retrieval. Ollama provides local answer generation with the llama3.1:8b model.",
+      "claim": "Embeddings are produced by OpenAI's text-embedding-3 model.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c25",
+      "source": "nexus_project_info.md",
+      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running ingest.py. Questions are answered by running rag_pipeline.py.",
+      "claim": "Only plain text files can be indexed; PDFs are not supported.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c26",
+      "source": "nexus_project_info.md",
+      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running ingest.py. Questions are answered by running rag_pipeline.py.",
+      "claim": "Documents are indexed by running retrieve.py.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c27",
+      "source": "nexus_project_info.md",
+      "premise": "The Python environment is stored in nexus-env. The vector index is stored in vector_store.",
+      "claim": "The vector index is stored in a folder called embeddings_db.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c28",
+      "source": "nexus_project_info.md",
+      "premise": "NEXUS AI is a local retrieval-augmented generation (RAG) assistant.",
+      "claim": "NEXUS is a cloud-hosted chatbot service.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c29",
+      "source": "local_ai_models.txt",
+      "premise": "MODEL 2: llama3.1:8b. TYPE: Ollama text-generation model. JOB: Generate the final answer after retrieval or direct routing. RUNTIME: Ollama at http://localhost:11434 (GPU acceleration when available).",
+      "claim": "Ollama listens on port 8080.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c30",
+      "source": "local_ai_models.txt",
+      "premise": "MODEL 1: all-MiniLM-L6-v2. TYPE: Sentence-transformers embedding model. JOB: Embed document chunks and user questions for retrieval. RUNTIME: Python virtual environment in Nexus/nexus-env (CPU).",
+      "claim": "The embedding model requires a GPU to run.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c31",
+      "source": "nexus_readme.md",
+      "premise": "Everything here runs on CPU except the final generation step (which uses Ollama and your RTX 4060, exactly as it already does today).",
+      "claim": "Everything, including generation, runs on the CPU only.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c32",
+      "source": "nexus_readme.md",
+      "premise": "First run will also download the small all-MiniLM-L6-v2 embedding model (~80MB) — one-time download, then it's cached locally.",
+      "claim": "The embedding model is a 4 GB download.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c33",
+      "source": "nexus_readme.md",
+      "premise": "Check that a vector_store/ folder was created — this is your local, persistent index. It survives restarts; you don't need to rebuild it unless documents change.",
+      "claim": "The index is lost on restart and must be rebuilt every time.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c34",
+      "source": "nexus_readme.md",
+      "premise": "Add or edit a document later? Just re-run python ingest.py. It hashes files and only re-embeds what changed — so this stays fast even with a growing document set.",
+      "claim": "Re-running ingestion re-embeds every file from scratch.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c35",
+      "source": "nexus_readme.md",
+      "premise": "Scanned/image-only PDFs won't have selectable text and will need OCR first (a separate step, not covered by this base pipeline).",
+      "claim": "Scanned PDFs are read automatically with built-in OCR.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c36",
+      "source": "action_log.txt",
+      "premise": "Created a lightweight browser UI for the application and started the local server at http://127.0.0.1:8000.",
+      "claim": "The browser interface runs on port 5000.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c37",
+      "source": "action_log.txt",
+      "premise": "Identified compatibility problems caused by older dependency versions on Python 3.13. Updated the dependency versions to Python 3.13-compatible releases without changing the project APIs.",
+      "claim": "The project only works on Python 3.8.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c38",
+      "source": "action_log.txt",
+      "premise": "Built the enhanced NEXUS router to classify general, coding, reasoning, vision, and speech tasks.",
+      "claim": "The router can only tell general questions from coding questions.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c39",
+      "source": "file_and_folder_info.txt",
+      "premise": "Nexus/__pycache__/ - Python compiled bytecode cache generated during execution. Usually used for faster import times and can be ignored safely.",
+      "claim": "The __pycache__ folder must never be deleted or the project breaks.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c40",
+      "source": "local_ai_models.txt",
+      "premise": "MODEL 2: llama3.1:8b. TYPE: Ollama text-generation model. JOB: Generate the final answer after retrieval or direct routing. RUNTIME: Ollama at http://localhost:11434 (GPU acceleration when available).",
+      "claim": "The final answer is generated by the all-MiniLM-L6-v2 model.",
+      "label": "contradicted"
+    },
+    {
+      "id": "c41",
+      "source": "nexus_project_info.md",
+      "premise": "The project uses Chroma for persistent vector storage, the all-MiniLM-L6-v2 model for document embeddings, and BM25 keyword search for hybrid retrieval. Ollama provides local answer generation with the llama3.1:8b model.",
+      "claim": "Chroma was chosen because it is faster than Pinecone.",
+      "label": "not_found"
+    },
+    {
+      "id": "c42",
+      "source": "nexus_project_info.md",
+      "premise": "The project uses Chroma for persistent vector storage, the all-MiniLM-L6-v2 model for document embeddings, and BM25 keyword search for hybrid retrieval. Ollama provides local answer generation with the llama3.1:8b model.",
+      "claim": "The llama3.1:8b model was fine-tuned on the project documents.",
+      "label": "not_found"
+    },
+    {
+      "id": "c43",
+      "source": "nexus_project_info.md",
+      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running ingest.py. Questions are answered by running rag_pipeline.py.",
+      "claim": "Indexing a 100-page PDF takes about two minutes.",
+      "label": "not_found"
+    },
+    {
+      "id": "c44",
+      "source": "nexus_project_info.md",
+      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running ingest.py. Questions are answered by running rag_pipeline.py.",
+      "claim": "Excel spreadsheets will be supported in the next release.",
+      "label": "not_found"
+    },
+    {
+      "id": "c45",
+      "source": "nexus_project_info.md",
+      "premise": "The Python environment is stored in nexus-env. The vector index is stored in vector_store.",
+      "claim": "The vector index uses about 50 MB of disk space.",
+      "label": "not_found"
+    },
+    {
+      "id": "c46",
+      "source": "nexus_project_info.md",
+      "premise": "NEXUS AI is a local retrieval-augmented generation (RAG) assistant.",
+      "claim": "NEXUS was created by a team of five students.",
+      "label": "not_found"
+    },
+    {
+      "id": "c47",
+      "source": "local_ai_models.txt",
+      "premise": "MODEL 2: llama3.1:8b. TYPE: Ollama text-generation model. JOB: Generate the final answer after retrieval or direct routing. RUNTIME: Ollama at http://localhost:11434 (GPU acceleration when available).",
+      "claim": "Ollama was installed with Docker.",
+      "label": "not_found"
+    },
+    {
+      "id": "c48",
+      "source": "local_ai_models.txt",
+      "premise": "MODEL 1: all-MiniLM-L6-v2. TYPE: Sentence-transformers embedding model. JOB: Embed document chunks and user questions for retrieval. RUNTIME: Python virtual environment in Nexus/nexus-env (CPU).",
+      "claim": "The embedding model was trained on Wikipedia articles.",
+      "label": "not_found"
+    },
+    {
+      "id": "c49",
+      "source": "nexus_readme.md",
+      "premise": "Everything here runs on CPU except the final generation step (which uses Ollama and your RTX 4060, exactly as it already does today).",
+      "claim": "The RTX 4060 has 8 GB of video memory.",
+      "label": "not_found"
+    },
+    {
+      "id": "c50",
+      "source": "nexus_readme.md",
+      "premise": "First run will also download the small all-MiniLM-L6-v2 embedding model (~80MB) — one-time download, then it's cached locally.",
+      "claim": "The embedding model was released in 2021.",
+      "label": "not_found"
+    },
+    {
+      "id": "c51",
+      "source": "nexus_readme.md",
+      "premise": "Check that a vector_store/ folder was created — this is your local, persistent index. It survives restarts; you don't need to rebuild it unless documents change.",
+      "claim": "The index is backed up to the cloud every night.",
+      "label": "not_found"
+    },
+    {
+      "id": "c52",
+      "source": "nexus_readme.md",
+      "premise": "Add or edit a document later? Just re-run python ingest.py. It hashes files and only re-embeds what changed — so this stays fast even with a growing document set.",
+      "claim": "File hashes are computed with SHA-256.",
+      "label": "not_found"
+    },
+    {
+      "id": "c53",
+      "source": "nexus_readme.md",
+      "premise": "Scanned/image-only PDFs won't have selectable text and will need OCR first (a separate step, not covered by this base pipeline).",
+      "claim": "Tesseract is the recommended OCR tool.",
+      "label": "not_found"
+    },
+    {
+      "id": "c54",
+      "source": "action_log.txt",
+      "premise": "Created a lightweight browser UI for the application and started the local server at http://127.0.0.1:8000.",
+      "claim": "The browser interface supports a dark theme.",
+      "label": "not_found"
+    },
+    {
+      "id": "c55",
+      "source": "action_log.txt",
+      "premise": "Identified compatibility problems caused by older dependency versions on Python 3.13. Updated the dependency versions to Python 3.13-compatible releases without changing the project APIs.",
+      "claim": "The upgrade to Python 3.13 made retrieval 20 percent faster.",
+      "label": "not_found"
+    },
+    {
+      "id": "c56",
+      "source": "action_log.txt",
+      "premise": "Built the enhanced NEXUS router to classify general, coding, reasoning, vision, and speech tasks.",
+      "claim": "The router reaches 95 percent accuracy on a test set.",
+      "label": "not_found"
+    },
+    {
+      "id": "c57",
+      "source": "file_and_folder_info.txt",
+      "premise": "Nexus/__pycache__/ - Python compiled bytecode cache generated during execution. Usually used for faster import times and can be ignored safely.",
+      "claim": "The project has more than 40 Python files.",
+      "label": "not_found"
+    },
+    {
+      "id": "c58",
+      "source": "nexus_project_info.md",
+      "premise": "The project uses Chroma for persistent vector storage, the all-MiniLM-L6-v2 model for document embeddings, and BM25 keyword search for hybrid retrieval. Ollama provides local answer generation with the llama3.1:8b model.",
+      "claim": "BM25 results are cached in Redis.",
+      "label": "not_found"
+    },
+    {
+      "id": "c59",
+      "source": "local_ai_models.txt",
+      "premise": "MODEL 2: llama3.1:8b. TYPE: Ollama text-generation model. JOB: Generate the final answer after retrieval or direct routing. RUNTIME: Ollama at http://localhost:11434 (GPU acceleration when available).",
+      "claim": "Ollama logs every request to a file.",
+      "label": "not_found"
+    },
+    {
+      "id": "c60",
+      "source": "local_ai_models.txt",
+      "premise": "MODEL 1: all-MiniLM-L6-v2. TYPE: Sentence-transformers embedding model. JOB: Embed document chunks and user questions for retrieval. RUNTIME: Python virtual environment in Nexus/nexus-env (CPU).",
+      "claim": "Each embedding vector has 384 dimensions.",
+      "label": "not_found"
+    }
+  ]
+}

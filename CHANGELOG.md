@@ -4,6 +4,51 @@ Every released version of NEXUS, newest first. Planned versions are in
 [ROADMAP.md](ROADMAP.md). Each heading below is a git tag (`v0.4.0`) and a
 GitHub release.
 
+## [0.5.0] - 2026-10-10
+
+Feature merge: everything built on the `nexus-features` branch now runs on
+`main`, on the `nexus` package, with main's security checks and context-window
+handling kept. Cloud is off by default; with it off, nothing leaves this PC.
+
+### Added
+- Settings file: `nexus.toml` for behaviour and `.env` for cloud keys
+  (examples included). Neither is needed to run.
+- Optional cloud models (Gemini, Groq, OpenRouter, DeepSeek, Mistral) with
+  three modes: off, hard questions only, allowed. Questions that use your
+  documents and all PC actions stay on this PC unless you allow otherwise;
+  earlier document-based answers are held back from cloud models too. Daily
+  limits per provider; a failed provider is skipped and the answer says why.
+- Image and voice input. Only image-reading models are considered when an
+  image is attached; voice is transcribed first.
+- Truth check: each sentence of an answer is marked supported, not found or
+  contradicted against your documents. 85% accurate on 60 labelled claims
+  when given the passage, 75% finding its own evidence.
+- Ratings (thumbs up/down with a reason), Arena (two models answer with their
+  names hidden and you pick) and a personal leaderboard with Elo ratings.
+- Learned router: a small classifier trained on seed prompts and your
+  corrections. It replaces the rules only if it measures at least as well on
+  held-out prompts: 99.0% against 91.0% for the rules and examples.
+- Model council: several models answer, a judge lists where they agree and
+  disagree and writes one merged answer.
+- Background brain: watches your documents folder, indexes changes, writes a
+  weekly digest and makes flashcards that are checked against their source.
+- Two new pages in the Streamlit UI, *Inbox & study* and *Leaderboard*; cloud
+  status in Diagnostics; the same features in the dependency-free web UI.
+
+### Changed
+- One database for everything: existing `data/nexus.db` files are upgraded in
+  place and keep their chats.
+- The web server accepts up to 25 MB on the three routes that can carry an
+  image or a recording; every other route stays at 1 MB.
+- Conversation memory has a budget (8 messages, 8,000 characters, set in
+  `nexus.toml`) applied before fitting to the model's context window.
+- README rewritten for the current app; retrieval numbers re-measured.
+
+### Fixed
+- The learned router's gate scored it on "vision" and "speech" prompts that a
+  text prompt is never routed to, which no router could get right. Those are
+  now left out, so the comparison with the rules is like for like.
+
 ## [0.4.0] - 2026-10-10
 
 Router accuracy and version labelling.

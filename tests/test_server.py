@@ -89,10 +89,20 @@ class GuardTests(ServerTestCase):
 
     def test_oversized_body_is_rejected(self):
         status, _, _ = self.request(
-            "POST", "/api/chat", b"{}",
+            "POST", "/api/apply", b"{}",
             headers={"Content-Length": str(server.MAX_BODY + 1)},
         )
         self.assertEqual(status, 413)
+
+    def test_upload_routes_have_their_own_larger_limit(self):
+        # Images and voice recordings ride inside the JSON body of a chat request.
+        self.assertGreater(server.MAX_UPLOAD_BODY, server.MAX_BODY)
+        for path in server.UPLOAD_PATHS:
+            status, _, _ = self.request(
+                "POST", path, b"{}",
+                headers={"Content-Length": str(server.MAX_UPLOAD_BODY + 1)},
+            )
+            self.assertEqual(status, 413, path)
 
     def test_malformed_json_is_rejected(self):
         status, _, _ = self.request("POST", "/api/chat", b"{not json")

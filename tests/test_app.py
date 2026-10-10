@@ -13,6 +13,7 @@ from streamlit.testing.v1 import AppTest  # noqa: E402
 
 from nexus import (
     engine,  # noqa: E402
+    feedback,  # noqa: E402
     providers,  # noqa: E402
     retrieve,  # noqa: E402
     store,  # noqa: E402
@@ -42,7 +43,7 @@ class AppFlowTests(unittest.TestCase):
     def setUp(self):
         conn = store.connect()
         with conn:
-            for table in ("messages", "chats", "turns"):
+            for table in ("messages", "chats", "turns", "feedback", "battles", "signals"):
                 conn.execute(f"DELETE FROM {table}")
         conn.close()
         self.calls = []
@@ -60,9 +61,9 @@ class AppFlowTests(unittest.TestCase):
             self.addCleanup(patcher.stop)
 
     def fake_answer(self, question, base_dir=None, options=None, on_token=None,
-                    on_thinking=None, history=None, chat_id=None, on_status=None):
+                    on_thinking=None, history=None, chat_id=None, on_status=None, **extra):
         self.calls.append({"question": question, "options": options,
-                           "history": history, "chat_id": chat_id})
+                           "history": history, "chat_id": chat_id, **extra})
         model = options.force_model if options and options.force_model else "a"
         if on_token:
             on_token(f"answer from {model}")
@@ -119,7 +120,8 @@ class AppFlowTests(unittest.TestCase):
 
     def test_every_page_renders(self):
         at = self.start()
-        for page in ("documents.py", "lab.py", "diagnostics.py", "chat.py"):
+        for page in ("documents.py", "lab.py", "diagnostics.py", "inbox.py",
+                     "leaderboard.py", "chat.py"):
             at.switch_page(f"app_pages/{page}").run()
             self.assertFalse(at.exception, f"{page}: {at.exception}")
 
@@ -169,6 +171,96 @@ class AppFlowTests(unittest.TestCase):
         self.assertEqual(applied, [pending])
         chat = store.list_chats()[0]
         self.assertEqual(store.load_messages(chat["id"])[-1]["content"], "Moved 2 files.")
+
+    # -- screens that came with ratings, Arena, the council and cloud ----------
+
+    def set_mode(self, at, mode):
+        next(g for g in at.button_group if g.key == "opt_mode").set_value(mode).run()
+        self.assertFalse(at.exception, at.exception)
+
+    def test_thumbs_down_is_saved_against_the_answer(self):
+        at = self.start()
+        self.ask(at, "rate me")
+        answer_id = store.load_messages(store.list_chats()[0]["id"])[-1]["id"]
+        at.button(key=f"down_{answer_id}").click().run()
+        self.assertFalse(at.exception, at.exception)
+        [rating] = feedback.ratings()
+        self.assertEqual((rating["message_id"], rating["rating"], rating["question"]),
+                         (answer_id, -1, "rate me"))
+        self.assertEqual(store.get_message(answer_id)["meta"]["rating"], -1)
+
+    def test_arena_hides_the_models_until_the_vote(self):
+        at = self.start()
+        self.set_mode(at, "Arena")
+        self.ask(at, "explain a hash table")
+        asked = {c["options"].force_model for c in self.calls}
+        self.assertEqual(asked, {"a", "b"})          # two different models answered
+        shown = " ".join(m.value for m in at.markdown)
+        self.assertIn("Answer A", shown)
+        # Nothing but your question is in the chat yet: no model has been named.
+        chat = store.list_chats()[0]
+        self.assertEqual([m["role"] for m in store.load_messages(chat["id"])], ["user"])
+
+        at.button(key="vote_a").click().run()
+        self.assertFalse(at.exception, at.exception)
+        [battle] = feedback.battles()
+        self.assertEqual(battle["winner"], "a")
+        saved = store.load_messages(chat["id"])[-1]
+        self.assertEqual(saved["meta"]["model"], battle["model_a"])
+        self.assertIn(battle["model_b"], saved["meta"]["info"])   # both names revealed now
+
+    def test_council_saves_one_merged_answer_with_its_members(self):
+        at = self.start()
+        self.set_mode(at, "Council")
+        with mock.patch.object(engine, "_generate", return_value="not json"):  # no usable judge
+            self.ask(at, "explain a hash table")
+        chat = store.list_chats()[0]
+        saved = store.load_messages(chat["id"])[-1]
+        self.assertEqual(saved["meta"]["model"], "council")
+        self.assertEqual(sorted(m["model"] for m in saved["meta"]["council"]["members"]), ["a", "b"])
+        self.assertTrue(saved["content"].startswith("answer from"))
+
+    def test_cloud_stays_off_unless_switched_on(self):
+        at = self.start()
+        self.ask(at, "hello")
+        self.assertEqual(self.calls[-1]["options"].cloud_mode, "off")
+        next(g for g in at.button_group if g.key == "opt_cloud").set_value("Hard questions").run()
+        self.ask(at, "hello again")
+        options = self.calls[-1]["options"]
+        self.assertEqual(options.cloud_mode, "hard")
+        self.assertFalse(options.allow_docs)   # documents still stay on this PC
+        self.assertFalse(options.allow_paid)
+
+    def test_an_answer_from_your_documents_is_flagged_in_later_history(self):
+        real = self.fake_answer
+
+        def grounded(question, **kwargs):
+            result = real(question, **kwargs)
+            if question == "what do my notes say?":
+                result.update(needs_rag=True, sources=[{"source": "n.md", "text": "note text"}])
+            return result
+
+        with mock.patch.object(engine, "answer", grounded), \
+                mock.patch("nexus.ui.run_truth"):
+            at = self.start()
+            self.ask(at, "what do my notes say?")
+            self.ask(at, "thanks")
+        history = self.calls[-1]["history"]
+        self.assertEqual(history[1].get("meta"), {"needs_rag": True})
+        self.assertNotIn("meta", history[0])
+
+    def test_the_ui_does_not_start_background_work_under_test(self):
+        # tests/isolate.py switches the brain off; a watcher thread left
+        # running would open other tests' databases for the rest of the run.
+        import threading
+
+        from nexus import config
+
+        self.assertFalse(config.get_settings().brain_enabled)
+        at = self.start()
+        at.switch_page("app_pages/inbox.py").run()
+        self.assertFalse(at.exception, at.exception)
+        self.assertNotIn("nexus-brain", [t.name for t in threading.enumerate()])
 
     def test_deleting_a_chat(self):
         at = self.start()

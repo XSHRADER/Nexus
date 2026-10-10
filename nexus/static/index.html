@@ -8,134 +8,411 @@
       /* Same palette as the Streamlit theme in .streamlit/config.toml. */
       :root {
         --bg: #0e1016;
-        --surface: #171a23;
-        --surface-2: #1b1f2a;
+        --panel: #171a23;
+        --panel-2: #1b1f2a;
         --line: #2a2f3d;
         --text: #e4e7ef;
         --muted: #8a93a6;
-        --accent: #5b5bd6;
-        --link: #9aa5ff;
-        --green: #3fb27f;
-        --red: #e5636b;
-        --orange: #e0a03d;
-        --radius: 10px;
+        --accent: #9aa5ff;
+        --accent-2: #5b5bd6;
+        --success: #3fb27f;
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-        font-size: 15px;
         background: var(--bg);
         color: var(--text);
       }
       .layout {
-        max-width: 900px;
+        max-width: 1280px;
         margin: 0 auto;
-        padding: 24px 16px;
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
+        padding: 24px;
       }
-      header {
+      .body {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        gap: 18px;
+      }
+      .sidebar {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 14px;
+        max-height: calc(54vh + 92px);
+        overflow-y: auto;
+      }
+      .sidebar h3 {
+        margin: 4px 4px 10px;
+        font-size: 0.8rem;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .new-chat { width: 100%; padding: 10px; margin-bottom: 12px; }
+      .chat-item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: transparent;
+        color: var(--text);
+        font-weight: 500;
+        padding: 9px 10px;
+        margin-bottom: 4px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .chat-item:hover { background: var(--panel-2); }
+      .chat-item.active { background: var(--panel-2); border-color: var(--accent); }
+      .chat-item small { display: block; color: var(--muted); font-weight: 400; }
+      .empty-note { color: var(--muted); font-size: .85rem; padding: 4px; }
+      @media (max-width: 760px) {
+        .body { grid-template-columns: 1fr; }
+        .sidebar { max-height: 180px; }
+      }
+      .topbar {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 16px;
-        flex-wrap: wrap;
+        margin-bottom: 20px;
       }
-      .brand { font-size: 1.3rem; font-weight: 650; letter-spacing: .02em; }
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border-radius: 999px;
-        padding: 3px 10px;
-        font-size: .8rem;
-        background: var(--surface-2);
+      .brand { font-size: 2rem; font-weight: 700; }
+      .brand span { color: var(--accent); }
+      .chat-shell {
+        background: rgba(18, 26, 46, 0.9);
         border: 1px solid var(--line);
-        color: var(--muted);
+        border-radius: 18px;
+        overflow: hidden;
       }
-      .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-      .dot.on { background: var(--green); }
-      .dot.off { background: var(--red); }
       .messages {
-        flex: 1;
+        min-height: 420px;
+        max-height: 54vh;
         overflow-y: auto;
-        padding: 4px 2px 16px;
+        padding: 18px;
+        background: rgba(10, 13, 23, 0.78);
       }
       .msg {
-        margin-bottom: 14px;
-        padding: 12px 14px;
-        border-radius: var(--radius);
+        margin-bottom: 16px;
+        padding: 14px 16px;
+        border-radius: 14px;
         line-height: 1.55;
-        max-width: 85%;
-        overflow-wrap: anywhere;
+        max-width: 80%;
       }
-      .msg.user { margin-left: auto; background: var(--surface-2); border: 1px solid var(--line); }
-      .msg.assistant { background: var(--surface); border: 1px solid var(--line); }
-      .msg.error { border-color: var(--red); }
-      .meta { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
-      .sources { margin-top: 8px; color: var(--muted); font-size: .85rem; }
-      .sources summary { cursor: pointer; }
-      .sources li { margin: 4px 0; }
+      .msg.user {
+        margin-left: auto;
+        background: linear-gradient(135deg, var(--accent-2), #4f46e5);
+      }
+      .msg.assistant {
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+      }
       .composer {
         display: flex;
-        gap: 10px;
-        padding-top: 12px;
+        gap: 12px;
+        padding: 18px;
         border-top: 1px solid var(--line);
+        background: rgba(18, 26, 46, 0.95);
       }
       textarea {
         flex: 1;
         resize: none;
-        min-height: 48px;
+        min-height: 52px;
         max-height: 150px;
-        border-radius: var(--radius);
+        border-radius: 12px;
         border: 1px solid var(--line);
-        background: var(--surface);
+        background: #0f172a;
         color: var(--text);
-        padding: 12px 14px;
+        padding: 14px 16px;
         font: inherit;
       }
-      textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
       button {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface-2);
-        color: var(--text);
-        font: inherit;
-        font-weight: 600;
-        padding: 8px 16px;
+        border: none;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #08111d;
+        font-weight: 700;
+        padding: 0 20px;
         cursor: pointer;
       }
-      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-      button:disabled { opacity: .6; cursor: progress; }
-      .actions { margin-top: 10px; display: flex; gap: 8px; }
-      .hint { color: var(--muted); font-size: .8rem; margin-top: 6px; }
+      .meta {
+        margin-top: 14px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .badge {
+        background: rgba(103, 232, 249, 0.12);
+        border: 1px solid rgba(103, 232, 249, 0.25);
+        border-radius: 999px;
+        padding: 4px 10px;
+      }
+      .error {
+        color: #fca5a5;
+      }
+      .cloud-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 16px;
+        padding: 10px 14px;
+        background: rgba(18, 26, 46, 0.9);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        color: var(--muted);
+        font-size: .88rem;
+      }
+      .cloud-bar label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+      .cloud-bar select {
+        background: #0f172a; color: var(--text); border: 1px solid var(--line);
+        border-radius: 8px; padding: 5px 8px; font: inherit;
+      }
+      .cloud-bar strong { color: var(--text); }
+      .providers { margin-top: 18px; }
+      .provider-row {
+        display: flex; justify-content: space-between; gap: 8px;
+        font-size: .8rem; padding: 3px 4px; color: var(--muted);
+      }
+      .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+      .dot.ready { background: var(--success); }
+      .dot.no_key { background: #475569; }
+      .dot.cooling_down, .dot.limit_reached { background: #f59e0b; }
+      .dot.invalid_key { background: #ef4444; }
+      .badge.cloud { background: rgba(167, 139, 250, 0.18); border-color: rgba(167, 139, 250, 0.45); color: #e9d5ff; }
+      .badge.local { background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.35); color: #bbf7d0; }
+      .attach-btn {
+        background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+        font-size: 1.15rem; padding: 0 14px;
+      }
+      .attach-chip {
+        display: none; align-items: center; gap: 8px; margin: 0 18px 10px;
+        padding: 6px 10px; border-radius: 10px; background: var(--panel-2);
+        border: 1px solid var(--line); font-size: .85rem; width: fit-content;
+      }
+      .attach-chip button { background: none; color: var(--muted); padding: 0 4px; font-size: 1rem; }
+      .msg img.thumb { max-width: 220px; max-height: 160px; border-radius: 10px; margin-top: 8px; display: block; }
+      .note { font-size: .8rem; color: var(--muted); margin-top: 6px; }
+      .msg.user .note { color: rgba(255, 255, 255, 0.78); }
+      .claim { border-radius: 4px; padding: 1px 2px; cursor: pointer; }
+      .claim.supported { background: rgba(52, 211, 153, 0.16); border-bottom: 2px solid #34d399; }
+      .claim.not_found { background: rgba(245, 158, 11, 0.14); border-bottom: 2px dashed #f59e0b; }
+      .claim.contradicted { background: rgba(239, 68, 68, 0.18); border-bottom: 2px solid #ef4444; }
+      .truth-bar {
+        display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+        margin-top: 12px; padding: 8px 10px; border-radius: 10px;
+        background: rgba(10, 13, 23, 0.55); border: 1px solid var(--line); font-size: .82rem;
+      }
+      .trust { font-weight: 700; color: var(--text); }
+      .truth-bar .muted { color: var(--muted); }
+      .evidence {
+        margin-top: 8px; padding: 8px 10px; border-left: 3px solid var(--accent);
+        background: rgba(103, 232, 249, 0.06); border-radius: 0 8px 8px 0; font-size: .82rem;
+        color: var(--muted);
+      }
+      .evidence b { color: var(--text); }
+      .rate { display: inline-flex; gap: 6px; align-items: center; margin-top: 10px; margin-right: 10px; }
+      .rate button, .reasons button {
+        background: var(--panel); color: var(--text); border: 1px solid var(--line);
+        border-radius: 999px; padding: 4px 10px; font-size: .85rem; font-weight: 500;
+      }
+      .rate button.on { border-color: var(--accent); background: rgba(103, 232, 249, 0.16); }
+      .reasons { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+      .reasons button { font-size: .78rem; padding: 3px 9px; }
+      .reasons button.on { border-color: #ef4444; background: rgba(239, 68, 68, 0.16); }
+      .battle {
+        margin-bottom: 16px; padding: 14px; border-radius: 14px;
+        border: 1px solid var(--accent-2); background: rgba(167, 139, 250, 0.06);
+      }
+      .battle-title { font-weight: 700; margin-bottom: 10px; color: #e9d5ff; }
+      .battle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .side { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; line-height: 1.5; }
+      .side.won { border-color: var(--success); box-shadow: 0 0 0 1px var(--success) inset; }
+      .side-head { font-weight: 700; margin-bottom: 8px; color: var(--muted); }
+      .side.won .side-head { color: var(--success); }
+      .votes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .votes button { padding: 8px 14px; }
+      .votes button.secondary { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+      @media (max-width: 760px) { .battle-grid { grid-template-columns: 1fr; } }
+      .lb-btn { width: 100%; margin-top: 10px; padding: 9px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+      .overlay {
+        position: fixed; inset: 0; background: rgba(2, 6, 23, 0.72); display: none;
+        align-items: flex-start; justify-content: center; padding: 60px 16px; z-index: 10;
+      }
+      .overlay.open { display: flex; }
+      .panel {
+        width: min(860px, 100%); max-height: 80vh; overflow: auto; background: var(--panel);
+        border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px;
+      }
+      .panel h2 { margin: 0 0 4px; font-size: 1.25rem; }
+      .panel table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .9rem; }
+      .panel th, .panel td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+      .panel th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; }
+      .panel .num { text-align: right; font-variant-numeric: tabular-nums; }
+      .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+      .panel select { background: #0f172a; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font: inherit; }
+      .close-btn { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); padding: 6px 12px; }
+      .council { margin-top: 12px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(10, 13, 23, 0.5); }
+      .council h4 { margin: 10px 0 6px; font-size: .85rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+      .council ul { margin: 0; padding-left: 20px; }
+      .council li { margin-bottom: 4px; }
+      .council .pos { font-size: .85rem; color: var(--muted); margin: 2px 0 0 10px; }
+      .council .pos b { color: var(--text); }
+      .council details { margin-top: 10px; }
+      .council summary { cursor: pointer; color: var(--accent); font-size: .88rem; }
+      .council .member { margin-top: 8px; padding: 8px 10px; border-left: 3px solid var(--accent-2); background: var(--panel-2); border-radius: 0 8px 8px 0; font-size: .88rem; }
+      .meter { display: inline-block; width: 80px; height: 8px; border-radius: 4px; background: var(--panel-2); vertical-align: middle; margin-left: 6px; overflow: hidden; }
+      .meter span { display: block; height: 100%; background: linear-gradient(90deg, #f59e0b, var(--success)); }
+      .count { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 999px;
+               background: var(--accent); color: #08111d; font-size: .75rem; font-weight: 700; }
+      .count.zero { background: var(--panel); color: var(--muted); }
+      .inbox-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+      .inbox-item.unread .inbox-title::before { content: "●"; color: var(--accent); margin-right: 6px; }
+      .inbox-title { font-weight: 700; }
+      .inbox-body { margin-top: 6px; line-height: 1.55; font-size: .92rem; }
+      .inbox-body h3 { font-size: 1rem; margin: 6px 0; } .inbox-body h4 { font-size: .9rem; margin: 10px 0 4px; color: var(--muted); }
+      .inbox-body ul { margin: 4px 0; padding-left: 20px; }
+      .panel-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      .panel-actions button { padding: 7px 12px; font-size: .85rem; }
+      .panel-actions button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+      .card { margin-top: 14px; padding: 18px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel-2); }
+      .card .q { font-size: 1.15rem; font-weight: 700; margin: 8px 0 14px; }
+      .card .a { font-size: 1rem; line-height: 1.55; }
+      .card .ev { margin-top: 10px; }
+      .check-btn {
+        margin-top: 10px; padding: 6px 12px; font-size: .82rem;
+        background: var(--panel); color: var(--text); border: 1px solid var(--line);
+      }
     </style>
   </head>
   <body>
     <div class="layout">
-      <header>
-        <div class="brand">NEXUS</div>
-        <span class="pill" id="status"><span class="dot"></span>Checking Ollama…</span>
-      </header>
+      <div class="topbar">
+        <div class="brand">NEXUS <span>AI</span></div>
+        <div class="badge" id="statusBadge">Auto-selects the best AI</div>
+      </div>
 
-      <div id="messages" class="messages" aria-live="polite"></div>
+      <div class="cloud-bar">
+        <label>Cloud
+          <select id="cloudMode">
+            <option value="off">Off — this PC only</option>
+            <option value="hard">Hard questions only</option>
+            <option value="allowed">Allowed</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="allowDocs" /> Send documents to cloud</label>
+        <label><input type="checkbox" id="allowPaid" /> Allow paid models</label>
+        <label title="Two models answer blind; you pick the better one."><input type="checkbox" id="arenaMode" /> ⚔️ Arena</label>
+        <label title="Several models answer, a judge compares them and merges one answer."><input type="checkbox" id="councilMode" /> 🏛️ Council</label>
+        <span id="cloudSummary"></span>
+      </div>
 
-      <div>
-        <div class="composer">
-          <textarea id="question" placeholder="Ask about your documents — or anything else"></textarea>
-          <button id="sendBtn" class="primary">Send</button>
+      <div class="body">
+        <aside class="sidebar">
+          <button class="new-chat" id="newChatBtn">+ New chat</button>
+          <h3>Past chats</h3>
+          <div id="chatList"></div>
+          <div class="providers">
+            <h3>Cloud providers</h3>
+            <div id="providerList"></div>
+          </div>
+          <button class="lb-btn" id="leaderboardBtn">🏆 Leaderboard &amp; router</button>
+          <button class="lb-btn" id="inboxBtn">📥 Inbox<span class="count zero" id="inboxCount">0</span></button>
+          <button class="lb-btn" id="studyBtn">🎓 Study<span class="count zero" id="studyCount">0</span></button>
+        </aside>
+
+        <div class="chat-shell">
+          <div id="messages" class="messages"></div>
+          <div class="attach-chip" id="attachChip">
+            <span id="attachName"></span>
+            <button id="attachClear" title="Remove attachment">✕</button>
+          </div>
+          <div class="composer">
+            <button class="attach-btn" id="attachBtn" title="Attach an image or a voice recording">📎</button>
+            <input type="file" id="fileInput" accept="image/*,audio/*" hidden />
+            <textarea id="question" placeholder="Ask anything, or attach an image or a voice recording..."></textarea>
+            <button id="sendBtn">Send</button>
+          </div>
         </div>
-        <div class="hint">Enter to send · Shift+Enter for a new line · runs entirely on this PC</div>
+      </div>
+    </div>
+
+    <div class="overlay" id="lbOverlay">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>🏆 Your model leaderboard</h2>
+            <div class="note" id="lbSummary"></div>
+          </div>
+          <div>
+            <select id="lbTask">
+              <option value="">All tasks</option>
+              <option>general</option><option>coding</option><option>reasoning</option>
+              <option>planning</option><option>vision</option>
+            </select>
+            <button class="close-btn" id="lbClose">Close</button>
+          </div>
+        </div>
+        <div id="lbTable"></div>
+        <div class="panel-head" style="margin-top: 22px;">
+          <div>
+            <h2>🧠 Router</h2>
+            <div class="note" id="routerSummary"></div>
+          </div>
+          <button id="retrainBtn">Retrain now</button>
+        </div>
+        <div id="routerTable"></div>
+      </div>
+    </div>
+
+    <div class="overlay" id="inboxOverlay">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>📥 Inbox</h2>
+            <div class="note">What NEXUS did on its own: indexing new files, flashcards from your notes, and the weekly digest. Everything here was made on this PC.</div>
+          </div>
+          <button class="close-btn" data-close="inboxOverlay">Close</button>
+        </div>
+        <div class="panel-actions">
+          <button class="secondary" data-brain="scan">Check for changes now</button>
+          <button class="secondary" data-brain="digest">Write the digest now</button>
+          <button class="secondary" data-brain="study_all">Flashcards from all my notes</button>
+          <button class="secondary" id="markRead">Mark all read</button>
+        </div>
+        <div id="inboxList"></div>
+      </div>
+    </div>
+
+    <div class="overlay" id="studyOverlay">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>🎓 Study</h2>
+            <div class="note" id="studyStats"></div>
+          </div>
+          <button class="close-btn" data-close="studyOverlay">Close</button>
+        </div>
+        <div id="studyCard"></div>
       </div>
     </div>
 
     <script>
-      const messagesEl = document.getElementById('messages');
-      const inputEl = document.getElementById('question');
-      const sendBtn = document.getElementById('sendBtn');
+      const $ = id => document.getElementById(id);
+      const messagesEl = $('messages');
+      const inputEl = $('question');
+      const sendBtn = $('sendBtn');
+      const chatListEl = $('chatList');
+      const WELCOME = 'Welcome to NEXUS AI. Ask me about your project, a coding issue, a design decision, or your local documents. Follow-up questions work: NEXUS remembers this chat.';
+
+      // The server stores every chat; this is just which one is on screen.
+      let chatId = null;
+      let attachment = null;      // {kind: 'image'|'audio', name, mime, data, url}
+      let labels = {};
 
       function escapeHtml(text) {
         return String(text)
@@ -143,108 +420,700 @@
           .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       }
 
-      function el(tag, className, html) {
-        const node = document.createElement(tag);
-        if (className) node.className = className;
-        if (html !== undefined) node.innerHTML = html;
-        return node;
+      const STATUS_WORDS = {
+        ready: 'ready', no_key: 'no key', invalid_key: 'key rejected',
+        cooling_down: 'cooling down', limit_reached: 'daily limit'
+      };
+
+      function loadStatus(applyDefaults) {
+        return fetch('/api/status').then(r => r.json()).then(s => {
+          labels = s.labels || {};
+          const parts = [];
+          parts.push(s.ollama && s.ollama.length ? 'Local: ' + s.ollama.length + ' model(s)' : 'Local: offline');
+          if (s.loaded && s.loaded.length) parts.push('In VRAM: ' + s.loaded.join(', '));
+          $('statusBadge').textContent = 'Auto-selects the best AI · ' + parts.join(' · ');
+          if (s.brain) setCounts(s.brain.unread, s.brain.due_cards);
+
+          if (applyDefaults && s.defaults) {
+            $('cloudMode').value = s.defaults.cloud_mode || 'off';
+            $('allowDocs').checked = !!s.defaults.allow_docs;
+            $('allowPaid').checked = !!s.defaults.allow_paid;
+          }
+          const cloud = s.cloud || {};
+          const ready = Object.keys(cloud).filter(p => cloud[p].status === 'ready');
+          $('cloudSummary').innerHTML = ready.length
+            ? '<strong>' + ready.length + '</strong> cloud provider' + (ready.length === 1 ? '' : 's') + ' ready: ' + escapeHtml(ready.map(p => labels[p] || p).join(', '))
+            : 'No cloud keys set — add them to <code>.env</code>';
+          $('providerList').innerHTML = Object.keys(cloud).map(p =>
+            '<div class="provider-row" title="' + escapeHtml(cloud[p].detail || '') + '"><span><span class="dot ' + cloud[p].status + '"></span>' +
+            escapeHtml(labels[p] || p) + '</span><span>' + escapeHtml(STATUS_WORDS[cloud[p].status] || cloud[p].status) +
+            (cloud[p].status === 'ready' ? ' · ' + cloud[p].used + '/' + cloud[p].limit : '') + '</span></div>'
+          ).join('');
+        }).catch(() => {});
       }
 
-      fetch('/api/status').then(r => r.json()).then(s => {
-        const up = s.ollama && s.ollama.length;
-        const status = document.getElementById('status');
-        status.innerHTML = '<span class="dot ' + (up ? 'on' : 'off') + '"></span>' +
-          (up ? 'Ollama · ' + s.ollama.length + ' models' : 'Ollama offline — run ollama serve') +
-          (s.loaded && s.loaded.length ? ' · in memory: ' + escapeHtml(s.loaded.join(', ')) : '');
-      }).catch(() => {});
+      function metaBadges(data) {
+        if (data.council) {
+          const c = data.council;
+          return [
+            data.local === false ? { cls: 'cloud', text: '🌐 Cloud involved' } : { cls: 'local', text: '💻 This PC' },
+            '🏛️ Council of ' + c.used.length + (c.auto ? ' (convened automatically: hard question)' : ''),
+            c.judged ? 'Judge: ' + c.judge : 'No judge',
+            'Task: ' + (data.task || 'unknown'),
+            'RAG: ' + (data.needs_rag ? 'on' : 'off')
+          ];
+        }
+        const where = data.local === false
+          ? { cls: 'cloud', text: '🌐 Cloud · ' + (labels[data.provider] || data.provider) }
+          : { cls: 'local', text: '💻 This PC' };
+        const meta = [
+          where,
+          'Task: ' + (data.task || 'unknown'),
+          'Auto-picked: ' + (data.model || 'none'),
+          'Difficulty: ' + Number(data.complexity || 0).toFixed(2),
+          'RAG: ' + (data.needs_rag ? 'on' : 'off')
+        ];
+        if (data.router_method) meta.push('🧠 ' + (data.router_method.startsWith('learned') ? data.router_method + ' router' : 'keyword rules'));
+        if (data.history_used) meta.push('🧠 remembers ' + data.history_used + ' earlier message' + (data.history_used === 1 ? '' : 's'));
+        if (data.why) meta.push(data.why);
+        return meta;
+      }
 
-      function appendMessage(role, text, extraClass) {
-        const row = el('div', 'msg ' + role + (extraClass ? ' ' + extraClass : ''),
-                       '<div>' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>');
+      function appendMessage(role, text, meta = null, extra = null) {
+        const row = document.createElement('div');
+        row.className = 'msg ' + role;
+        row.innerHTML = '<div class="text">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>';
+        if (extra && extra.imageUrl) {
+          const img = document.createElement('img');
+          img.className = 'thumb';
+          img.src = extra.imageUrl;
+          row.appendChild(img);
+        }
+        if (extra && extra.note) {
+          const note = document.createElement('div');
+          note.className = 'note';
+          note.textContent = extra.note;
+          row.appendChild(note);
+        }
+        if (meta) {
+          const metaRow = document.createElement('div');
+          metaRow.className = 'meta';
+          metaRow.innerHTML = meta.map(item => typeof item === 'string'
+            ? '<span class="badge">' + escapeHtml(item) + '</span>'
+            : '<span class="badge ' + item.cls + '">' + escapeHtml(item.text) + '</span>').join('');
+          row.appendChild(metaRow);
+        }
         messagesEl.appendChild(row);
         messagesEl.scrollTop = messagesEl.scrollHeight;
         return row;
       }
 
-      function addMeta(row, data) {
-        const items = [data.model || 'no model', data.task || '?'];
-        if (data.sources && data.sources.length) items.push(data.sources.length + ' sources');
-        if (data.elapsed) items.push(Number(data.elapsed).toFixed(1) + ' s');
-        row.appendChild(el('div', 'meta', items.map(i => '<span class="pill">' + escapeHtml(i) + '</span>').join('')));
-        if (data.sources && data.sources.length) {
-          const list = data.sources.map((s, i) =>
-            '<li><b>[' + (i + 1) + ']</b> ' + escapeHtml(s.source) + ' — ' +
-            escapeHtml((s.text || '').replace(/\s+/g, ' ').slice(0, 200)) + '…</li>').join('');
-          row.appendChild(el('details', 'sources', '<summary>Sources</summary><ol style="list-style:none;padding-left:0">' + list + '</ol>'));
+      // -- truth check -----------------------------------------------------------
+      const TRUTH_WORDS = {
+        supported: '🟢 supported by your files',
+        not_found: '🟡 not in your files',
+        contradicted: '🔴 your files say otherwise'
+      };
+
+      function highlighted(text, claims) {
+        let html = '', at = 0;
+        const sorted = [...claims].sort((a, b) => a.start - b.start);
+        sorted.forEach((c, i) => {
+          if (c.start < at) return;
+          html += escapeHtml(text.slice(at, c.start)).replace(/\n/g, '<br>');
+          html += '<span class="claim ' + c.label + '" data-i="' + claims.indexOf(c) + '" title="' +
+                  escapeHtml(TRUTH_WORDS[c.label] + (c.source ? ' — ' + c.source : '')) + '">' +
+                  escapeHtml(text.slice(c.start, c.end)) + '</span>';
+          at = c.end;
+        });
+        return html + escapeHtml(text.slice(at)).replace(/\n/g, '<br>');
+      }
+
+      function renderTruth(row, text, report) {
+        row.querySelectorAll('.truth-bar, .evidence, .check-btn').forEach(el => el.remove());
+        const bar = document.createElement('div');
+        bar.className = 'truth-bar';
+        if (report.status !== 'ok') {
+          const why = { nothing_to_check: 'nothing factual to check in this answer',
+                        no_documents: 'no documents to check against',
+                        off: 'truth check is switched off' }[report.status] || report.status;
+          bar.innerHTML = '<span class="muted">Truth check: ' + escapeHtml(why) + '</span>';
+          row.appendChild(bar);
+          return;
         }
-        if (data.info) row.appendChild(el('div', 'hint', escapeHtml(data.info)));
+        row.querySelector('.text').innerHTML = highlighted(text, report.claims);
+        const c = report.counts;
+        bar.innerHTML =
+          '<span class="trust">Trust ' + Math.round((report.trust || 0) * 100) + '%</span>' +
+          '<span>🟢 ' + c.supported + ' supported</span>' +
+          '<span>🟡 ' + c.not_found + ' not in your files</span>' +
+          '<span>🔴 ' + c.contradicted + ' contradicted</span>' +
+          '<span class="muted">· checked by ' + escapeHtml(report.method) +
+          (report.approximate ? ' (approximate)' : '') + ' against ' + escapeHtml(report.evidence) +
+          ' · click a sentence for its evidence</span>';
+        row.appendChild(bar);
+        row.querySelectorAll('.claim').forEach(span => span.addEventListener('click', () => {
+          const claim = report.claims[Number(span.dataset.i)];
+          row.querySelectorAll('.evidence').forEach(el => el.remove());
+          const box = document.createElement('div');
+          box.className = 'evidence';
+          box.innerHTML = '<b>' + escapeHtml(TRUTH_WORDS[claim.label]) + '</b>' +
+            (claim.source
+              ? ' — <b>' + escapeHtml(claim.source) + '</b>: “' + escapeHtml(claim.evidence || '') + '”'
+              : ' — no passage in your documents mentions this.');
+          bar.after(box);
+          box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }));
       }
 
-      function addConfirmation(row, pendingId) {
-        const actions = el('div', 'actions');
-        const apply = el('button', 'primary', 'Apply changes');
-        const cancel = el('button', '', 'Cancel');
-        apply.addEventListener('click', () => {
-          apply.disabled = cancel.disabled = true;
-          apply.textContent = 'Applying…';
-          fetch('/api/apply', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pending_id: pendingId })
-          })
-          .then(async (res) => {
+      function runTruth(row, text, messageId) {
+        row.querySelectorAll('.check-btn').forEach(el => el.remove());
+        const bar = document.createElement('div');
+        bar.className = 'truth-bar';
+        bar.innerHTML = '<span class="muted">Checking each sentence against your documents…</span>';
+        row.appendChild(bar);
+        fetch('/api/truth', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ message_id: messageId }) })
+          .then(r => r.json())
+          .then(report => { if (report.error) throw new Error(report.error); renderTruth(row, text, report); })
+          .catch(err => { bar.innerHTML = '<span class="muted">Truth check failed: ' + escapeHtml(err.message) + '</span>'; });
+      }
+
+      function offerTruth(row, text, messageId) {
+        const btn = document.createElement('button');
+        btn.className = 'check-btn';
+        btn.textContent = '🔎 Check against my files';
+        btn.addEventListener('click', () => runTruth(row, text, messageId));
+        row.appendChild(btn);
+      }
+
+      function attachTruth(row, text, data, messageId) {
+        if (!messageId || data.task === 'system_agent' || data.model === 'pc-toolkit') return;
+        if (data.truth) renderTruth(row, text, data.truth);
+        else if (data.needs_rag || (data.sources && data.sources.length)) runTruth(row, text, messageId);
+        else offerTruth(row, text, messageId);
+      }
+
+      // -- ratings ---------------------------------------------------------------
+      const REASONS = ['wrong', 'too slow', 'too long', 'off-topic'];
+
+      function sendRating(messageId, rating, reason) {
+        return fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message_id: messageId, rating, reason: reason || null }) });
+      }
+
+      function addRating(row, messageId, current, currentReason) {
+        if (!messageId) return;
+        const box = document.createElement('div');
+        box.className = 'rate';
+        const up = document.createElement('button'), down = document.createElement('button');
+        up.textContent = '👍'; down.textContent = '👎';
+        up.title = 'Good answer'; down.title = 'Bad answer';
+        const reasons = document.createElement('div');
+        reasons.className = 'reasons';
+        function paint(rating, reason) {
+          up.classList.toggle('on', rating === 1);
+          down.classList.toggle('on', rating === -1);
+          reasons.innerHTML = '';
+          if (rating !== -1) return;
+          for (const r of REASONS) {
+            const b = document.createElement('button');
+            b.textContent = r;
+            b.classList.toggle('on', r === reason);
+            b.addEventListener('click', () => sendRating(messageId, -1, r).then(() => paint(-1, r)));
+            reasons.appendChild(b);
+          }
+        }
+        let state = current || 0;
+        up.addEventListener('click', () => { state = state === 1 ? 0 : 1; sendRating(messageId, state).then(() => paint(state)); });
+        down.addEventListener('click', () => { state = state === -1 ? 0 : -1; sendRating(messageId, state).then(() => paint(state)); });
+        box.append(up, down);
+        row.append(box, reasons);
+        paint(state, currentReason);
+      }
+
+      // -- council ---------------------------------------------------------------
+      function renderCouncil(row, c) {
+        const where = m => (m.local === false ? '🌐 ' : '💻 ') + m.model;
+        const used = c.members.filter(m => c.used.includes(m.model));
+        const box = document.createElement('div');
+        box.className = 'council';
+        const pctAgree = c.agreement === null ? null : Math.round(c.agreement * 100);
+        let html = '<div><b>How much the answers agree:</b> ' + (pctAgree === null ? '—' :
+          pctAgree + '%<span class="meter"><span style="width:' + pctAgree + '%"></span></span>' +
+          ' <span class="note" style="display:inline">(' + escapeHtml(c.agreement_method) + ')</span>') + '</div>';
+        if (c.agreements.length) {
+          html += '<h4>✅ They agree on</h4><ul>' + c.agreements.map(a => '<li>' + escapeHtml(a) + '</li>').join('') + '</ul>';
+        }
+        if (c.disagreements.length) {
+          html += '<h4>⚠️ They disagree on</h4><ul>' + c.disagreements.map(d => '<li>' + escapeHtml(d.point) +
+            Object.entries(d.positions).map(([k, v]) => '<div class="pos"><b>' +
+              escapeHtml(used[Number(k) - 1] ? where(used[Number(k) - 1]) : 'Answer ' + k) + ':</b> ' + escapeHtml(v) + '</div>').join('') +
+            '</li>').join('') + '</ul>';
+        } else if (c.judged) {
+          html += '<h4>⚠️ They disagree on</h4><p class="note">Nothing the judge thought worth flagging.</p>';
+        }
+        html += '<details><summary>Show the ' + c.members.length + ' individual answers</summary>' +
+          c.members.map(m => '<div class="member"><b>' + escapeHtml(where(m)) + '</b>' +
+            (m.error ? ' — failed: ' + escapeHtml(m.error) : (c.used.includes(m.model) ? '' : ' — fell back to a model already on the council')) +
+            '<div>' + escapeHtml(m.answer || '').replace(/\n/g, '<br>') + '</div></div>').join('') + '</details>';
+        box.innerHTML = html;
+        row.appendChild(box);
+      }
+
+      function councilSend(question, att) {
+        appendMessage('user', question, null, att && att.kind === 'image' ? { imageUrl: att.url } : null);
+        const waiting = appendMessage('assistant', '🏛️ The council is answering… (several models, then a judge)');
+        const body = {
+          question, chat_id: chatId, cloud_mode: $('cloudMode').value,
+          allow_docs: $('allowDocs').checked, allow_paid: $('allowPaid').checked
+        };
+        if (att && att.kind === 'image') body.images = [{ data: att.data, mime: att.mime }];
+        return fetch('/api/council', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+          .then(async res => {
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Request failed');
-            appendMessage('assistant', data.answer || 'Done.');
+            if (data.chat_id) chatId = data.chat_id;
+            if (!res.ok) throw new Error(data.error || 'Council failed');
+            waiting.remove();
+            showAnswer(data);
           })
-          .catch((err) => appendMessage('assistant', 'Could not apply: ' + err.message, 'error'))
-          .finally(() => actions.remove());
-        });
-        cancel.addEventListener('click', () => {
-          actions.remove();
-          appendMessage('assistant', 'Cancelled — nothing on disk changed.');
-        });
-        actions.append(apply, cancel);
-        row.appendChild(actions);
+          .catch(err => { waiting.querySelector('.text').textContent = '🏛️ Council: ' + err.message; });
       }
 
-      function send(question) {
-        if (!question) return;
-        appendMessage('user', question);
-        inputEl.value = '';
-        sendBtn.disabled = true;
-        sendBtn.textContent = 'Thinking…';
+      function showAnswer(data) {
+        const answerText = data.answer || 'No answer returned.';
+        const row = appendMessage('assistant', answerText, metaBadges(data),
+                                  data.info ? { note: 'ℹ️ ' + data.info } : null);
+        if (data.council) renderCouncil(row, data.council);
+        attachTruth(row, answerText, data, data.message_id);
+        if (data.model && data.model !== 'pc-toolkit') addRating(row, data.message_id);
+        return row;
+      }
 
-        fetch('/api/chat', {
+      // -- arena -----------------------------------------------------------------
+      function arenaSend(question, att) {
+        appendMessage('user', question, null, att && att.kind === 'image' ? { imageUrl: att.url } : null);
+        const battle = document.createElement('div');
+        battle.className = 'battle';
+        battle.innerHTML = '<div class="battle-title">⚔️ Arena — two models are answering…</div>';
+        messagesEl.appendChild(battle);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        const body = {
+          question, chat_id: chatId, cloud_mode: $('cloudMode').value,
+          allow_docs: $('allowDocs').checked, allow_paid: $('allowPaid').checked
+        };
+        if (att && att.kind === 'image') body.images = [{ data: att.data, mime: att.mime }];
+        return fetch('/api/arena', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+          .then(async res => {
+            const data = await res.json();
+            if (data.chat_id) chatId = data.chat_id;
+            if (!res.ok) throw new Error(data.error || 'Arena failed');
+            renderBattle(battle, data);
+          })
+          .catch(err => { battle.innerHTML = '<div class="battle-title">⚔️ Arena</div>' + escapeHtml(err.message); });
+      }
+
+      function renderBattle(el, data) {
+        el.innerHTML =
+          '<div class="battle-title">⚔️ Arena — which answer is better? (names hidden until you vote)</div>' +
+          (data.note ? '<div class="note">' + escapeHtml(data.note) + '</div>' : '') +
+          '<div class="battle-grid">' +
+          ['a', 'b'].map(k => '<div class="side" data-side="' + k + '"><div class="side-head">Answer ' + k.toUpperCase() +
+            '</div><div>' + escapeHtml(data[k].answer).replace(/\n/g, '<br>') + '</div></div>').join('') +
+          '</div><div class="votes">' +
+          '<button data-w="a">A is better</button><button data-w="b">B is better</button>' +
+          '<button class="secondary" data-w="tie">Tie</button><button class="secondary" data-w="both_bad">Both bad</button></div>';
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        el.querySelectorAll('.votes button').forEach(btn => btn.addEventListener('click', () => {
+          el.querySelectorAll('.votes button').forEach(b => b.disabled = true);
+          fetch('/api/arena/vote', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ battle_id: data.battle_id, winner: btn.dataset.w }) })
+            .then(r => r.json())
+            .then(v => {
+              if (v.error) throw new Error(v.error);
+              for (const k of ['a', 'b']) {
+                const side = el.querySelector('.side[data-side="' + k + '"]');
+                const where = v[k].provider === 'ollama' ? '💻' : '🌐';
+                side.querySelector('.side-head').textContent =
+                  'Answer ' + k.toUpperCase() + ' · ' + where + ' ' + v[k].model + (v.winner === k ? ' 🏆' : '');
+                side.classList.toggle('won', v.winner === k);
+              }
+              const words = { a: 'You picked A.', b: 'You picked B.', tie: 'You called it a tie.', both_bad: 'You marked both as bad.' };
+              el.querySelector('.votes').innerHTML = '<span class="note">' + words[v.winner] +
+                ' Saved to your leaderboard' + (v.winner === 'both_bad' ? '.' : '; the chat continues from that answer.') + '</span>';
+              refreshChats();
+            })
+            .catch(err => { el.querySelector('.votes').innerHTML = '<span class="note">Vote failed: ' + escapeHtml(err.message) + '</span>'; });
+        }));
+      }
+
+      // -- leaderboard -------------------------------------------------------------
+      function loadLeaderboard() {
+        const task = $('lbTask').value;
+        fetch('/api/leaderboard' + (task ? '?task=' + encodeURIComponent(task) : '')).then(r => r.json()).then(d => {
+          const s = d.summary;
+          $('lbSummary').textContent = s.battles + ' Arena votes · ' + s.ratings + ' 👍/👎 ratings · ' +
+            s.signals + ' corrections collected. Elo starts at 1000; beating a stronger model gains more. ' +
+            'A rating marked "settling" has fewer than 5 decided votes and can still move a lot.';
+          if (!d.rows.length) {
+            $('lbTable').innerHTML = '<p class="note">No votes yet' + (task ? ' for ' + escapeHtml(task) : '') +
+              '. Switch on ⚔️ Arena and compare a few answers.</p>';
+            return;
+          }
+          $('lbTable').innerHTML = '<table><thead><tr><th>#</th><th>Model</th><th class="num">Elo</th>' +
+            '<th class="num">Won</th><th class="num">Lost</th><th class="num">Tied</th><th class="num">Both bad</th>' +
+            '<th class="num">👍 approval</th></tr></thead><tbody>' +
+            d.rows.map((r, i) => '<tr><td>' + (i + 1) + '</td><td>' + (r.provider === 'ollama' ? '💻 ' : '🌐 ') +
+              escapeHtml(r.model) + '</td><td class="num"><b>' + r.elo.toFixed(0) + '</b>' +
+              (r.settled ? '' : '<div class="note">settling</div>') + '</td><td class="num">' + r.wins +
+              '</td><td class="num">' + r.losses + '</td><td class="num">' + r.ties + '</td><td class="num">' + r.both_bad +
+              '</td><td class="num">' + (r.approval === null ? '—' : Math.round(r.approval * 100) + '% of ' +
+              (r.thumbs_up + r.thumbs_down)) + '</td></tr>').join('') + '</tbody></table>';
+        });
+      }
+      function pct(x) { return x === null || x === undefined ? '—' : Math.round(x * 100) + '%'; }
+
+      function renderRouter(r) {
+        const m = r.meta;
+        $('routerSummary').innerHTML = 'Routing now with <b>' + escapeHtml(r.method === 'rules' ? 'keyword rules' : r.method) +
+          '</b>. Your feedback so far: ' + r.feedback.battles + ' Arena votes, ' + r.feedback.ratings +
+          ' ratings, ' + r.feedback.signals + ' corrections. Retraining takes seconds and only switches if the new router measures at least as well.';
+        if (!m) { $('routerTable').innerHTML = '<p class="note">No learned router yet — press Retrain now.</p>'; return; }
+        const g = m.metrics.golden;
+        const row = (name, x) => x ? '<tr><td>' + name + '</td><td class="num">' + pct(x.task_accuracy) + '</td><td class="num">' +
+          pct(x.docs_precision) + '</td><td class="num">' + pct(x.docs_recall) + '</td><td class="num">' + x.docs_false_alarms + '</td></tr>' : '';
+        const rows = Object.entries(m.heads).map(([h, info]) => h + ': ' + Object.entries(info.rows).map(([k, v]) => v + ' ' + k).join(' + ')).join(' · ');
+        let strong = '';
+        if (m.metrics.strong) {
+          const s = m.metrics.strong;
+          strong = '<p class="note">Strong-vs-weak head (when to use cloud): AUC ' + s.auc + ' on ' + s.held_out +
+            ' held-out votes; ' + pct(s.strong_calls_for_95pct) + ' strong calls reach 95% of all-strong quality. ' +
+            (s.passed ? 'In use.' : 'Not in use: no better than random.') + '</p>';
+        }
+        $('routerTable').innerHTML = '<table><thead><tr><th>On 140 held-out prompts</th><th class="num">Task accuracy</th>' +
+          '<th class="num">Docs precision</th><th class="num">Docs recall</th><th class="num">Docs false alarms</th></tr></thead><tbody>' +
+          row('Keyword rules', g.rules) + row('Learned ' + escapeHtml(m.version), g.new) + '</tbody></table>' +
+          '<p class="note">Trained on ' + escapeHtml(rows) + (m.use_embeddings ? ' (with MiniLM embeddings)' : ' (hashed word features)') + '.</p>' + strong;
+      }
+
+      function loadRouter() { fetch('/api/router').then(r => r.json()).then(renderRouter); }
+
+      $('retrainBtn').addEventListener('click', () => {
+        $('retrainBtn').disabled = true;
+        $('retrainBtn').textContent = 'Training…';
+        fetch('/api/router/train', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+          .then(r => r.json())
+          .then(r => {
+            if (r.error) throw new Error(r.error);
+            renderRouter(r);
+            const t = r.last_training;
+            $('routerSummary').innerHTML += '<br><b>Just trained ' + escapeHtml(t.version) + ':</b> ' +
+              (t.made_current ? 'at least as good on the held-out prompts, now in use.' : 'worse than the router in use on the held-out prompts, so it was kept aside.');
+          })
+          .catch(err => { $('routerSummary').textContent = 'Training failed: ' + err.message; })
+          .finally(() => { $('retrainBtn').disabled = false; $('retrainBtn').textContent = 'Retrain now'; });
+      });
+
+      // Arena and Council are two different ways to use several models: one at a time.
+      $('arenaMode').addEventListener('change', () => { if ($('arenaMode').checked) $('councilMode').checked = false; });
+      $('councilMode').addEventListener('change', () => { if ($('councilMode').checked) $('arenaMode').checked = false; });
+
+      $('leaderboardBtn').addEventListener('click', () => { $('lbOverlay').classList.add('open'); loadLeaderboard(); loadRouter(); });
+      $('lbClose').addEventListener('click', () => $('lbOverlay').classList.remove('open'));
+      $('lbTask').addEventListener('change', loadLeaderboard);
+
+      // -- background brain: inbox and study ----------------------------------------
+      function setCounts(unread, due) {
+        $('inboxCount').textContent = unread; $('inboxCount').classList.toggle('zero', !unread);
+        $('studyCount').textContent = due; $('studyCount').classList.toggle('zero', !due);
+      }
+
+      function miniMarkdown(text) {
+        const out = [];
+        let list = false;
+        for (const raw of escapeHtml(text || '').split('\n')) {
+          const line = raw.trim();
+          const li = /^[-*] /.test(line);
+          if (li && !list) { out.push('<ul>'); list = true; }
+          if (!li && list) { out.push('</ul>'); list = false; }
+          const inline = l => l.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\s)_(.+?)_(?=\s|$|[.,])/g, '$1<i>$2</i>');
+          if (li) out.push('<li>' + inline(line.slice(2)) + '</li>');
+          else if (line.startsWith('### ')) out.push('<h4>' + inline(line.slice(4)) + '</h4>');
+          else if (line.startsWith('## ')) out.push('<h3>' + inline(line.slice(3)) + '</h3>');
+          else if (line) out.push('<p>' + inline(line) + '</p>');
+        }
+        if (list) out.push('</ul>');
+        return out.join('');
+      }
+
+      const KIND_ICON = { indexed: '📚', digest: '🗞️', cards: '🃏', error: '⚠️' };
+
+      function loadInbox() {
+        return fetch('/api/inbox').then(r => r.json()).then(d => {
+          $('inboxList').innerHTML = d.items.length ? d.items.map(it =>
+            '<div class="inbox-item' + (it.read_at ? '' : ' unread') + '"><div class="inbox-title">' +
+            (KIND_ICON[it.kind] || '•') + ' ' + escapeHtml(it.title) +
+            ' <span class="note" style="display:inline">· ' + new Date(it.created_at * 1000).toLocaleString() + '</span></div>' +
+            '<div class="inbox-body">' + miniMarkdown(it.body) + '</div></div>').join('')
+            : '<p class="note">Nothing yet. Add or edit a file in documents/ and NEXUS will notice within a minute.</p>';
+          $('inboxCount').textContent = d.unread; $('inboxCount').classList.toggle('zero', !d.unread);
+        });
+      }
+
+      document.querySelectorAll('[data-brain]').forEach(btn => btn.addEventListener('click', () => {
+        const label = btn.textContent;
+        btn.disabled = true; btn.textContent = 'Working…';
+        fetch('/api/brain/run', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ action: btn.dataset.brain }) })
+          .then(r => r.json()).then(d => { setCounts(d.unread, d.stats.due); return loadInbox(); })
+          .finally(() => { btn.disabled = false; btn.textContent = label; });
+      }));
+      $('markRead').addEventListener('click', () =>
+        fetch('/api/inbox/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+          .then(loadInbox));
+
+      let studyQueue = [];
+      function loadStudy() {
+        return fetch('/api/study').then(r => r.json()).then(d => {
+          studyQueue = d.cards;
+          renderStudyStats(d.stats);
+          showCard();
+        });
+      }
+      function renderStudyStats(st) {
+        $('studyStats').textContent = st.total + ' flashcards · ' + st.verified + ' verified against their source · ' +
+          st.due + ' due now · ' + st.mastered + ' mastered. Know it and the card comes back later (1, 3, 7, 14 days); miss it and it comes back soon.';
+        $('studyCount').textContent = st.due; $('studyCount').classList.toggle('zero', !st.due);
+      }
+      function showCard() {
+        const c = studyQueue[0];
+        if (!c) {
+          $('studyCard').innerHTML = '<div class="card"><div class="q">Nothing due. 🎉</div>' +
+            '<div class="note">New notes in documents/ become flashcards automatically, or use “Flashcards from all my notes” in the Inbox.</div></div>';
+          return;
+        }
+        const verified = c.check_label === 'supported'
+          ? '<span class="badge local">✓ verified against ' + escapeHtml(c.source) + '</span>'
+          : '<span class="badge">unverified — not found word-for-word in ' + escapeHtml(c.source) + '</span>';
+        $('studyCard').innerHTML = '<div class="card">' + verified + ' <span class="badge">box ' + c.box + ' of 5</span>' +
+          '<div class="q">' + escapeHtml(c.question) + '</div><div id="cardBack"></div>' +
+          '<div class="panel-actions"><button id="reveal">Show answer</button></div></div>';
+        $('reveal').addEventListener('click', () => {
+          $('cardBack').innerHTML = '<div class="a">' + escapeHtml(c.answer) + '</div>' +
+            '<div class="evidence ev"><b>From ' + escapeHtml(c.source) + ':</b> “' + escapeHtml((c.evidence || '').slice(0, 300)) + '”</div>';
+          $('reveal').parentElement.innerHTML = '<button id="knew">I knew it</button><button class="secondary" id="missed">I didn\'t</button>';
+          const answer = knew => fetch('/api/study/answer', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ card_id: c.id, knew }) }).then(r => r.json())
+            .then(d => { studyQueue.shift(); renderStudyStats(d.stats); showCard(); });
+          $('knew').addEventListener('click', () => answer(true));
+          $('missed').addEventListener('click', () => answer(false));
+        });
+      }
+
+      $('inboxBtn').addEventListener('click', () => { $('inboxOverlay').classList.add('open'); loadInbox(); });
+      $('studyBtn').addEventListener('click', () => { $('studyOverlay').classList.add('open'); loadStudy(); });
+      document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => {
+        $(b.dataset.close).classList.remove('open');
+        if (b.dataset.close === 'inboxOverlay') fetch('/api/inbox/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+          .then(() => loadStatus(false));
+      }));
+      // The brain works in the background; keep the counts fresh.
+      setInterval(() => loadStatus(false), 30000);
+
+      function refreshChats() {
+        fetch('/api/chats').then(r => r.json()).then(chats => {
+          chatListEl.innerHTML = '';
+          if (!chats.length) {
+            chatListEl.innerHTML = '<div class="empty-note">No saved chats yet.</div>';
+            return;
+          }
+          for (const c of chats) {
+            const btn = document.createElement('button');
+            btn.className = 'chat-item' + (c.id === chatId ? ' active' : '');
+            btn.innerHTML = escapeHtml(c.title) +
+              '<small>' + new Date(c.updated * 1000).toLocaleString() + '</small>';
+            btn.addEventListener('click', () => openChat(c.id));
+            chatListEl.appendChild(btn);
+          }
+        }).catch(() => {});
+      }
+
+      function userNote(meta) {
+        if (!meta) return null;
+        if (meta.voice) return { note: '🎤 from a voice recording' };
+        if (meta.images) return { note: '📎 ' + meta.images + ' image' + (meta.images === 1 ? '' : 's') + ' attached' };
+        return null;
+      }
+
+      function openChat(id) {
+        fetch('/api/chats/' + id).then(r => r.json()).then(chat => {
+          chatId = chat.id;
+          messagesEl.innerHTML = '';
+          for (const m of chat.messages) {
+            if (m.role === 'user') appendMessage('user', m.content, null, userNote(m.meta));
+            else {
+              const row = appendMessage(m.role, m.content, m.meta ? metaBadges(m.meta) : null,
+                                        m.meta && m.meta.info ? { note: 'ℹ️ ' + m.meta.info } : null);
+              if (m.meta && m.meta.council) renderCouncil(row, m.meta.council);
+              if (m.meta) {
+                if (m.meta.truth) renderTruth(row, m.content, m.meta.truth);
+                else if (m.meta.model && m.meta.model !== 'pc-toolkit') offerTruth(row, m.content, m.id);
+                if (m.meta.model && m.meta.model !== 'pc-toolkit') addRating(row, m.id, m.meta.rating, m.meta.rating_reason);
+              }
+            }
+          }
+          refreshChats();
+        });
+      }
+
+      function newChat() {
+        chatId = null;
+        messagesEl.innerHTML = '';
+        appendMessage('assistant', WELCOME);
+        refreshChats();
+        inputEl.focus();
+      }
+
+      // -- attachments ---------------------------------------------------------
+      function setAttachment(a) {
+        attachment = a;
+        $('attachChip').style.display = a ? 'inline-flex' : 'none';
+        $('attachName').textContent = a ? (a.kind === 'image' ? '🖼️ ' : '🎤 ') + a.name : '';
+      }
+      $('attachBtn').addEventListener('click', () => $('fileInput').click());
+      $('attachClear').addEventListener('click', () => { setAttachment(null); $('fileInput').value = ''; });
+      $('fileInput').addEventListener('change', () => {
+        const file = $('fileInput').files[0];
+        if (!file) return;
+        const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('audio/') ? 'audio' : null;
+        if (!kind) { alert('Attach an image or an audio recording.'); return; }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const url = reader.result;
+          setAttachment({ kind, name: file.name, mime: file.type, data: url.split(',', 2)[1], url });
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // -- sending -------------------------------------------------------------
+      function applyPending(pendingId, button) {
+        button.disabled = true;
+        button.textContent = 'Applying...';
+        fetch('/api/apply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question })
+          body: JSON.stringify({ pending_id: pendingId, chat_id: chatId })
         })
         .then(async (res) => {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Request failed');
-          const row = appendMessage('assistant', data.answer || 'No answer returned.');
-          addMeta(row, data);
-          if (data.requires_confirmation && data.pending_id) addConfirmation(row, data.pending_id);
-          messagesEl.scrollTop = messagesEl.scrollHeight;
+          appendMessage('assistant', data.answer || 'Done.', null);
         })
-        .catch((err) => appendMessage('assistant', 'NEXUS could not answer: ' + err.message, 'error'))
+        .catch((err) => appendMessage('assistant', 'Could not apply: ' + err.message, null))
+        .finally(() => { button.remove(); refreshChats(); });
+      }
+
+      function send(question) {
+        const att = attachment;
+        if (!question && !att) return;
+        if ($('councilMode').checked && question && !(att && att.kind === 'audio')) {
+          inputEl.value = '';
+          setAttachment(null);
+          $('fileInput').value = '';
+          sendBtn.disabled = true;
+          sendBtn.textContent = 'Convening...';
+          councilSend(question, att).finally(() => {
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send';
+            refreshChats();
+            loadStatus(false);
+          });
+          return;
+        }
+        if ($('arenaMode').checked && question && !(att && att.kind === 'audio')) {
+          inputEl.value = '';
+          setAttachment(null);
+          $('fileInput').value = '';
+          sendBtn.disabled = true;
+          sendBtn.textContent = 'Comparing...';
+          arenaSend(question, att).finally(() => {
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send';
+            refreshChats();
+          });
+          return;
+        }
+        let userRow = null;
+        if (att && att.kind === 'audio') {
+          userRow = appendMessage('user', question || '🎤 transcribing…', null, { note: '🎤 ' + att.name });
+        } else {
+          userRow = appendMessage('user', question, null, att ? { imageUrl: att.url } : null);
+        }
+        inputEl.value = '';
+        setAttachment(null);
+        $('fileInput').value = '';
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Thinking...';
+
+        const body = {
+          question, chat_id: chatId,
+          cloud_mode: $('cloudMode').value,
+          allow_docs: $('allowDocs').checked,
+          allow_paid: $('allowPaid').checked
+        };
+        if (att && att.kind === 'image') body.images = [{ data: att.data, mime: att.mime }];
+        if (att && att.kind === 'audio') body.audio = { data: att.data, mime: att.mime, name: att.name };
+
+        fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        })
+        .then(async (res) => {
+          const data = await res.json();
+          if (data.chat_id) chatId = data.chat_id;
+          if (!res.ok) throw new Error(data.error || 'Request failed');
+          if (data.transcript && userRow) {
+            userRow.querySelector('.text').innerHTML = escapeHtml(data.transcript);
+          }
+          // Auto-picked, never chosen by the user — show what answered, where, and why.
+          showAnswer(data);
+          if (data.requires_confirmation && data.pending_id) {
+            // Nothing has changed on disk yet. The id is single-use and
+            // issued by this server for this preview only.
+            const applyBtn = document.createElement('button');
+            applyBtn.textContent = 'Apply changes';
+            applyBtn.style.marginTop = '10px';
+            applyBtn.addEventListener('click', () => applyPending(data.pending_id, applyBtn));
+            messagesEl.lastChild.appendChild(applyBtn);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
+        })
+        .catch((err) => {
+          appendMessage('assistant', 'NEXUS could not answer: ' + err.message, null);
+        })
         .finally(() => {
           sendBtn.disabled = false;
           sendBtn.textContent = 'Send';
-          inputEl.focus();
+          refreshChats();
+          loadStatus(false);
         });
       }
 
-      sendBtn.addEventListener('click', () => send(inputEl.value.trim()));
+      function ask() {
+        send(inputEl.value.trim());
+      }
+
+      sendBtn.addEventListener('click', ask);
+      $('newChatBtn').addEventListener('click', newChat);
       inputEl.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' && !event.shiftKey) {
-          event.preventDefault();
-          send(inputEl.value.trim());
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          ask();
         }
       });
 
-      appendMessage('assistant', 'Ask about your documents, a coding problem, a decision — or ask me to tidy a folder. Everything runs on this PC.');
+      loadStatus(true);
+      newChat();
     </script>
   </body>
 </html>

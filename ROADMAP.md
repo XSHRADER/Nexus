@@ -1,41 +1,75 @@
 # NEXUS versions
 
-Every version of NEXUS in one place: what has shipped and what is planned.
-Details of shipped versions are in [CHANGELOG.md](CHANGELOG.md).
+Version control for the `main` branch: every released version, what each one
+contains, and what comes next. The detail of each release is in
+[CHANGELOG.md](CHANGELOG.md).
 
-## All versions
+## Released versions
 
-| Version | Status | Date | Theme | What it adds |
-|---|---|---|---|---|
-| **0.1.0** | Released | 2026-09-06 | First version | Local document search (vector + keyword), task router, Streamlit UI, PC tools, one-command start |
-| **0.2.0** | Released | 2026-09-20 | Hardening | Security fix for the local server, saved chats, conversation history, streaming with Stop |
-| **0.3.0** | Released | 2026-10-06 | Restructure and UI | `nexus` package, central config, terminal chat, multipage dark UI, CI on Windows |
-| **0.4.0** | Released | 2026-10-10 | Router and versions | Router trained on 285 examples (62% to 89% accuracy), version labels, changelog, release workflow |
-| **1.0.0** | Next | | Complete local assistant | Rewritten README, refreshed demo documents and test questions, router learns from real questions |
-| **1.1.0** | Planned | | Settings and memory | One settings file (`nexus.toml`), longer conversation memory |
-| **1.2.0** | Planned | | Truth check | Each sentence of an answer is checked against your documents and marked supported, not found or contradicted |
-| **1.3.0** | Planned | | Ratings and Arena | Rate answers, compare two models blind, personal model leaderboard |
-| **1.4.0** | Planned | | Learned router | The router trains on your ratings and only replaces the rules when it measures better |
-| **2.0.0** | Planned | | Optional cloud | Cloud models for hard questions (off by default), image and voice input |
-| **2.1.0** | Planned | | Model council | Several models answer, a judge merges them and shows where they disagree |
-| **2.2.0** | Planned | | Background brain | Watches your folders, keeps an inbox and daily digest, makes checked flashcards |
+Each row is a git tag on `main` and a GitHub release. The tests column is the
+size of the test suite at that tag; every one passed on GitHub before tagging.
 
-## Planned versions in detail
+| Version | Status | Date | Tag | Tests | Theme |
+|---|---|---|---|---|---|
+| **0.1.0** | Released | 2026-09-06 | [v0.1.0](https://github.com/XSHRADER/Nexus/releases/tag/v0.1.0) | 73 | First version: local document search, task router, UI, PC tools |
+| **0.2.0** | Released | 2026-09-20 | [v0.2.0](https://github.com/XSHRADER/Nexus/releases/tag/v0.2.0) | 133 | Hardening: server security fix, saved chats, history, streaming |
+| **0.3.0** | Released | 2026-10-06 | [v0.3.0](https://github.com/XSHRADER/Nexus/releases/tag/v0.3.0) | 172 | Restructure: `nexus` package, terminal chat, multipage dark UI |
+| **0.4.0** | Released | 2026-10-10 | [v0.4.0](https://github.com/XSHRADER/Nexus/releases/tag/v0.4.0) | 179 | Router trained on 285 examples; version labels and release workflow |
+| **0.5.0** | Released | 2026-10-10 | [v0.5.0](https://github.com/XSHRADER/Nexus/releases/tag/v0.5.0) | 328 | Feature merge: cloud, truth check, Arena, learned router, council, brain |
 
-| Version | Goal | Done when | Starting point |
+## What each version contains
+
+A filled cell is the version a capability arrived in; it is in every later
+version too.
+
+| Capability | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 |
+|---|:-:|:-:|:-:|:-:|:-:|
+| Answers from your documents (vector + keyword search, re-ranked) | ● | ● | ● | ● | ● |
+| Picks a local model per question | ● | ● | ● | ● | ● |
+| PC tools: organize, duplicates, large files, undo | ● | ● | ● | ● | ● |
+| Streamlit UI and a dependency-free web UI | ● | ● | ● | ● | ● |
+| Measured retrieval quality | ● | ● | ● | ● | ● |
+| Local server refuses requests from other websites |  | ● | ● | ● | ● |
+| Saved chats and conversation memory |  | ● | ● | ● | ● |
+| Streaming answers with Stop |  | ● | ● | ● | ● |
+| Uses installed models outside the catalogue |  | ● | ● | ● | ● |
+| Terminal chat (`python -m nexus`) |  |  | ● | ● | ● |
+| Multipage dark UI with live progress and per-answer details |  |  | ● | ● | ● |
+| One config module; tests isolated from your data; CI on Windows |  |  | ● | ● | ● |
+| Router trained on labelled examples, with a measured score |  |  |  | ● | ● |
+| Version labels, changelog, automatic GitHub releases |  |  |  | ● | ● |
+| Settings file (`nexus.toml`) and memory budget |  |  |  |  | ● |
+| Optional cloud models (off by default), with privacy rules |  |  |  |  | ● |
+| Image and voice input |  |  |  |  | ● |
+| Truth check against your documents |  |  |  |  | ● |
+| Ratings, Arena and a personal leaderboard |  |  |  |  | ● |
+| Learned router with a measured gate |  |  |  |  | ● |
+| Model council with a judge |  |  |  |  | ● |
+| Background brain: folder watcher, inbox, digest, flashcards |  |  |  |  | ● |
+
+## Measured at each version
+
+| Measure | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 |
+|---|---|---|---|---|---|
+| Tests | 73 | 133 | 172 | 179 | 328 |
+| Routing accuracy, rules and examples (150 held-out prompts) | — | — | 62.0% | 89.3% | 89.3% |
+| Routing accuracy, learned router (100 held-out prompts) | — | — | — | — | 99.0% |
+| Retrieval: answer found in the top 5 passages (18 questions) | 94.4% | 94.4% | 94.4% | 94.4% | 94.4% |
+| Truth check accuracy, given the passage (60 labelled claims) | — | — | — | — | 85.0% |
+
+"—" means the measurement did not exist yet. The two routing rows use
+different test sets, so they are not directly comparable; on the 100-prompt
+set the rules and examples score 91.0%.
+
+## Next versions
+
+| Version | Status | Goal | Done when |
 |---|---|---|---|
-| **1.0.0** | NEXUS can be called complete as a local, private assistant | README describes the current app; demo documents and the 18 retrieval questions match the current project and the retrieval score is re-measured; the router log saves the question text so misroutes can become new examples; CI green on Ubuntu and Windows | Open items in `docs/PROGRESS.md` |
-| **1.1.0** | Settings in one file instead of environment variables | `nexus.toml` is read at start, with an example file; long chats keep their earliest context | Phase 0 on `nexus-features` |
-| **1.2.0** | You can see which parts of an answer your documents back up | Truth check runs in both UIs with evidence excerpts and a measured accuracy | Phase 2 on `nexus-features` |
-| **1.3.0** | You can tell which model is best for you | Thumbs up/down are stored; Arena hides model names until you pick; leaderboard page | Phase 3 on `nexus-features` |
-| **1.4.0** | Routing improves from your own use | Trained router beats the rule-based one on the held-out set before it is switched on | Phase 4 on `nexus-features` |
-| **2.0.0** | Hard questions can use stronger models, if you allow it | Cloud is off by default; document questions and PC actions stay local unless allowed; daily limits per provider; image and voice input work | Phase 1 on `nexus-features` |
-| **2.1.0** | A second opinion on questions that matter | Council runs on demand with an agreement score and a disagreement map | Phase 5 on `nexus-features` |
-| **2.2.0** | NEXUS works while you are away | Folder watcher, inbox, digest and flashcards, all switchable off | Phase 6 on `nexus-features` |
+| **1.0.0** | Next | NEXUS can be called complete | The demo documents and the 18 retrieval questions describe the current project and retrieval is re-measured; each cloud provider has been tried with a real key; the router log keeps the question text so misroutes can become examples; no known data-loss bug after a week of real use |
+| **1.1.0** | Idea | Learns from real use | The learned router's "needs a strong model" head trains on your own Arena votes once there are enough; misrouted questions can be turned into examples from the UI |
+| **1.2.0** | Idea | Scales to a bigger library | Retrieval measured on a corpus large enough for the numbers to discriminate; indexing speed measured |
 
-The `nexus-features` branch already has working code for 1.1.0 to 2.2.0, but
-on the old flat file layout. Each version above means porting one phase onto
-the `nexus` package on `main`, with its tests.
+Ideas are not commitments; they are listed so they are not lost.
 
 ## How versions are numbered
 
@@ -43,18 +77,28 @@ the `nexus` package on `main`, with its tests.
 
 | Part | Goes up when | Example |
 |---|---|---|
-| MAJOR | What NEXUS *is* changes, or old settings or data stop working | 2.0.0 lets questions leave the PC for the first time |
-| MINOR | A new feature is added and everything old still works | 1.2.0 adds the truth check |
-| PATCH | Only fixes, no new features | 1.2.1 fixes a crash |
+| MAJOR | Old settings or saved data stop working, or what NEXUS is changes | 2.0.0 if the database had to be rebuilt |
+| MINOR | A new feature is added and everything old still works | 0.5.0 added cloud models, off by default |
+| PATCH | Only fixes, no new features | 0.5.1 would fix a crash |
 
 Versions before 1.0.0 are development versions: usable, but not yet called
 complete.
 
+## Branches
+
+| Branch | What it is |
+|---|---|
+| `main` | The released line. Every tag above is on it. Tests must pass on GitHub before a tag. |
+| anything else | Work in progress. It reaches `main` by a merge once its tests pass there. |
+
+`nexus-features` was the branch the 0.5.0 features were built on. It is fully
+merged into `main` and kept only as history.
+
 ## How to release a version
 
 1. Set the new number in `pyproject.toml` and `nexus/__init__.py`.
-2. Add a section for it at the top of `CHANGELOG.md`, and move its row in the
-   table above to "Released" with the date.
+2. Add a section for it at the top of `CHANGELOG.md`, and add its row and
+   column to the tables above.
 3. Commit, push `main`, and wait for the tests to pass on GitHub.
 4. Tag and push the tag:
 

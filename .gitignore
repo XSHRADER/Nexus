@@ -27,6 +27,14 @@ vector_store_legacy/
 # Local tool state
 .playwright-mcp/
 
+# Personal settings (copy nexus.toml.example to start)
+nexus.toml
+
+# Trained routers (rebuilt by `python run.py --train`) and downloaded public data
+models/
+train/data/arena55k_strong.jsonl
+train/data/arena55k_strong.info.json
+
 # OS / editor
 .DS_Store
 Thumbs.db

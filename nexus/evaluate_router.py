@@ -57,7 +57,7 @@ def main() -> int:
     parser.add_argument("--quiet", action="store_true", help="Print the summary only.")
     args = parser.parse_args()
 
-    router = TaskRouter()
+    router = TaskRouter(use_learned=False)  # the rules and examples, not a trained router
     result = evaluate(router, load_set())
 
     exemplars = sum(len(v) for v in router.CATEGORY_EXAMPLES.values())

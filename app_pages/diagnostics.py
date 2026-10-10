@@ -4,7 +4,7 @@ import json
 
 import streamlit as st
 
-from nexus import config, ingest, providers, store, ui
+from nexus import cloud, config, ingest, providers, store, ui
 
 TAIL_BYTES = 64 * 1024
 
@@ -36,6 +36,44 @@ with st.container(horizontal=True):
 if not installed:
     st.warning(f"Ollama isn't answering at `{config.OLLAMA_URL}`. Start it with `ollama serve`, "
                "or set `NEXUS_OLLAMA_URL` if it runs elsewhere.", icon=":material/power_off:")
+
+# -- cloud --------------------------------------------------------------------
+st.markdown("##### Cloud providers")
+cloud_status = avail.get("cloud") or {}
+st.caption(
+    f"Cloud is **{st.session_state.opt_cloud.lower()}** (change it in Chat → Answer settings). "
+    "Keys come from `.env`; limits and extra models from `nexus.toml`; the model list from "
+    "`cloud_models.toml`. Nothing on this page makes a network call except the button."
+)
+if cloud_status:
+    st.dataframe(
+        [
+            {
+                "provider": cloud.PROVIDERS[p]["label"],
+                "status": info["status"].replace("_", " "),
+                "today": f"{info['used']}/{info['limit'] or '∞'}",
+                "detail": info["detail"],
+                "models": ", ".join(spec.name for spec in cloud.cloud_specs() if spec.provider == p),
+            }
+            for p, info in cloud_status.items()
+        ],
+        hide_index=True,
+    )
+if st.button("Check model names with each provider", icon=":material/rule:", key="verify_cloud"):
+    with st.spinner("Asking providers which models they serve…"):
+        report = cloud.verify_models()
+    if not report:
+        st.info("No provider keys are set, so there is nothing to check.", icon=":material/key_off:")
+    for prov, r in report.items():
+        label = cloud.PROVIDERS[prov]["label"]
+        if r["error"]:
+            st.error(f"{label}: {r['error']}", icon=":material/error:")
+        elif r["missing"]:
+            st.warning(f"{label}: not served any more → {', '.join(r['missing'])}. "
+                       "Update `cloud_models.toml` or `nexus.toml`.", icon=":material/warning:")
+        else:
+            st.success(f"{label}: all {len(r['ok'])} configured model(s) found.",
+                       icon=":material/check_circle:")
 
 # -- performance --------------------------------------------------------------
 st.markdown("##### Models")
@@ -112,7 +150,11 @@ with st.expander("Configuration", icon=":material/settings:"):
         "documents": str(config.DOCS_DIR),
         "index": str(config.INDEX_DIR),
         "database": str(config.db_path()),
+        "settings_file": str(config.TOML_FILE) + ("" if config.TOML_FILE.exists() else " (not present: defaults)"),
+        "trained_routers": str(config.MODELS_DIR),
         "log_file": str(config.APP_LOG),
         "index_settings": ingest.index_config(),
     })
-    st.caption("Override any of these with the NEXUS_* environment variables listed in `nexus/config.py`.")
+    st.caption("Override the paths with the NEXUS_* environment variables listed in "
+               "`nexus/config.py`; behaviour (memory, cloud, truth check, router, council, "
+               "background brain) lives in `nexus.toml` — copy `nexus.toml.example` to start.")

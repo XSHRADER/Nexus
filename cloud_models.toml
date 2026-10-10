@@ -1,0 +1,98 @@
+# Cloud models NEXUS can route to when cloud is switched on.
+#
+# Providers rename and retire models often, so names live here rather than in
+# code. The Diagnostics tab has a "Check model names" button that asks each
+# provider (whose key is set) which models it serves and flags any name below
+# that no longer exists. To change or add models without editing this file,
+# add [[cloud.models]] entries to nexus.toml: an entry with the same `name`
+# replaces the one here.
+#
+# Fields
+#   name        exact model ID the provider expects
+#   provider    gemini | groq | openrouter | deepseek | mistral
+#   cost        free  - the provider has a free tier
+#               cheap - billed per token, low price
+#               paid  - billed per token; only used when allow_paid = true
+#   modalities  what it accepts: "text", "image"
+#   quality     0..1, capability on hard prompts
+#   speed       0..1, responsiveness
+#   context     context window in tokens
+#   strengths   task -> 0..1 fit; a task left out means "never route it here"
+#
+# Scores are on the same scale as the local models in providers.py, so local
+# and cloud models compete on one table.
+
+[[model]]
+name = "gemini-3.7-flash"
+provider = "gemini"
+cost = "free"
+modalities = ["text", "image"]
+quality = 0.84
+speed = 0.86
+context = 1000000
+note = "fast all-rounder, reads images, very long context"
+strengths = { general = 0.90, coding = 0.82, reasoning = 0.84, planning = 0.84, vision = 0.92 }
+
+[[model]]
+name = "openai/gpt-oss-120b"
+provider = "groq"
+cost = "free"
+modalities = ["text"]
+quality = 0.82
+speed = 0.97
+context = 131072
+note = "very fast on Groq hardware"
+strengths = { general = 0.88, coding = 0.82, reasoning = 0.84, planning = 0.82 }
+
+[[model]]
+name = "openai/gpt-oss-20b"
+provider = "groq"
+cost = "free"
+modalities = ["text"]
+quality = 0.70
+speed = 0.99
+context = 131072
+note = "fastest option for quick chat"
+strengths = { general = 0.84, coding = 0.70, reasoning = 0.68, planning = 0.66 }
+
+[[model]]
+name = "deepseek-reasoner"
+provider = "deepseek"
+cost = "cheap"
+modalities = ["text"]
+quality = 0.88
+speed = 0.40
+context = 128000
+note = "the big version of local deepseek-r1"
+strengths = { reasoning = 0.92, planning = 0.88, coding = 0.86, general = 0.70 }
+
+[[model]]
+name = "deepseek-chat"
+provider = "deepseek"
+cost = "cheap"
+modalities = ["text"]
+quality = 0.80
+speed = 0.75
+context = 128000
+strengths = { general = 0.85, coding = 0.86, reasoning = 0.78, planning = 0.76 }
+
+[[model]]
+name = "mistral-large-latest"
+provider = "mistral"
+cost = "free"
+modalities = ["text", "image"]
+quality = 0.80
+speed = 0.72
+context = 128000
+strengths = { general = 0.86, coding = 0.80, reasoning = 0.78, planning = 0.78, vision = 0.80 }
+
+[[model]]
+name = "openrouter/auto"
+provider = "openrouter"
+cost = "paid"
+modalities = ["text", "image"]
+quality = 0.86
+speed = 0.70
+context = 128000
+note = "OpenRouter picks a model per request"
+strengths = { general = 0.88, coding = 0.86, reasoning = 0.86, planning = 0.86, vision = 0.84 }

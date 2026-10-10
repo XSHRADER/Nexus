@@ -8,6 +8,7 @@ One entry point that takes NEXUS from a fresh clone to an answering app.
     python run.py --test     run the test suite (and lint, if ruff is installed)
     python run.py --server   launch the dependency-free HTTP UI instead
     python run.py --rebuild  force a full re-index first
+    python run.py --train    retrain the learned router, then exit
 
 Every step prints pass/fail and the exact command that fixes a failure, so a
 broken setup says what is wrong instead of stack-tracing out of Streamlit.
@@ -175,6 +176,29 @@ def check_index() -> bool:
     return _print(count > 0, f"index holds {count} chunk(s)", "python -m nexus.ingest --rebuild")
 
 
+def check_router() -> bool:
+    """Train the learned router on first start (seconds); otherwise report it."""
+    from nexus import learned_router
+
+    meta = learned_router.current_meta()
+    if meta is None:
+        print("\n-- training the router (first start) --")
+        try:
+            from train.train_router import main as train_main
+
+            report = train_main([])
+        except Exception as exc:
+            return _print(False, f"router training failed: {exc}", "python run.py --train")
+        meta = learned_router.current_meta()
+        if meta is None:
+            return _print(False, f"router {report['version']} didn't pass its gate; "
+                                 "keyword rules stay in charge", "python -m nexus.evaluate_learned_router")
+    golden = meta["metrics"]["golden"]
+    return _print(True, f"learned router {meta['version']}: task accuracy "
+                        f"{golden['new']['task_accuracy']:.0%} vs rules "
+                        f"{golden['rules']['task_accuracy']:.0%} on held-out prompts")
+
+
 def smoke_test() -> bool:
     """Prove the whole path works: retrieve -> prompt -> local model -> text."""
     from nexus.engine import Options, answer
@@ -216,6 +240,7 @@ def preflight(
     docs_ok = check_documents()
     index_built = build_index(rebuild)
     index_ok = check_index()
+    check_router()
     smoke_ok = smoke_test() if (with_smoke and ollama_ok and index_ok) else True
     can_start = index_ok
     return can_start, can_start and ollama_ok and docs_ok and index_built and smoke_ok
@@ -260,6 +285,8 @@ def main() -> int:
     parser.add_argument("--test", action="store_true", help="Run lint and the test suite, then exit.")
     parser.add_argument("--server", action="store_true", help="Use the plain HTTP UI.")
     parser.add_argument("--rebuild", action="store_true", help="Force a full re-index.")
+    parser.add_argument("--train", action="store_true",
+                        help="Retrain the learned router from seed data and your feedback, then exit.")
     parser.add_argument("--no-serve", action="store_true",
                         help="Do not start Ollama automatically if it is not running.")
     parser.add_argument("--pull", action="store_true",
@@ -268,6 +295,11 @@ def main() -> int:
 
     if args.test:
         return run_tests()
+    if args.train:
+        from train.train_router import main as train_main
+
+        report = train_main([])
+        return 0 if report["made_current"] else 1
 
     can_start, all_clear = preflight(
         rebuild=args.rebuild,

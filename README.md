@@ -147,7 +147,12 @@ the same features without Streamlit.
 
 ---
 
-## Cloud models (optional, off by default)
+## Cloud models (optional, off by default, experimental)
+
+> **Experimental.** Everything in this section is tested against a stand-in
+> for the providers, not against the real services with real keys. Expect
+> rough edges the first time you switch it on, such as a model name a provider
+> has since renamed (Diagnostics has a button that checks them).
 
 NEXUS runs fully on this PC until you switch cloud on. With it on, cloud
 models compete with your local ones on the same scores, and NEXUS still picks
@@ -241,11 +246,11 @@ that change names and meanings rather than only numbers):
 | checker | mode | accuracy | macro-F1 | contradictions caught |
 |---|---|---|---|---|
 | keyword (baseline) | given passage | 0.533 | 0.490 | 0.150 |
-| keyword (baseline) | end to end | 0.533 | 0.506 | 0.200 |
-| **NLI** `nli-deberta-v3-small` | given passage | **0.850** | **0.851** | **0.950** |
-| **NLI** `nli-deberta-v3-small` | end to end | 0.750 | 0.754 | 0.700 |
+| keyword (baseline) | end to end | 0.467 | 0.442 | 0.150 |
+| **NLI** `nli-deberta-v3-small` | given passage | **0.833** | **0.836** | **0.900** |
+| **NLI** `nli-deberta-v3-small` | end to end | 0.767 | 0.770 | 0.750 |
 
-The NLI model catches 19 of 20 contradictions where keyword matching catches
+The NLI model catches 18 of 20 contradictions where keyword matching catches
 3, because most contradictions here change a name or a meaning (FAISS for
 Chroma, "requires a GPU") rather than a number. Its errors lean cautious: 5 of
 20 true statements came back *not found* (it hesitates when the supporting
@@ -485,34 +490,30 @@ chunker-agnostic and so stays comparable when chunk sizes change).
 
 | configuration | recall@1 | recall@5 | MRR | grounded@5 |
 |---|---|---|---|---|
-| dense only (vector) | 0.833 | 0.889 | 0.861 | 0.889 |
-| BM25 only (keyword) | 0.333 | 0.778 | 0.500 | 0.722 |
-| hybrid, RRF fusion | 0.667 | 0.944 | 0.782 | 0.889 |
-| hybrid + cross-encoder | 0.556 | **1.000** | 0.733 | **0.944** |
+| dense only (vector) | 0.556 | **1.000** | 0.755 | 0.889 |
+| BM25 only (keyword) | 0.389 | 0.944 | 0.594 | 0.833 |
+| hybrid, RRF fusion | **0.722** | **1.000** | **0.861** | **0.944** |
+| hybrid + cross-encoder | **0.722** | **1.000** | 0.847 | 0.889 |
 
-Reranking buys recall@5 and groundedness and costs recall@1, where dense
-retrieval on its own is still the sharpest. Both arms earn their keep: BM25
-alone is much weaker, but it recovers questions the vector arm misses.
+Fusing the two arms is what earns its keep: the hybrid rows put the right file
+first far more often than either arm alone. On this corpus the cross-encoder
+adds nothing on top of fusion at five passages. At the app's default depth of
+ten passages, the full pipeline's context contains the answer for all 18
+questions.
 
-**What this corpus cannot tell you.** It is 2,835 words. At `top_k=5` a query
-hands back roughly a sixth of everything indexed, so recall@5 saturates and the
-pre-fix index scores just as well — run `python -m nexus.evaluate --legacy` to see
-that side by side. The honest reading is that the chunking change is a
-*correctness* fix, not a measured quality win at this scale: a 490-token chunk
-is simply not represented by a 256-token embedding. Making these numbers
-discriminate needs a bigger corpus, not a better reranker.
+**What this corpus cannot tell you.** It is about 2,700 words in 28 chunks. At
+`top_k=5` a query hands back roughly a sixth of everything indexed, so recall@5
+saturates, and one question is one eighteenth of every score. Making these
+numbers discriminate needs a bigger corpus, not a better reranker. Run
+`python -m nexus.evaluate --legacy` to compare with the index as it was built
+before chunks were sized in tokens: at this scale it scores about the same,
+which is why that change is a *correctness* fix, not a measured quality win.
 
-It is also why these numbers move when the corpus does. With only 31 chunks,
+It is also why these numbers move when the corpus does. With so few chunks,
 adding, removing or editing one small file shifts BM25's corpus-wide term
 statistics enough to flip a near-tie between a question's first and second
 hits, even for questions that share no words with the edit. The table above
 was measured on the documents as they are in this version.
-
-The eval did produce one directly actionable result. Token-sized chunks carry
-about a quarter of what the old ones did, so `top_k=5` was feeding the model
-1096 context tokens where it used to get 1950, and `grounded@5` fell to 0.944.
-At `top_k=10` it receives 2190 tokens and returns to 1.000 — so retrieval depth
-now defaults to 10. Retrieval depth has to follow chunk size.
 
 ---
 

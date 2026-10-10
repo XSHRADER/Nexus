@@ -164,12 +164,11 @@ Done:
   `requirements-dev.txt` adds ruff.
 - CI: separate lint job; tests run with one command on Ubuntu *and* Windows.
 
-Remaining:
-- Refresh the demo knowledge base in `documents/` so it describes the current
-  project, update the golden set (q07 asks about `program_info/`, q15 expects
-  `ingest.py`), then re-run `python -m nexus.evaluate`.
-- Note: `data/router_logs.jsonl` still contains decisions from earlier test
-  runs (model names `a`/`b`); safe to delete.
+Remaining after 1.0.0:
+- Cloud providers have only been exercised against `demos/mock_cloud.py`. Try
+  each with a real key (version 1.1.0).
+- `data/router_logs.jsonl` still contains decisions from earlier test runs
+  (model names `a`/`b`); safe to delete.
 
 ### Router training data (2026-10-08)
 - Exemplars moved out of code into `nexus/router_examples.json`: 17 -> 285
@@ -208,3 +207,17 @@ into `main`. Not a textual merge: both sides had rewritten `engine`, `server`,
   the remaining 100.
 - Tests 179 -> 328, lint clean. Checked in the browser against real Ollama:
   a document question (truth check 100%, NLI), every page, and the plain web UI.
+
+### Version 1.0.0 (2026-10-10)
+- `documents/` refreshed to describe the current project: the user guide,
+  project info and file layout rewritten; stale lines in the model map and
+  checklist corrected; later milestones appended to the action log.
+- Test sets updated to match: q07 and q15 in `eval/golden_set.json`, seven
+  claims in `eval/claims_golden.json`. Re-measured: hybrid + cross-encoder
+  grounded@5 0.889 (q05, q13 miss), 1.000 at top_k=10; truth check 0.833
+  given passage, 0.767 end to end.
+- Routing log keeps the first 500 characters of the question.
+- Arena and Council run live against real Ollama models (they had only been
+  run in tests). Found on the way: with Ollama down they asked for "another
+  model" instead of saying nothing was reachable. Fixed.
+- Tests 328 -> 329.

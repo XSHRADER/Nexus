@@ -27,6 +27,10 @@ log = logging.getLogger(__name__)
 
 LOG_MAX_BYTES = 5 * 1024 * 1024
 LOG_BACKUPS = 3
+# How much of each question the routing log keeps. The log stays on this PC
+# (data/router_logs.jsonl); the text is what lets a misrouted question be
+# found later and turned into a labelled example.
+LOG_QUERY_CHARS = 500
 
 EXAMPLES_FILE = Path(__file__).with_name("router_examples.json")
 
@@ -384,7 +388,7 @@ class TaskRouter:
                 + (top["reason"] if top else "no model reachable")
             ),
         }
-        self.logger.log(decision)
+        self.logger.log(dict(decision, query=query[:LOG_QUERY_CHARS]))
         return decision
 
 

@@ -10,8 +10,8 @@ JOB: Embed document chunks and user questions for retrieval
 TASKS:
 - Convert TXT, MD, PDF, and DOCX content into vector embeddings.
 - Convert each user query into embeddings for semantic matching.
-- Support the hybrid retrieval flow in ingest.py and retrieve.py.
-USED BY: ingest.py, retrieve.py, router.py
+- Support the hybrid retrieval flow in nexus/ingest.py and nexus/retrieve.py.
+USED BY: ingest.py, retrieve.py, router.py, learned_router.py
 RUNTIME: Python virtual environment in Nexus/nexus-env (CPU)
 INSTALL STATUS: installed and verified working
 VERIFICATION: SentenceTransformer('all-MiniLM-L6-v2') loaded successfully.
@@ -22,19 +22,20 @@ JOB: Generate the final answer after retrieval or direct routing
 TASKS:
 - Read the retrieved context and answer grounded questions.
 - Respond to the interactive NEXUS chatbot loop.
-- Produce the final answer in rag_pipeline.py and the browser UI.
-USED BY: rag_pipeline.py, router.py, server.py, app.py
+- Produce the final answer in the chat interface and the terminal chat.
+USED BY: engine.py, server.py, app.py
 RUNTIME: Ollama at http://localhost:11434 (GPU acceleration when available)
 INSTALL STATUS: available on the machine; backend must be running before chat requests succeed
-VERIFICATION: the app can reach the router and UI, but the local generation request fails until Ollama is started.
+VERIFICATION: python run.py --check asks a test question and prints the answer.
 
 MODEL 3: router task classifier
-TYPE: lightweight local rule + embedding router
+TYPE: lightweight local router: a trained classifier, with keyword rules and labelled examples as the fallback
 JOB: Choose the best model family for a user request
 TASKS:
 - Route general/chat requests to general-purpose models.
 - Route coding queries to coding specialists.
-- Route reasoning queries to reasoning models.
+- Route reasoning and planning queries to reasoning models.
+- Route folder requests to the built-in PC toolkit, which uses no model.
 - Trigger local document retrieval when the prompt references project knowledge or personal files.
 USED BY: router.py and the browser/UI flow
 RUNTIME: Python virtual environment in Nexus/nexus-env
@@ -46,20 +47,24 @@ JOB TO MODEL SUMMARY
 - Question embedding / retrieval -> all-MiniLM-L6-v2
 - Final answer generation -> llama3.1:8b
 - Query classification -> local NEXUS router
+- Truth check -> cross-encoder/nli-deberta-v3-small (CPU)
+- Reranking retrieved passages -> cross-encoder/ms-marco-MiniLM-L-6-v2 (CPU)
 
 SETUP COMMANDS
 --------------
 1. Activate environment:
    Nexus\nexus-env\Scripts\activate
 2. Run indexing:
-   Nexus\nexus-env\Scripts\python.exe ingest.py
-3. Start the model pipeline:
-   Nexus\nexus-env\Scripts\python.exe rag_pipeline.py
-4. Start the browser UI:
-   Nexus\nexus-env\Scripts\python.exe server.py
-5. Start the local Ollama backend:
+   python -m nexus.ingest
+3. Start the app:
+   python run.py
+4. Start the plain browser UI instead:
+   python run.py --server
+5. Chat in the terminal:
+   python -m nexus
+6. Start the local Ollama backend:
    ollama serve
-6. Check installed Ollama models:
+7. Check installed Ollama models:
    ollama list
 
 CURRENT DEFAULT GENERATION MODEL
@@ -68,4 +73,4 @@ llama3.1:8b
 
 CURRENT BACKEND STATUS
 ----------------------
-Ollama is installed but not currently running. The router and UI work, but generation requests fail until localhost:11434 is active.
+The launcher starts Ollama when it is not running. Without Ollama, PC folder actions still work, but answers need a model served at localhost:11434.

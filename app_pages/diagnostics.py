@@ -115,7 +115,9 @@ if config.ROUTER_LOG.exists():
         except json.JSONDecodeError:
             continue
         rows.append({
-            "task": d.get("task"), "model": d.get("model"), "difficulty": d.get("complexity"),
+            "question": d.get("query") or "—",
+            "task": d.get("task"), "router": d.get("router_method") or "rules",
+            "model": d.get("model"), "difficulty": d.get("complexity"),
             "keyword says docs": d.get("needs_rag"),
             "chain": " → ".join(c["model"] for c in (d.get("chain") or [])[:3]),
         })

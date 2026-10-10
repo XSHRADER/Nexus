@@ -3,32 +3,46 @@ PROJECT FILES AND FOLDERS INFORMATION
 
 PROJECT ROOT:
 - Nexus/
-  Main project folder containing the RAG application source files, documents, environment, and runtime data.
+  Main project folder containing the application package, the user interface, documents, tests and runtime data.
 
 MAIN FOLDERS:
 
-1. Nexus/documents/
+1. Nexus/nexus/
+   - The application package. Every answer goes through engine.py.
+   - Includes router.py, providers.py, retrieve.py, ingest.py, loaders.py, store.py, server.py and ui.py.
+   - Also holds the optional features: cloud.py, truth_check.py, feedback.py, learned_router.py, council.py and brain.py.
+
+2. Nexus/app_pages/
+   - One file for each page of the Streamlit interface: chat, inbox, leaderboard, documents, lab and diagnostics.
+
+3. Nexus/documents/
    - Stores source documents used for ingestion and retrieval.
-   - Contains project-related knowledge files such as nexus_project_info.md.
+   - Contains project-related knowledge files such as nexus_project_info.md, checklist.txt and action_log.txt.
 
-2. Nexus/program_info/
-   - Stores text-based information files about the project.
-   - Includes:
-     - action_log.txt
-     - checklist.txt
-     - file_and_folder_info.txt
-     - local_ai_models.txt
-     - requirements.txt
-
-3. Nexus/vector_store/
+4. Nexus/vector_store/
    - Stores the embedded vector database and metadata used for retrieval.
    - Contains the Chroma database files and hash metadata.
 
-4. Nexus/nexus-env/
+5. Nexus/data/
+   - Runtime data: the SQLite database nexus.db with saved chats and ratings, the application log, and the routing log router_logs.jsonl.
+
+6. Nexus/models/
+   - Trained routers. Each version is saved with its measurements, and current.json points at the one in use.
+
+7. Nexus/eval/
+   - Held-out test sets for retrieval, routing and the truth check.
+
+8. Nexus/tests/ and Nexus/demos/
+   - The test suite, and stand-ins for Ollama and the cloud providers that the tests run against.
+
+9. Nexus/train/
+   - Scripts that train the learned router.
+
+10. Nexus/nexus-env/
    - Virtual environment created for the project.
    - Contains Python packages and scripts used to run the application in isolation.
 
-5. Nexus/__pycache__/
+11. Nexus/__pycache__/
    - Python compiled bytecode cache generated during execution.
    - Usually used for faster import times and can be ignored safely.
 
@@ -37,40 +51,23 @@ MAIN FILES:
 1. Nexus/README.md
    - Project overview and instructions.
 
-2. Nexus/ingest.py
-   - Script used to load and process documents into the vector store.
+2. Nexus/run.py and Nexus/start.bat
+   - The launcher. It checks the setup, indexes new documents and opens the interface.
 
-3. Nexus/loaders.py
-   - Contains helper functions for loading data and preparing it for indexing.
+3. Nexus/app.py
+   - Entry point of the Streamlit interface.
 
-4. Nexus/retrieve.py
-   - Script used to query the vector store and retrieve relevant information.
+4. Nexus/CHANGELOG.md and Nexus/ROADMAP.md
+   - What changed in each released version, and what is planned.
 
-5. Nexus/rag_pipeline.py
-   - Main pipeline for retrieval-augmented generation using the AI model and vector database.
+5. Nexus/nexus.toml.example and Nexus/.env.example
+   - Example settings file and example file for cloud API keys. Copy them to nexus.toml and .env to use them.
 
-6. Nexus/ACTION_LOG.md
-   - Markdown version of the project action history.
+6. Nexus/requirements.txt
+   - The Python packages the project needs.
 
 7. Nexus/.gitignore
    - Lists files and folders ignored by Git.
 
-TEXT INFORMATION FILES:
-
-- Nexus/program_info/action_log.txt
-  - Records the actions performed from the beginning of the project.
-
-- Nexus/program_info/checklist.txt
-  - Stores task checklist items or setup notes.
-
-- Nexus/program_info/local_ai_models.txt
-  - Lists the AI models used by the project.
-
-- Nexus/program_info/requirements.txt
-  - Lists the Python packages required for the project.
-
-- Nexus/program_info/file_and_folder_info.txt
-  - This file: overview of project structure and purpose of folders/files.
-
 SUMMARY:
-The project is organized into a main application folder, a documents directory for knowledge content, a vector store for embeddings, a virtual environment for dependencies, and a program_info folder for all text-based notes and records.
+The project is organized into an application package, a page folder for the interface, a documents directory for knowledge content, a vector store for embeddings, a data folder for saved chats and logs, and a virtual environment for running the app.

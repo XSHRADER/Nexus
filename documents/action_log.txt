@@ -28,5 +28,9 @@ Project: NEXUS AI local RAG and router prototype
 22. Verified the UI loads successfully in the browser and renders the chat interface.
 23. Confirmed that the remaining runtime issue is external: Ollama is not currently running on localhost:11434, so generation requests fail until the backend service is started.
 24. Added this action log file to keep a record of work performed from the start of the project.
+25. Removed the program_info folder later, because it only held copies of files already in the documents folder.
+26. Moved the source files into a package folder named nexus and replaced the interactive pipeline script with a terminal chat started by python -m nexus.
+27. Added version numbers, a changelog and automatic GitHub releases.
+28. Merged the optional features into the main branch: cloud models, the truth check, Arena, the learned router, the council and the background watcher.
 
 End of log.

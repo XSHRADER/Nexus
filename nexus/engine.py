@@ -799,6 +799,8 @@ def arena(
     _record_overrides(question, opts, decision)
     pair = feedback.pick_pair(decision.get("chain") or [], rng)
     if pair is None:
+        if not decision.get("chain"):  # nothing reachable at all: say what is wrong
+            return {"error": _no_model_message(decision, needs_image=bool(images))}
         return {"error": "Arena needs at least two models that can answer this. "
                          "Pull another Ollama model or switch cloud on."}
 
@@ -872,6 +874,8 @@ def council(
     settings = get_settings()
     members = council_mod.pick_members(decision.get("chain") or [], settings.council_members)
     if len(members) < 2:
+        if not members:  # nothing reachable at all: say what is wrong
+            return {"error": _no_model_message(decision, needs_image=bool(images))}
         return {"error": "The council needs at least two models that can answer this. "
                          "Pull another Ollama model or switch cloud on."}
     status = on_status or (lambda _text: None)

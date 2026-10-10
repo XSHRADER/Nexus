@@ -32,15 +32,15 @@
     {
       "id": "c05",
       "source": "nexus_project_info.md",
-      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running ingest.py. Questions are answered by running rag_pipeline.py.",
+      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running python -m nexus.ingest. Questions are asked in the app started with python run.py.",
       "claim": "You can index Word documents, PDFs, Markdown and plain text files.",
       "label": "supported"
     },
     {
       "id": "c06",
       "source": "nexus_project_info.md",
-      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running ingest.py. Questions are answered by running rag_pipeline.py.",
-      "claim": "Running ingest.py indexes the files in the documents folder.",
+      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running python -m nexus.ingest. Questions are asked in the app started with python run.py.",
+      "claim": "Running python -m nexus.ingest indexes the files in the documents folder.",
       "label": "supported"
     },
     {
@@ -95,7 +95,7 @@
     {
       "id": "c14",
       "source": "nexus_readme.md",
-      "premise": "Add or edit a document later? Just re-run python ingest.py. It hashes files and only re-embeds what changed — so this stays fast even with a growing document set.",
+      "premise": "Add or edit a document later? Just re-run python -m nexus.ingest. It hashes files and only re-embeds what changed — so this stays fast even with a growing document set.",
       "claim": "Re-running ingestion only re-embeds files that changed.",
       "label": "supported"
     },
@@ -172,15 +172,15 @@
     {
       "id": "c25",
       "source": "nexus_project_info.md",
-      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running ingest.py. Questions are answered by running rag_pipeline.py.",
+      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running python -m nexus.ingest. Questions are asked in the app started with python run.py.",
       "claim": "Only plain text files can be indexed; PDFs are not supported.",
       "label": "contradicted"
     },
     {
       "id": "c26",
       "source": "nexus_project_info.md",
-      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running ingest.py. Questions are answered by running rag_pipeline.py.",
-      "claim": "Documents are indexed by running retrieve.py.",
+      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running python -m nexus.ingest. Questions are asked in the app started with python run.py.",
+      "claim": "Documents are indexed by running python -m nexus.retrieve.",
       "label": "contradicted"
     },
     {
@@ -235,7 +235,7 @@
     {
       "id": "c34",
       "source": "nexus_readme.md",
-      "premise": "Add or edit a document later? Just re-run python ingest.py. It hashes files and only re-embeds what changed — so this stays fast even with a growing document set.",
+      "premise": "Add or edit a document later? Just re-run python -m nexus.ingest. It hashes files and only re-embeds what changed — so this stays fast even with a growing document set.",
       "claim": "Re-running ingestion re-embeds every file from scratch.",
       "label": "contradicted"
     },
@@ -298,14 +298,14 @@
     {
       "id": "c43",
       "source": "nexus_project_info.md",
-      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running ingest.py. Questions are answered by running rag_pipeline.py.",
+      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running python -m nexus.ingest. Questions are asked in the app started with python run.py.",
       "claim": "Indexing a 100-page PDF takes about two minutes.",
       "label": "not_found"
     },
     {
       "id": "c44",
       "source": "nexus_project_info.md",
-      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running ingest.py. Questions are answered by running rag_pipeline.py.",
+      "premise": "Supported document formats are TXT, Markdown, PDF, and DOCX. Documents are placed in the documents folder and indexed by running python -m nexus.ingest. Questions are asked in the app started with python run.py.",
       "claim": "Excel spreadsheets will be supported in the next release.",
       "label": "not_found"
     },
@@ -361,7 +361,7 @@
     {
       "id": "c52",
       "source": "nexus_readme.md",
-      "premise": "Add or edit a document later? Just re-run python ingest.py. It hashes files and only re-embeds what changed — so this stays fast even with a growing document set.",
+      "premise": "Add or edit a document later? Just re-run python -m nexus.ingest. It hashes files and only re-embeds what changed — so this stays fast even with a growing document set.",
       "claim": "File hashes are computed with SHA-256.",
       "label": "not_found"
     },

@@ -1,6 +1,6 @@
 [project]
 name = "nexus-ai"
-version = "0.5.0"
+version = "1.0.0"
 description = "Local-first private assistant: answers from your files with local Ollama models, shows its work, and checks itself. Cloud models optional."
 readme = "README.md"
 license = { file = "LICENSE" }

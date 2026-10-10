@@ -200,6 +200,11 @@ class EngineCouncilTests(CouncilTestCase):
         one = [{"model": "llama3.1:8b", "provider": "ollama", "local": True}]
         with mock.patch.object(engine, "get_router", return_value=FakeRouter(chain=one)):
             self.assertIn("at least two", engine.council("hi")["error"])
+        # With no model at all the message says so, instead of asking for a second one.
+        with mock.patch.object(engine, "get_router", return_value=FakeRouter(chain=[])):
+            for error in (engine.council("hi")["error"], engine.arena("hi")["error"]):
+                self.assertNotIn("at least two", error)
+                self.assertIn("None of your installed models", error)
 
     def test_auto_convene_only_when_switched_on_and_hard(self):
         hard = FakeRouter(complexity=0.9)

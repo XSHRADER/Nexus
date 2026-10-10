@@ -77,6 +77,17 @@ class TaskRouterTests(unittest.TestCase):
         decision = self.router.classify("Can you summarize the NEXUS project in plain English?")
         self.assertEqual(decision["task"], "general")
 
+    def test_the_routing_log_keeps_the_question_but_the_decision_does_not(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.router.logger = DecisionLogger(Path(d) / "router_logs.jsonl")
+            question = "Compare a cache with a queue. " + "x" * 600
+            decision = self.router.route(question, available_models=["llama3.1:8b"])
+            logged = json.loads((Path(d) / "router_logs.jsonl").read_text(encoding="utf-8"))
+        self.assertNotIn("query", decision)
+        self.assertEqual(logged["task"], decision["task"])
+        self.assertTrue(question.startswith(logged["query"]))
+        self.assertEqual(len(logged["query"]), 500)   # long prompts are cut, not logged whole
+
     def test_rag_query_requires_local_docs(self):
         decision = self.router.route("What does the project say about the local AI model map?")
         self.assertTrue(decision["needs_rag"])

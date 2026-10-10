@@ -20,7 +20,7 @@ COMPLETED
 [x] Confirmed the NEXUS RAG pipeline can call Ollama.
 [x] Added Ollama/model preflight validation before the interactive pipeline starts.
 [x] Ran an end-to-end smoke test successfully.
-[x] Started the interactive rag_pipeline.py session.
+[x] Started an interactive question session.
 [x] Ran the document ingestion command successfully.
 [x] Ran the pipeline again after Ollama model installation.
 [x] Added a starter NEXUS project information document.
@@ -29,26 +29,32 @@ COMPLETED
 [x] Added a browser UI for the application and started the local server.
 [x] Verified the UI loads at http://127.0.0.1:8000.
 
+LATER MILESTONES
+[x] Closed a security hole in the local server and added saved chats (version 0.2.0).
+[x] Moved the code into the nexus package and rebuilt the interface as pages (version 0.3.0).
+[x] Trained the router on labelled examples and started labelling versions (version 0.4.0).
+[x] Merged cloud models, the truth check, Arena, the learned router, the council and the background watcher (version 0.5.0).
+
 CURRENT BLOCKER
-[ ] Start Ollama and keep it running on localhost:11434 so generation requests can succeed.
+[ ] None. The launcher starts Ollama on localhost:11434 when it is not running.
 
 FILE STATUS
 [x] README.md - setup and usage instructions reviewed.
 [x] requirements.txt - Python dependencies installed in nexus-env.
-[x] loaders.py - TXT, MD, PDF, and DOCX loading and chunking available.
-[x] ingest.py - document hashing, embedding, and Chroma indexing available.
-[x] retrieve.py - hybrid vector and BM25 retrieval available.
-[x] rag_pipeline.py - Ollama generation and interactive query loop available.
-[x] router.py - local task router with RAG decision logic available.
-[x] app.py - Streamlit UI entry point created.
-[x] server.py - lightweight local browser UI server created.
+[x] nexus/loaders.py - TXT, MD, PDF, and DOCX loading and chunking available.
+[x] nexus/ingest.py - document hashing, embedding, and Chroma indexing available.
+[x] nexus/retrieve.py - hybrid vector and BM25 retrieval available.
+[x] nexus/engine.py - routing, retrieval and generation behind one entry point.
+[x] nexus/router.py - local task router with RAG decision logic available.
+[x] app.py and app_pages/ - Streamlit UI, one file per page.
+[x] nexus/server.py - lightweight local browser UI server created.
 [x] local_ai_models.txt - downloaded local models mapped to NEXUS tasks.
-[x] ACTION_LOG.md - setup actions recorded.
+[x] docs/ACTION_LOG.md - setup actions recorded.
 [x] checklist.txt - project completion status recorded.
 [x] documents/nexus_project_info.md - starter knowledge document indexed.
 [x] vector_store/ - persistent Chroma index created.
 [x] nexus-env/ - isolated Python environment created and configured.
-[x] ui/index.html - browser interface created.
+[x] nexus/static/index.html - browser interface created.
 
 NEXT USER ACTIONS
 [ ] Start the Ollama service in a terminal: ollama serve
@@ -61,9 +67,10 @@ C:\Users\vashu\OneDrive\Documents\GitHub\Nexus
 
 USEFUL COMMANDS
 cd "C:\Users\vashu\OneDrive\Documents\GitHub\Nexus"
-.\nexus-env\Scripts\python.exe ingest.py
-.\nexus-env\Scripts\python.exe rag_pipeline.py
-.\nexus-env\Scripts\python.exe server.py
+python run.py
+python run.py --check
+python -m nexus.ingest
+python -m nexus
 ollama serve
 ollama list
 ollama pull llama3.1:8b

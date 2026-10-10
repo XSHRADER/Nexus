@@ -4,6 +4,32 @@ Every released version of NEXUS, newest first. Planned versions are in
 [ROADMAP.md](ROADMAP.md). Each heading below is a git tag (`v0.4.0`) and a
 GitHub release.
 
+## [1.0.0] - 2026-10-10
+
+The first version called complete: a private assistant that answers from your
+files with local models, shows how each answer was made, and checks itself.
+Cloud models remain optional, off by default, and experimental: they are
+tested against a stand-in for the providers, not yet with real keys.
+
+### Added
+- The routing log (`data/router_logs.jsonl`, on this PC) keeps the first 500
+  characters of each question, and Diagnostics shows it, so a misrouted
+  question can be found and turned into a labelled example.
+
+### Changed
+- The demo documents in `documents/` describe the current project. The
+  retrieval and truth-check test sets were updated to match and re-measured:
+  the full pipeline's context contains the answer for 16 of 18 questions at
+  five passages and all 18 at the default ten; the truth check scores 83.3%
+  given the passage and 76.7% finding its own evidence.
+- Arena and Council say that no model is reachable when that is the problem,
+  instead of asking for a second model.
+
+### Checked for this release
+- Arena and Council were run against real local models, not only in tests:
+  two models answered and the vote updated the leaderboard; three models
+  answered and a judge merged them.
+
 ## [0.5.0] - 2026-10-10
 
 Feature merge: everything built on the `nexus-features` branch now runs on

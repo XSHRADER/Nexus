@@ -39,9 +39,9 @@
     },
     {
       "id": "q07",
-      "question": "What is kept inside the program_info folder?",
+      "question": "Which folder holds the trained routers?",
       "sources": ["file_and_folder_info.txt"],
-      "answer_contains": "checklist.txt"
+      "answer_contains": "current.json"
     },
     {
       "id": "q08",
@@ -89,7 +89,7 @@
       "id": "q15",
       "question": "How do I add new documents and get them indexed?",
       "sources": ["nexus_project_info.md", "nexus_readme.md"],
-      "answer_contains": "ingest.py"
+      "answer_contains": "nexus.ingest"
     },
     {
       "id": "q16",

@@ -209,16 +209,6 @@ class StrongHeadTests(TempModels):
         self.assertEqual(curve["points"][-1]["quality"], curve["all_strong"])
         self.assertGreater(curve["mean_gain_over_random"], 0)
 
-    def test_learned_hard_flag_reaches_cloud_planning(self):
-        policy = cloud.CloudPolicy(mode="hard")
-        avail = {"ollama": ["llama3.1:8b"], "loaded": [],
-                 "cloud": {"gemini": {"status": "ready"}}}
-        with mock.patch.object(cloud, "is_missing", return_value=False):
-            easy = providers.plan("general", "hi", 0.1, avail, policy=policy, hard=False)
-            hard = providers.plan("general", "hi", 0.1, avail, policy=policy, hard=True)
-        self.assertTrue(all(c.spec.is_local for c in easy))
-        self.assertFalse(hard[0].spec.is_local)
-
 
 class PreferenceTests(TempModels):
     def test_settled_arena_results_reorder_close_models(self):

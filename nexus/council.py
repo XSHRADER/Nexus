@@ -45,16 +45,22 @@ MAX_ANSWER_CHARS = 4000
 
 
 def pick_members(chain: list[dict[str, Any]], n: int = 3) -> list[dict[str, Any]]:
-    """The best `n` different models in the chain (PC actions excluded)."""
-    seen, members = set(), []
+    """The best `n` different models in the chain (PC actions excluded).
+
+    At most one of them is a cloud model, to spend as few cloud tokens as
+    possible; a second is added only when there would be no council without it.
+    """
+    seen, members, spare = set(), [], []
     for c in chain:
         if c.get("provider") == "toolkit" or c["model"] in seen:
             continue
         seen.add(c["model"])
-        members.append(c)
-        if len(members) == n:
-            break
-    return members
+        is_cloud = not c.get("local", c.get("provider") == "ollama")
+        if is_cloud and any(not m.get("local", m.get("provider") == "ollama") for m in members):
+            spare.append(c)
+        else:
+            members.append(c)
+    return (members + spare)[:n] if len(members) < 2 else members[:n]
 
 
 def judge_messages(question: str, answers: list[str]) -> list[dict[str, str]]:

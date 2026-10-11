@@ -164,16 +164,16 @@ class Settings:
 
     # -- cloud ----------------------------------------------------------------
     # "off": never leave this PC (the default, and NEXUS's behaviour before
-    # cloud support existed). "hard": cloud only for hard prompts, or tasks no
-    # local model can do. "allowed": cloud competes on every prompt, but easy
-    # ones still go local first.
+    # cloud support existed). "on": you switched cloud on, so a cloud model
+    # answers and local models are the fallback. NEXUS never makes that choice
+    # for you.
     cloud_mode: str = "off"
     # Questions answered from your documents send those documents' text to
     # the model. Off by default: they stay on this PC.
     allow_docs_to_cloud: bool = False
     # Models billed per token with no free tier (OpenRouter auto).
     allow_paid: bool = False
-    # Difficulty (0..1) at which a prompt counts as "hard".
+    # Difficulty (0..1) at which a prompt counts as "hard" for `[council] auto`.
     hard_threshold: float = 0.6
     # After a rate limit or outage, skip that provider for this long.
     cooldown_minutes: float = 5.0
@@ -246,7 +246,9 @@ def _read_toml(path: Path) -> dict[str, Any]:
         return tomllib.load(fh)
 
 
-CLOUD_MODES = ("off", "hard", "allowed")
+# Accepted spelling -> mode. "allowed" is the old name for "on"; anything
+# else (including the retired "hard") is off, the side that keeps data here.
+CLOUD_MODES = {"off": "off", "on": "on", "allowed": "on"}
 
 DEFAULT_DAILY_LIMITS = {
     "gemini": 200,
@@ -277,9 +279,7 @@ def load_settings(toml_path: Path = TOML_FILE, env_path: Path = ENV_FILE) -> Set
     council = data.get("council", {})
     brain = data.get("brain", {})
 
-    mode = str(cloud.get("mode", Settings.cloud_mode)).strip().lower()
-    if mode not in CLOUD_MODES:
-        mode = "off"
+    mode = CLOUD_MODES.get(str(cloud.get("mode", Settings.cloud_mode)).strip().lower(), "off")
     limits = dict(DEFAULT_DAILY_LIMITS)
     limits.update({str(k): int(v) for k, v in (cloud.get("daily_limits") or {}).items()})
 

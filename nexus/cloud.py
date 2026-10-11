@@ -267,7 +267,7 @@ def ready_providers(store=None) -> set[str]:
 
 @dataclass(frozen=True)
 class CloudPolicy:
-    mode: str = "off"                 # off | hard | allowed
+    mode: str = "off"                 # off | on
     allow_docs: bool = False
     allow_paid: bool = False
     hard_threshold: float = 0.6
@@ -276,9 +276,8 @@ class CloudPolicy:
     def from_settings(cls, mode: str | None = None, allow_docs: bool | None = None,
                       allow_paid: bool | None = None) -> CloudPolicy:
         s = get_settings()
-        chosen = (mode or s.cloud_mode).lower()
         return cls(
-            mode=chosen if chosen in CLOUD_MODES else "off",
+            mode=CLOUD_MODES.get((mode or s.cloud_mode).lower(), "off"),
             allow_docs=s.allow_docs_to_cloud if allow_docs is None else bool(allow_docs),
             allow_paid=s.allow_paid if allow_paid is None else bool(allow_paid),
             hard_threshold=s.hard_threshold,

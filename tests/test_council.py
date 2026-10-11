@@ -111,6 +111,10 @@ class PureTests(unittest.TestCase):
                  {"model": "pc-toolkit", "provider": "toolkit"}, {"model": "b", "provider": "ollama"},
                  {"model": "c", "provider": "gemini"}, {"model": "d", "provider": "ollama"}]
         self.assertEqual([m["model"] for m in council.pick_members(chain, 3)], ["a", "b", "c"])
+        cloud_first = [{"model": "g", "provider": "gemini"}, {"model": "q", "provider": "groq"},
+                       {"model": "a", "provider": "ollama"}, {"model": "b", "provider": "ollama"}]
+        self.assertEqual([m["model"] for m in council.pick_members(cloud_first, 3)], ["g", "a", "b"])
+        self.assertEqual([m["model"] for m in council.pick_members(cloud_first[:2], 3)], ["g", "q"])
 
     def test_parse_verdict(self):
         text = ('Here you go: {"agreements": ["x", " ", "y"], "disagreements": ['
@@ -169,10 +173,10 @@ class EngineCouncilTests(CouncilTestCase):
         with mock.patch.object(engine, "get_router", return_value=FakeRouter(chain=chain)), \
              mock.patch.object(engine, "answer", side_effect=spy):
             out = engine.council("Explain a hash table",
-                                 engine.Options(cloud_mode="allowed"))
-        self.assertEqual(threads, {"llama3.1:8b": True, "gemini-3.7-flash": False,
-                                   "openai/gpt-oss-20b": False})
-        self.assertEqual(len(out["used"]), 3)
+                                 engine.Options(cloud_mode="on"))
+        self.assertEqual(threads, {"llama3.1:8b": True, "gemini-3.7-flash": False})   # one cloud member
+        self.assertEqual(len(out["used"]), 2)
+        self.assertEqual(out["judge"], "llama3.1:8b")   # the judge stays local
         self.assertFalse(engine.council_message_meta(out)["local"])
 
     def test_document_questions_never_reach_cloud_members_or_judge(self):
@@ -183,7 +187,7 @@ class EngineCouncilTests(CouncilTestCase):
                                return_value=FakeRouter(chain=chain, needs_rag=True)), \
              mock.patch.object(engine, "get_retriever", return_value=fakes.FakeRetriever([])):
             out = engine.council("What do my notes say about hashing?",
-                                 engine.Options(cloud_mode="allowed"))
+                                 engine.Options(cloud_mode="on"))
         self.assertEqual(mock_cloud.STATE["requests"], [])
         self.assertTrue(all(providers.spec_by_name(m).is_local for m in out["used"]))
         self.assertIn(out["judge"], LOCAL)

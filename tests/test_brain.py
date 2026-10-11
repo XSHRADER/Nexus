@@ -211,7 +211,7 @@ class DigestTests(BrainTestCase):
 class LocalOnlyTests(unittest.TestCase):
     def test_local_generate_ignores_the_cloud_switch(self):
         server, url = mock_ollama.start_in_thread()
-        settings = config.Settings(cloud_mode="allowed", allow_docs_to_cloud=True, allow_paid=True)
+        settings = config.Settings(cloud_mode="on", allow_docs_to_cloud=True, allow_paid=True)
         try:
             with mock.patch.object(config, "OLLAMA_URL", url), \
                  mock.patch.object(cloud, "get_settings", return_value=settings), \

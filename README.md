@@ -111,7 +111,7 @@ untouched behaviour exactly:
 | Retrieval depth | How many passages reach the model. Passages are about 240 tokens, so 10 is roughly 2,200 tokens of context. |
 | Rerank with cross-encoder | Off is faster; on is sharper, and Auto needs it to judge relevance. |
 | Temperature | 0 for deterministic and factual; higher wanders more. |
-| Cloud models | *Off* (default), *Hard questions* or *Allowed*, plus whether documents and paid models may be used. |
+| Cloud models | *Off* (default) or *On*, plus whether documents and paid models may be used. |
 
 Any setting that isn't automatic shows as a badge above the chat, with a
 *Reset to automatic* button.
@@ -160,9 +160,9 @@ the same features without Streamlit.
 > demand", and OpenRouter throttles individual free models at busy times.
 > NEXUS then uses the next model and says so under the answer.
 
-NEXUS runs fully on this PC until you switch cloud on. With it on, cloud
-models compete with your local ones on the same scores, and NEXUS still picks
-for you.
+NEXUS runs fully on this PC until you switch cloud on, and it never switches
+it on for you. With it on, each question goes to one cloud model; local models
+are the fallback.
 
 **1. Add keys** — copy `.env.example` to `.env` and fill in the ones you have:
 
@@ -177,13 +177,17 @@ for you.
 Those three together cover chat, images and voice at no cost. Free tiers
 change; check each provider's own page.
 
-**2. Pick a cloud mode** under **Answer settings** in the chat (or `[cloud] mode` in `nexus.toml`):
+**2. Switch cloud on** under **Answer settings** in the chat (or `[cloud] mode` in `nexus.toml`):
 
 | Mode | What it does |
 |---|---|
 | **Off** (default) | Nothing leaves this PC. Exactly the old behaviour. |
-| **Hard questions** | Cloud answers hard prompts (difficulty ≥ 0.6), and things no local model can do, like an image when you have no local vision model. |
-| **Allowed** | Cloud competes on every prompt, but easy ones still go local first; cloud is the fallback. |
+| **On** | Your questions go to one cloud model until you switch it off: the best fit for the task, or the one you pick under *Model*. If it fails (rate limit, outage), the next one is tried, then your local models. |
+
+NEXUS does not decide between local and cloud. It used to, with a "hard
+questions" mode; the estimate behind it was measured in 1.3.0 and was not good
+enough (see *Learned router*). Cloud free tiers are limited, so when to spend
+them is your call.
 
 **Rules that always hold**, whatever model wins or is pinned:
 
@@ -303,7 +307,7 @@ router.
 
 ## Learned router
 
-Before any model runs, NEXUS makes three routing decisions. Each one is a
+Before any model runs, NEXUS makes two routing decisions. Each one is a
 small trained classifier, with the keyword rules and labelled examples kept
 as a fallback:
 
@@ -311,7 +315,6 @@ as a fallback:
 |---|---|
 | **Which task** is this (general, coding, reasoning, planning, PC action)? | 189 starter prompts, 173 curated prompts, the 276 labelled examples the rules use, prompts labelled by a cloud "teacher" model if you add any, and **your corrections** |
 | **Does it need your documents?** | the same, plus your document on/off overrides |
-| **Does it need a strong (cloud) model?** | 242 judged comparisons between a local and a cloud model, **your Arena votes** between a local and a cloud model (each counts five times), and optionally 55k human votes from the public [Chatbot Arena dataset](https://huggingface.co/datasets/lmarena-ai/arena-human-preference-55k). Measured, and **not good enough to use yet**: see below |
 
 On top of that, your settled Arena results nudge each model's score for that
 task, so models you keep preferring rise.
@@ -382,8 +385,9 @@ python train/judge_battles.py my_prompts.txt
 The *train-router* GitHub Actions workflow runs the last command in the cloud
 and uploads the trained router as an artifact.
 
-**When is a cloud model worth it? Measured, and the learned predictor is
-switched off.** `train/judge_battles.py` had `llama3.1:8b` and Groq's
+**When is a cloud model worth it? Measured, and left to you.** NEXUS does not
+use any of this to route a question; it is here so you know roughly how often
+switching cloud on helps. `train/judge_battles.py` had `llama3.1:8b` and Groq's
 `openai/gpt-oss-120b` answer the same 242 prompts. Two judge models graded
 each answer blind as acceptable or not, and both had to agree. On the 223
 prompts they agreed about:
@@ -403,9 +407,9 @@ predicted from the wording of the prompt alone?
 | simple difficulty estimate (length, a few cue words) | 0.627 |
 | learned predictor, on prompts it was not trained on | 0.610 |
 
-The learned predictor is not better than the estimate it would replace, so
-the gate left it out and cloud decisions keep using the estimate. With 39
-cases the two scores cannot be told apart, and both are weak: routing by the
+Neither is good enough to decide for you, which is why since 1.4.0 cloud is
+a switch you control. With 39 cases the two scores cannot be told apart, and
+both are weak: routing by the
 learned one beat random routing by 1.4 percentage points on average.
 
 The same thing happened earlier on public data. Trained on 16,686 battles
@@ -417,9 +421,9 @@ a weaker model will do.
 What to keep in mind about these numbers: the grades come from models, not
 from you; one of the two judges is the cloud model itself, which is why a
 second, different model has to agree; and of the 39 reasons read by hand,
-one was itself wrong. The predictor is retrained whenever you train the
-router, and your own Arena votes between a local and a cloud model count
-five times as much as a judged comparison.
+one was itself wrong. The predictor is still retrained whenever you train
+the router, with your own Arena votes between a local and a cloud model
+counted five times, and its score is shown on the Leaderboard page.
 
 ---
 
@@ -574,8 +578,8 @@ was measured on the documents as they are in this version.
 
 ## Automatic AI selection
 
-**You never pick a model.** Every message is classified, scored for difficulty,
-and sent to whichever AI is strongest at that job among the ones actually
+**You don't have to pick a model.** Every message is classified, scored for difficulty,
+and sent to whichever local AI is strongest at that job among the ones actually
 reachable right now (`nexus/providers.py` → `router.py` → `engine.py`).
 
 By default every model runs on this machine through Ollama, with no API key
@@ -722,7 +726,8 @@ chat, and history comes from the database, not from the page. Other routes:
 - **Answers ignore your documents** → open the **Documents** page and check
   the file is indexed, then try the question in the **Retrieval lab** to see
   what search returns before blaming the model.
-- **A cloud model is never used** → Diagnostics → *Cloud providers* shows each
+- **A cloud model is never used** → cloud is off until you switch it on under
+  **Answer settings**. If it is on, Diagnostics → *Cloud providers* shows each
   provider's status (no key, rejected key, cooling down, daily limit).
 - **The first answer from a model is slow** → an 8 GB card holds one model at
   a time, so switching models means loading one (about 30 seconds).

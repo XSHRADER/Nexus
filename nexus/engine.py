@@ -73,7 +73,7 @@ class Options:
     rerank: bool = True
     temperature: float = 0.7
     # Cloud overrides; None means "use nexus.toml" (where cloud is off by default).
-    cloud_mode: str | None = None    # off | hard | allowed
+    cloud_mode: str | None = None    # off | on
     allow_docs: bool | None = None   # let document-grounded questions leave the PC
     allow_paid: bool | None = None   # allow per-token-billed models
 
@@ -952,7 +952,9 @@ def council(
     preferred = [c for c in chain if c["model"] == settings.council_judge] if settings.council_judge else []
     verdict, errors = None, []
     status("Council: the judge is comparing the answers…")
-    for judge in preferred + [c for c in chain if c not in preferred]:
+    # A local judge first: the judge reads every answer, the most tokens of any step.
+    rest = sorted((c for c in chain if c not in preferred), key=_is_local, reverse=True)
+    for judge in preferred + rest:
         if judge.get("provider") == "toolkit":
             continue
         if not _is_local(judge) and _cloud_block(judge["model"], judge["provider"], out["task"],

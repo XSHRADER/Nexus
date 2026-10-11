@@ -4,6 +4,38 @@ Every released version of NEXUS, newest first. Planned versions are in
 [ROADMAP.md](ROADMAP.md). Each heading below is a git tag (`v0.4.0`) and a
 GitHub release.
 
+## [1.4.0] - 2026-10-12
+
+Cloud is your decision. NEXUS no longer chooses between local and cloud.
+
+### Changed
+- The cloud switch is a plain **Off / On**. Off (the default): every question
+  is answered on this PC, however hard it looks. On: your questions go to one
+  cloud model, the best fit for the task or the one you pick under *Model*,
+  until you switch it off again. Local models are the fallback if the cloud
+  model fails.
+- Each question is answered by one model. A second cloud provider is only
+  tried when the first one fails (rate limit, outage, rejected key).
+- Council spends as few cloud tokens as possible: at most one member is a
+  cloud model, the rest are local, and the judge (which reads every answer) is
+  a local model whenever one can do it. Arena already compared one local
+  model with one cloud model.
+- The rules that always held still hold with cloud on: questions that use
+  your documents and all PC actions stay on this PC unless you allow
+  otherwise, paid models need *Allow paid models*, and daily limits apply.
+
+### Removed
+- The *Hard questions* mode, which sent a question to the cloud when NEXUS
+  estimated it was hard, and the *Allowed* mode's rule that easy questions go
+  local first. 1.3.0 measured that estimate at AUC 0.627 and the learned
+  alternative at 0.610: neither was good enough to decide for you.
+- `mode = "hard"` in `nexus.toml` now means off, so nothing leaves the PC
+  until you choose. `mode = "allowed"` is read as `on`.
+
+### Kept, for reference only
+- The 242 judged comparisons and the cloud-worth-it measurement on the
+  Leaderboard page. They no longer affect where a question goes.
+
 ## [1.3.0] - 2026-10-12
 
 When is a cloud model worth it? Measured for the first time on the models

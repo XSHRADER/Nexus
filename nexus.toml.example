@@ -16,9 +16,9 @@ history_chars = 8000
 # db_path = "data/nexus.db"
 
 [cloud]
-# off: nothing leaves this PC. hard: cloud for hard prompts and for things no
-# local model can do. allowed: cloud competes on every prompt, easy ones
-# still go local first. Answer settings in the chat override this per session.
+# off: nothing leaves this PC. on: questions go to one cloud model, with local
+# models as the fallback. NEXUS never chooses between the two for you.
+# Answer settings in the chat override this per session.
 mode = "off"
 # Let questions that use your documents go to cloud models.
 allow_docs = false
@@ -76,7 +76,7 @@ mode = "auto"
 min_confidence = 0.5
 # P(needs your documents) at which retrieval switches on.
 docs_threshold = 0.5
-# P(needs a strong model) at which a prompt counts as hard for cloud.
+# P(needs a strong model) at which a prompt counts as hard for [council] auto.
 strong_threshold = 0.5
 # How much settled Arena results move a model's score (0 = ignore them).
 preference_weight = 0.10

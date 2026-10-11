@@ -17,9 +17,10 @@ Design intent:
     already resident in VRAM beats an equal peer that would need loading first.
   * Models outside the hand-tuned catalogue still take part, with a profile
     inferred from their name, size and reported capabilities.
-  * Cloud models (cloud_models.toml) compete on the same scores when the cloud
-    switch allows it. cloud.py decides whether one may see a request at all;
-    this module only ranks what is allowed.
+  * Cloud models (cloud_models.toml) are used only when you switch cloud on,
+    and then they come first, with local models as the fallback. Nothing here
+    decides between local and cloud for you. cloud.py decides whether a cloud
+    model may see a request at all; this module only ranks what is allowed.
 """
 
 from __future__ import annotations
@@ -151,12 +152,9 @@ RAG_LOCAL_BONUS = 0.18
 # specialist (the coder model on a coding task) still displaces it.
 WARM_BONUS = 0.10
 
-# Cloud adjustments, applied only when the cloud switch lets cloud compete.
-# On a hard prompt, "hard"/"allowed" mode is the user asking for the stronger
-# cloud models, so they get a lift. On an easy prompt cloud stays a fallback
-# behind any local model -- large enough that no cloud model outranks one.
-CLOUD_HARD_BONUS = 0.15
-CLOUD_EASY_PENALTY = 0.60
+# With cloud switched on, the user asked for a cloud model: every allowed one
+# ranks above every local one (scores are 0..1), and local stays the fallback.
+CLOUD_ON_BONUS = 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -423,7 +421,6 @@ def plan(
     needs_rag: bool = False,
     policy: Any = None,
     needs_image: bool = False,
-    hard: bool | None = None,
     bonuses: dict[str, float] | None = None,
 ) -> list[Candidate]:
     """Ordered chain of reachable models for this request, best first.
@@ -434,9 +431,7 @@ def plan(
 
     `policy` is a cloud.CloudPolicy (default: from settings, where cloud is
     off unless switched on). `needs_image` keeps only models that read images.
-    `hard` is the learned "needs a strong model" verdict; None falls back to
-    complexity >= the policy threshold. `bonuses` are per-model score
-    adjustments from your Arena results.
+    `bonuses` are per-model score adjustments from your Arena results.
     """
     from nexus import cloud
 
@@ -467,8 +462,7 @@ def plan(
 
     candidates = list(best.values())
     candidates.extend(
-        _cloud_candidates(task, needs_rag, complexity, avail, policy, needs_image,
-                          has_local=bool(candidates), hard=hard, bonuses=bonuses)
+        _cloud_candidates(task, needs_rag, complexity, avail, policy, needs_image, bonuses)
     )
     return sorted(candidates, key=lambda c: c.score, reverse=True)
 
@@ -480,19 +474,11 @@ def _cloud_candidates(
     avail: dict[str, Any],
     policy: Any,
     needs_image: bool,
-    has_local: bool,
-    hard: bool | None = None,
     bonuses: dict[str, float] | None = None,
 ) -> list[Candidate]:
     from nexus import cloud
 
     if policy.mode == "off":
-        return []
-    if hard is None:
-        hard = complexity >= policy.hard_threshold
-    # "hard" mode: cloud only when the prompt is hard, or nothing local can
-    # do the task at all (an image with no local vision model).
-    if policy.mode == "hard" and not hard and has_local:
         return []
 
     ready = {p for p, s in (avail.get("cloud") or {}).items() if s.get("status") == "ready"}
@@ -505,11 +491,7 @@ def _cloud_candidates(
         score = score_model(spec, task, complexity, needs_rag=needs_rag)
         if score is None:
             continue
-        if hard:
-            score += CLOUD_HARD_BONUS
-        elif has_local:
-            score -= CLOUD_EASY_PENALTY
-        score += (bonuses or {}).get(spec.name, 0.0)
+        score += CLOUD_ON_BONUS + (bonuses or {}).get(spec.name, 0.0)
         out.append(Candidate(spec, spec.name, score, _reason(spec, task, complexity)))
     return out
 

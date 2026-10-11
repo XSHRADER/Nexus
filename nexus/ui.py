@@ -24,7 +24,7 @@ from nexus.retrieve import get_retriever
 logger = logging.getLogger("nexus.ui")
 
 # Cloud switch: label shown -> mode the engine understands.
-CLOUD_CHOICES = {"Off": "off", "Hard questions": "hard", "Allowed": "allowed"}
+CLOUD_CHOICES = {"Off": "off", "On": "on"}
 # How a question is answered: one model, two blind, or several plus a judge.
 MODES = ("One model", "Arena", "Council")
 STATUS_ICON = {"ready": ":green[●]", "no_key": ":gray[○]", "invalid_key": ":red[●]",

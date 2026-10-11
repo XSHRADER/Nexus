@@ -237,10 +237,10 @@ class AppFlowTests(unittest.TestCase):
         at = self.start()
         self.ask(at, "hello")
         self.assertEqual(self.calls[-1]["options"].cloud_mode, "off")
-        next(g for g in at.button_group if g.key == "opt_cloud").set_value("Hard questions").run()
+        next(g for g in at.button_group if g.key == "opt_cloud").set_value("On").run()
         self.ask(at, "hello again")
         options = self.calls[-1]["options"]
-        self.assertEqual(options.cloud_mode, "hard")
+        self.assertEqual(options.cloud_mode, "on")
         self.assertFalse(options.allow_docs)   # documents still stay on this PC
         self.assertFalse(options.allow_paid)
 
@@ -254,7 +254,7 @@ class AppFlowTests(unittest.TestCase):
             self.addCleanup(ui.availability.clear)
             at = self.start()
             self.assertEqual(at.selectbox(key="opt_model").options, ["Auto", "a", "b"])  # cloud off
-            next(g for g in at.button_group if g.key == "opt_cloud").set_value("Allowed").run()
+            next(g for g in at.button_group if g.key == "opt_cloud").set_value("On").run()
             offered = at.selectbox(key="opt_model").options
             self.assertIn("openrouter/free", offered)
             self.assertNotIn("openrouter/auto", offered)

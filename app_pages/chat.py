@@ -355,10 +355,9 @@ with st.container(horizontal=True, vertical_alignment="center"):
         st.divider()
         st.segmented_control("Cloud models", list(ui.CLOUD_CHOICES), key="opt_cloud", required=True,
                              persist_state="session",
-                             help="Off: nothing leaves this PC. Hard questions: cloud models are "
-                                  "used for hard prompts and for things no local model can do. "
-                                  "Allowed: cloud competes on every prompt, but easy ones still "
-                                  "go local first.")
+                             help="Off: nothing leaves this PC. On: your questions go to one "
+                                  "cloud model (the best fit, or the one you pick under Model) "
+                                  "until you switch this off. NEXUS never switches it on for you.")
         cloud_off = ui.cloud_mode() == "off"
         st.toggle("Send documents to cloud", key="opt_allow_docs", persist_state="session",
                   disabled=cloud_off,
@@ -391,8 +390,8 @@ if not ss.messages:
         st.space("large")
         st.markdown("## What do you want to know?", text_alignment="center")
         where = ("Everything runs on this PC." if ui.cloud_mode() == "off"
-                 else "Cloud models are switched on; your documents and PC actions stay on this "
-                      "PC unless you allow otherwise.")
+                 else "Cloud is on: questions go to a cloud model. Your documents and PC actions "
+                      "stay on this PC unless you allow otherwise.")
         st.caption("NEXUS picks the model that suits each question and pulls in your documents "
                    f"when they help. {where}", text_alignment="center")
         chunks, _ = ui.index_summary()

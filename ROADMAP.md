@@ -20,55 +20,57 @@ size of the test suite at that tag; every one passed on GitHub before tagging.
 | **1.1.0** | Released | 2026-10-10 | [v1.1.0](https://github.com/XSHRADER/Nexus/releases/tag/v1.1.0) | 335 | Router learns from more data and your corrections; leaked test prompts removed |
 | **1.2.0** | Released | 2026-10-11 | [v1.2.0](https://github.com/XSHRADER/Nexus/releases/tag/v1.2.0) | 339 | Cloud tried with real keys on Groq, Gemini and OpenRouter; three bugs fixed |
 | **1.3.0** | Released | 2026-10-12 | [v1.3.0](https://github.com/XSHRADER/Nexus/releases/tag/v1.3.0) | 347 | When cloud is worth it, measured on 242 judged local-vs-cloud comparisons; the learned predictor did not beat the simple estimate, so it stays off |
+| **1.4.0** | Released | 2026-10-12 | [v1.4.0](https://github.com/XSHRADER/Nexus/releases/tag/v1.4.0) | 346 | Cloud is your decision: a plain Off/On switch, one cloud model per question, no automatic local-or-cloud choice |
 
 ## What each version contains
 
 A filled cell is the version a capability arrived in; it is in every later
 version too.
 
-| Capability | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 1.0 | 1.1 | 1.2 | 1.3 |
-|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Answers from your documents (vector + keyword search, re-ranked) | ● | ● | ● | ● | ● | ● | ● | ● | ● |
-| Picks a local model per question | ● | ● | ● | ● | ● | ● | ● | ● | ● |
-| PC tools: organize, duplicates, large files, undo | ● | ● | ● | ● | ● | ● | ● | ● | ● |
-| Streamlit UI and a dependency-free web UI | ● | ● | ● | ● | ● | ● | ● | ● | ● |
-| Measured retrieval quality | ● | ● | ● | ● | ● | ● | ● | ● | ● |
-| Local server refuses requests from other websites |  | ● | ● | ● | ● | ● | ● | ● | ● |
-| Saved chats and conversation memory |  | ● | ● | ● | ● | ● | ● | ● | ● |
-| Streaming answers with Stop |  | ● | ● | ● | ● | ● | ● | ● | ● |
-| Uses installed models outside the catalogue |  | ● | ● | ● | ● | ● | ● | ● | ● |
-| Terminal chat (`python -m nexus`) |  |  | ● | ● | ● | ● | ● | ● | ● |
-| Multipage dark UI with live progress and per-answer details |  |  | ● | ● | ● | ● | ● | ● | ● |
-| One config module; tests isolated from your data; CI on Windows |  |  | ● | ● | ● | ● | ● | ● | ● |
-| Router trained on labelled examples, with a measured score |  |  |  | ● | ● | ● | ● | ● | ● |
-| Version labels, changelog, automatic GitHub releases |  |  |  | ● | ● | ● | ● | ● | ● |
-| Settings file (`nexus.toml`) and memory budget |  |  |  |  | ● | ● | ● | ● | ● |
-| Optional cloud models (off by default), with privacy rules |  |  |  |  | ● | ● | ● | ● | ● |
-| Image and voice input |  |  |  |  | ● | ● | ● | ● | ● |
-| Truth check against your documents |  |  |  |  | ● | ● | ● | ● | ● |
-| Ratings, Arena and a personal leaderboard |  |  |  |  | ● | ● | ● | ● | ● |
-| Learned router with a measured gate |  |  |  |  | ● | ● | ● | ● | ● |
-| Model council with a judge |  |  |  |  | ● | ● | ● | ● | ● |
-| Background brain: folder watcher, inbox, digest, flashcards |  |  |  |  | ● | ● | ● | ● | ● |
-| Correct the router from the chat; trains on curated data and your corrections |  |  |  |  |  |  | ● | ● | ● |
-| Cloud verified with real keys (Groq, Gemini, OpenRouter); free OpenRouter models |  |  |  |  |  |  |  | ● | ● |
-| Judged local-vs-cloud comparisons; cloud-worth-it predictor measured against the simple estimate |  |  |  |  |  |  |  |  | ● |
+| Capability | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 1.0 | 1.1 | 1.2 | 1.3 | 1.4 |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Answers from your documents (vector + keyword search, re-ranked) | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
+| Picks a local model per question | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
+| PC tools: organize, duplicates, large files, undo | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
+| Streamlit UI and a dependency-free web UI | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
+| Measured retrieval quality | ● | ● | ● | ● | ● | ● | ● | ● | ● | ● |
+| Local server refuses requests from other websites |  | ● | ● | ● | ● | ● | ● | ● | ● | ● |
+| Saved chats and conversation memory |  | ● | ● | ● | ● | ● | ● | ● | ● | ● |
+| Streaming answers with Stop |  | ● | ● | ● | ● | ● | ● | ● | ● | ● |
+| Uses installed models outside the catalogue |  | ● | ● | ● | ● | ● | ● | ● | ● | ● |
+| Terminal chat (`python -m nexus`) |  |  | ● | ● | ● | ● | ● | ● | ● | ● |
+| Multipage dark UI with live progress and per-answer details |  |  | ● | ● | ● | ● | ● | ● | ● | ● |
+| One config module; tests isolated from your data; CI on Windows |  |  | ● | ● | ● | ● | ● | ● | ● | ● |
+| Router trained on labelled examples, with a measured score |  |  |  | ● | ● | ● | ● | ● | ● | ● |
+| Version labels, changelog, automatic GitHub releases |  |  |  | ● | ● | ● | ● | ● | ● | ● |
+| Settings file (`nexus.toml`) and memory budget |  |  |  |  | ● | ● | ● | ● | ● | ● |
+| Optional cloud models (off by default), with privacy rules |  |  |  |  | ● | ● | ● | ● | ● | ● |
+| Image and voice input |  |  |  |  | ● | ● | ● | ● | ● | ● |
+| Truth check against your documents |  |  |  |  | ● | ● | ● | ● | ● | ● |
+| Ratings, Arena and a personal leaderboard |  |  |  |  | ● | ● | ● | ● | ● | ● |
+| Learned router with a measured gate |  |  |  |  | ● | ● | ● | ● | ● | ● |
+| Model council with a judge |  |  |  |  | ● | ● | ● | ● | ● | ● |
+| Background brain: folder watcher, inbox, digest, flashcards |  |  |  |  | ● | ● | ● | ● | ● | ● |
+| Correct the router from the chat; trains on curated data and your corrections |  |  |  |  |  |  | ● | ● | ● | ● |
+| Cloud verified with real keys (Groq, Gemini, OpenRouter); free OpenRouter models |  |  |  |  |  |  |  | ● | ● | ● |
+| Judged local-vs-cloud comparisons; cloud-worth-it predictor measured against the simple estimate |  |  |  |  |  |  |  |  | ● | ● |
+| Cloud is a plain Off/On switch you control; NEXUS never chooses cloud for you |  |  |  |  |  |  |  |  |  | ● |
 
 ## Measured at each version
 
-| Measure | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 1.0 | 1.1 | 1.2 | 1.3 |
-|---|---|---|---|---|---|---|---|---|---|
-| Tests | 73 | 133 | 172 | 179 | 328 | 329 | 335 | 339 | 347 |
-| Routing accuracy, rules and examples (150 held-out prompts) | — | — | 62.0% | 89.3% | 89.3% | 89.3% | 89.3% | 89.3% | 89.3% |
-| Routing accuracy, learned router (150 held-out prompts) | — | — | — | — | 97.3%* | 97.3%* | 98.7% | 98.7% | 98.7% |
-| Routing accuracy, learned router (100 held-out prompts) | — | — | — | — | 99.0% | 99.0% | 100% | 100% | 100% |
-| Learned router: finds questions that need your documents (recall) | — | — | — | — | 84.6% | 84.6% | 100% | 100% | 100% |
-| Retrieval: answer found in the top 5 passages (18 questions) | 94.4% | 94.4% | 94.4% | 94.4% | 94.4% | 88.9% | 88.9% | 88.9% | 88.9% |
-| Retrieval: answer found in the top 10 passages, the app's default | — | — | — | — | — | 100% | 100% | 100% | 100% |
-| Truth check accuracy, given the passage (60 labelled claims) | — | — | — | — | 85.0% | 83.3% | 83.3% | 83.3% | 83.3% |
-| Prompts where the cloud was needed (223 judged comparisons) | — | — | — | — | — | — | — | — | 17.5% |
-| Predicting which prompts need cloud: simple difficulty estimate (AUC) | — | — | — | — | — | — | — | — | 0.627 |
-| Predicting which prompts need cloud: learned predictor (AUC) | — | — | — | — | — | — | — | — | 0.610 |
+| Measure | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 1.0 | 1.1 | 1.2 | 1.3 | 1.4 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Tests | 73 | 133 | 172 | 179 | 328 | 329 | 335 | 339 | 347 | 346 |
+| Routing accuracy, rules and examples (150 held-out prompts) | — | — | 62.0% | 89.3% | 89.3% | 89.3% | 89.3% | 89.3% | 89.3% | 89.3% |
+| Routing accuracy, learned router (150 held-out prompts) | — | — | — | — | 97.3%* | 97.3%* | 98.7% | 98.7% | 98.7% | 98.7% |
+| Routing accuracy, learned router (100 held-out prompts) | — | — | — | — | 99.0% | 99.0% | 100% | 100% | 100% | 100% |
+| Learned router: finds questions that need your documents (recall) | — | — | — | — | 84.6% | 84.6% | 100% | 100% | 100% | 100% |
+| Retrieval: answer found in the top 5 passages (18 questions) | 94.4% | 94.4% | 94.4% | 94.4% | 94.4% | 88.9% | 88.9% | 88.9% | 88.9% | 88.9% |
+| Retrieval: answer found in the top 10 passages, the app's default | — | — | — | — | — | 100% | 100% | 100% | 100% | 100% |
+| Truth check accuracy, given the passage (60 labelled claims) | — | — | — | — | 85.0% | 83.3% | 83.3% | 83.3% | 83.3% | 83.3% |
+| Prompts where the cloud was needed (223 judged comparisons) | — | — | — | — | — | — | — | — | 17.5% | 17.5% |
+| Predicting which prompts need cloud: simple difficulty estimate (AUC) | — | — | — | — | — | — | — | — | 0.627 | 0.627 |
+| Predicting which prompts need cloud: learned predictor (AUC) | — | — | — | — | — | — | — | — | 0.610 | 0.610 |
 
 \* Inflated: until 1.1.0 the training data held near-copies of 13 of those 150
 prompts. On the 137 clean ones that router scored 97.1%.
@@ -84,15 +86,24 @@ set the rules and examples score 91.0%.
 AUC: 0.5 is a coin flip, 1.0 is perfect. The comparisons were graded by two
 judge models that had to agree, not by you. The learned predictor has to beat
 the simple estimate to be used; in 1.3 it does not, so it is switched off.
+From 1.4 neither is used to route anything: cloud is on only when you switch
+it on. The figures stay as a record of how often cloud helps.
 
 ## Next versions
 
+NEXUS is complete as of 1.4.0. Nothing below is needed for it to be a finished
+project; these are optional extras.
+
 | Version | Status | Goal | Done when |
 |---|---|---|---|
-| **1.4.0** | Next | A cloud-worth-it predictor good enough to use | The learned predictor beats the difficulty estimate on comparisons it was not trained on. 39 "cloud needed" cases were too few: it needs your own Arena votes between a local and a cloud model (each counts five times), or more judged comparisons |
 | **1.5.0** | Idea | Scales to a bigger library | Retrieval measured on a corpus large enough for the numbers to discriminate; indexing speed measured |
-| **1.6.0** | Idea | Flashcards that are really verified | A card is checked by answering its question from the passage and comparing, instead of checking the answer's wording alone. Measured first: of four wording-based checks tried, none could tell a right card from one carrying another card's answer |
 | **1.7.0** | Waiting | The remaining cloud providers | Mistral and DeepSeek tried with real keys, as Groq, Gemini and OpenRouter were in 1.2.0. Neither has a free tier you could use, so this waits until you want one of them |
+
+Dropped: flashcards checked by answering their question from the passage
+(four wording-based checks were measured and none worked).
+
+Dropped: a predictor that sends questions to the cloud by itself. Measured in
+1.3.0, not good enough, and replaced in 1.4.0 by your own switch.
 
 Ideas are not commitments; they are listed so they are not lost.
 

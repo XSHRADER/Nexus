@@ -312,3 +312,18 @@ and are stored as `source: "judged"`, separate from the user's votes.
   same task and documents scores as v2.
 - Gate now also requires the head to beat the difficulty estimate.
 - Tests 339 -> 347.
+
+### Version 1.4.0 (2026-10-12)
+Decision: NEXUS does not choose between local and cloud. Free tiers are
+limited, and 1.3.0 showed the choice cannot be predicted well.
+- Cloud modes are `off` and `on`. `hard` is retired and read as off;
+  `allowed` is read as on (`config.CLOUD_MODES`).
+- With cloud on, every allowed cloud model ranks above every local one
+  (`providers.CLOUD_ON_BONUS`); local models are the fallback. `plan()` lost
+  its `hard` argument; the difficulty estimate and the strong head no longer
+  reach cloud routing. `[council] auto = "hard"` still reads them.
+- UI: Off/On in the chat settings and the plain web UI.
+- Live, throwaway database: off + a hard question -> local; the old `hard`
+  value -> local; on + an easy question -> `openai/gpt-oss-120b`, one attempt;
+  on + a documents question -> local.
+- Tests 347 -> 346 (two mode tests rewritten, one for the removed flag dropped).

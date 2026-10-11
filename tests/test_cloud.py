@@ -140,7 +140,7 @@ class PolicyTests(CloudTestCase):
     def test_no_key_means_no_cloud_model(self):
         with self.settings(), mock.patch.dict(os.environ, NO_KEYS):
             chain = self.chain_models(FakeRouter(complexity=0.9), HARD,
-                                      engine.Options(cloud_mode="allowed", allow_paid=True))
+                                      engine.Options(cloud_mode="on", allow_paid=True))
         self.assertEqual(set(chain), {"llama3.1:8b", "deepseek-r1:7b"})
 
     def test_cloud_off_matches_local_only_routing(self):
@@ -159,43 +159,48 @@ class PolicyTests(CloudTestCase):
             chain = self.chain_models(FakeRouter(complexity=0.9), HARD, engine.Options())
         self.assertEqual(set(chain), {"llama3.1:8b", "deepseek-r1:7b"})
 
-    def test_hard_mode_cloud_only_for_hard_prompts(self):
+    def test_cloud_on_sends_easy_and_hard_prompts_to_cloud_with_local_as_fallback(self):
         with self.settings():
-            easy = self.chain_models(FakeRouter(complexity=0.1), EASY,
-                                     engine.Options(cloud_mode="hard"))
+            easy = self.chain_models(FakeRouter(complexity=0.1), EASY, engine.Options(cloud_mode="on"))
             hard = self.chain_models(FakeRouter(task="planning", complexity=0.9), HARD,
-                                     engine.Options(cloud_mode="hard"))
-        self.assertEqual(set(easy), {"llama3.1:8b", "deepseek-r1:7b"})
-        self.assertFalse(providers.spec_by_name(hard[0]).is_local, hard)
+                                     engine.Options(cloud_mode="on"))
+        for chain in (easy, hard):
+            local = [providers.spec_by_name(m).is_local for m in chain]
+            self.assertFalse(local[0], chain)
+            self.assertEqual(local, sorted(local), chain)      # every cloud model before any local one
+            self.assertTrue(local[-1], chain)
 
-    def test_allowed_mode_keeps_easy_prompts_local_first(self):
+    def test_difficulty_never_switches_cloud_on(self):
+        # "hard" was the automatic mode; it is retired and now means off.
+        self.assertEqual(config.CLOUD_MODES.get("hard", "off"), "off")
+        self.assertEqual(cloud.CloudPolicy.from_settings("allowed").mode, "on")   # old name for "on"
         with self.settings():
-            chain = self.chain_models(FakeRouter(complexity=0.1), EASY,
-                                      engine.Options(cloud_mode="allowed"))
-        self.assertTrue(providers.spec_by_name(chain[0]).is_local)
-        self.assertTrue(any(not providers.spec_by_name(m).is_local for m in chain))
+            for mode in ("off", "hard", None):
+                chain = self.chain_models(FakeRouter(task="planning", complexity=0.99), HARD,
+                                          engine.Options(cloud_mode=mode))
+                self.assertTrue(all(providers.spec_by_name(m).is_local for m in chain), (mode, chain))
 
     def test_paid_models_need_allow_paid(self):
         with self.settings():
             without = self.chain_models(FakeRouter(task="coding", complexity=0.9), HARD,
-                                        engine.Options(cloud_mode="allowed"))
+                                        engine.Options(cloud_mode="on"))
             with_paid = self.chain_models(FakeRouter(task="coding", complexity=0.9), HARD,
-                                          engine.Options(cloud_mode="allowed", allow_paid=True))
+                                          engine.Options(cloud_mode="on", allow_paid=True))
         self.assertNotIn("openrouter/auto", without)
         self.assertIn("openrouter/auto", with_paid)
 
     def test_document_questions_stay_local_unless_allowed(self):
         router = FakeRouter(complexity=0.9, needs_rag=True)
         with self.settings():
-            blocked = self.chain_models(router, HARD, engine.Options(cloud_mode="allowed"))
+            blocked = self.chain_models(router, HARD, engine.Options(cloud_mode="on"))
             allowed = self.chain_models(router, HARD,
-                                        engine.Options(cloud_mode="allowed", allow_docs=True))
+                                        engine.Options(cloud_mode="on", allow_docs=True))
         self.assertTrue(all(providers.spec_by_name(m).is_local for m in blocked))
         self.assertTrue(any(not providers.spec_by_name(m).is_local for m in allowed))
 
     def test_pc_actions_never_go_to_cloud(self):
         spec = providers.spec_by_name("gemini-3.7-flash")
-        policy = cloud.CloudPolicy(mode="allowed", allow_docs=True, allow_paid=True)
+        policy = cloud.CloudPolicy(mode="on", allow_docs=True, allow_paid=True)
         self.assertIsNotNone(cloud.privacy_block(spec, "system_agent", False, policy))
 
     def test_daily_limit_skips_provider(self):
@@ -204,18 +209,18 @@ class PolicyTests(CloudTestCase):
                 self.store.record_usage("groq")
             self.assertEqual(cloud.provider_status("groq")["status"], "limit_reached")
             chain = self.chain_models(FakeRouter(complexity=0.9), HARD,
-                                      engine.Options(cloud_mode="allowed"))
+                                      engine.Options(cloud_mode="on"))
         self.assertFalse(any(m.startswith("openai/gpt-oss") for m in chain))
 
     def test_image_needs_image_capable_models(self):
         with self.settings():
-            policy = cloud.CloudPolicy(mode="hard")
+            policy = cloud.CloudPolicy(mode="on")
             chain = providers.plan("vision", "describe this", 0.2,
                                    providers.availability(["llama3.1:8b"], []),
                                    policy=policy, needs_image=True)
         self.assertTrue(chain)
         self.assertTrue(all("image" in c.spec.modalities for c in chain))
-        # "hard" mode still uses cloud for an easy prompt when nothing local can see.
+        # nothing local can see, so the cloud vision model is the only candidate
         self.assertEqual(chain[0].model, "gemini-3.7-flash")
 
 
@@ -223,7 +228,7 @@ class EngineCloudTests(CloudTestCase):
     def test_hard_prompt_answered_in_cloud_and_counted(self):
         with self.settings():
             result = self.ask(HARD, FakeRouter(task="planning", complexity=0.9),
-                              engine.Options(cloud_mode="hard"))
+                              engine.Options(cloud_mode="on"))
         self.assertFalse(result["local"])
         self.assertIn("mock", result["answer"])
         self.assertIn("Here is a plan", result["answer"])
@@ -232,24 +237,24 @@ class EngineCloudTests(CloudTestCase):
     def test_rate_limit_falls_back_and_cools_down(self):
         with self.settings():
             first = self.chain_models(FakeRouter(task="planning", complexity=0.9), HARD,
-                                      engine.Options(cloud_mode="hard"))[0]
+                                      engine.Options(cloud_mode="on"))[0]
             provider = providers.spec_by_name(first).provider
             mock_cloud.STATE["fail"] = {provider: 429}
             result = self.ask(HARD, FakeRouter(task="planning", complexity=0.9),
-                              engine.Options(cloud_mode="hard"))
+                              engine.Options(cloud_mode="on"))
             self.assertNotEqual(result["model"], first)
             self.assertIn("rate-limited", result["info"])
             self.assertEqual(cloud.provider_status(provider)["status"], "cooling_down")
             # Next request doesn't even try the cooling provider.
             chain = self.chain_models(FakeRouter(task="planning", complexity=0.9), HARD,
-                                      engine.Options(cloud_mode="hard"))
+                                      engine.Options(cloud_mode="on"))
         self.assertTrue(all(providers.spec_by_name(m).provider != provider for m in chain))
 
     def test_everything_cloud_down_local_answers(self):
         with self.settings():
             mock_cloud.STATE["fail"] = {p: 500 for p in cloud.PROVIDERS}
             result = self.ask(HARD, FakeRouter(task="planning", complexity=0.9),
-                              engine.Options(cloud_mode="hard", allow_paid=True))
+                              engine.Options(cloud_mode="on", allow_paid=True))
         self.assertTrue(result["local"])
         self.assertIn("unreachable", result["info"])
 
@@ -257,13 +262,13 @@ class EngineCloudTests(CloudTestCase):
         with self.settings(provider_overrides={
                 p: {"base_url": "http://127.0.0.1:9/v1"} for p in cloud.PROVIDERS}):
             result = self.ask(HARD, FakeRouter(task="planning", complexity=0.9),
-                              engine.Options(cloud_mode="hard"))
+                              engine.Options(cloud_mode="on"))
         self.assertTrue(result["local"])
 
     def test_bad_key_marks_provider_invalid(self):
         with self.settings(), mock.patch.dict(os.environ, {**NO_KEYS, "GEMINI_API_KEY": "bad-key"}):
             result = self.ask(HARD, FakeRouter(task="planning", complexity=0.9),
-                              engine.Options(cloud_mode="hard"))
+                              engine.Options(cloud_mode="on"))
             self.assertTrue(result["local"])
             self.assertEqual(cloud.provider_status("gemini")["status"], "invalid_key")
             with mock.patch.dict(os.environ, {"GEMINI_API_KEY": "new-key"}):
@@ -274,7 +279,7 @@ class EngineCloudTests(CloudTestCase):
                 "name": "gemini-retired", "provider": "gemini", "cost": "free",
                 "quality": 0.99, "speed": 0.99, "strengths": {"planning": 0.99}}]):
             result = self.ask(HARD, FakeRouter(task="planning", complexity=0.9),
-                              engine.Options(cloud_mode="hard"))
+                              engine.Options(cloud_mode="on"))
             self.assertNotEqual(result["model"], "gemini-retired")
             self.assertTrue(cloud.is_missing("gemini", "gemini-retired"))
 
@@ -282,7 +287,7 @@ class EngineCloudTests(CloudTestCase):
         chunks = [{"text": "secret plan", "meta": {"source": "s.md"}, "score": 1.0}]
         with self.settings(), mock.patch.object(engine, "get_retriever", return_value=fakes.FakeRetriever(chunks)):
             result = self.ask("what is in my notes?", FakeRouter(needs_rag=True),
-                              engine.Options(cloud_mode="allowed",
+                              engine.Options(cloud_mode="on",
                                              force_model="gemini-3.7-flash"))
         self.assertTrue(result["local"])
         self.assertIn("stay on this PC", result["info"])
@@ -307,7 +312,7 @@ class EngineCloudTests(CloudTestCase):
         ]
         with self.settings():
             result = self.ask(HARD, FakeRouter(task="planning", complexity=0.9),
-                              engine.Options(cloud_mode="hard"), history=history)
+                              engine.Options(cloud_mode="on"), history=history)
         self.assertFalse(result["local"])
         body = json.dumps(mock_cloud.STATE["requests"][-1]["body"])
         self.assertNotIn("1234", body)
@@ -317,7 +322,7 @@ class EngineCloudTests(CloudTestCase):
         img = {"data": "aGVsbG8=", "mime": "image/png"}
         with self.settings():
             result = self.ask("what is this?", FakeRouter(installed=["llama3.1:8b"]),
-                              engine.Options(cloud_mode="hard"), images=[img])
+                              engine.Options(cloud_mode="on"), images=[img])
         self.assertEqual(result["model"], "gemini-3.7-flash")
         self.assertIn("1 image", result["answer"])
         parts = mock_cloud.STATE["requests"][-1]["body"]["messages"][-1]["content"]
@@ -412,7 +417,7 @@ class ClientTests(CloudTestCase):
         with self.settings(), mock.patch.object(
                 engine, "get_retriever", return_value=fakes.FakeRetriever(chunks)):
             result = self.ask("what is in my notes?", FakeRouter(needs_rag=True, installed=[]),
-                              engine.Options(cloud_mode="allowed", force_model="gemini-3.7-flash"))
+                              engine.Options(cloud_mode="on", force_model="gemini-3.7-flash"))
         self.assertIn("stay on this PC", result["answer"])
         self.assertIn("Ollama isn't reachable", result["answer"])
         self.assertIsNone(result["model"])
@@ -429,7 +434,7 @@ class SpeechTests(CloudTestCase):
     def test_cloud_transcription(self):
         with self.settings():
             out = engine.transcribe(b"RIFF....", "q.wav", "audio/wav",
-                                    engine.Options(cloud_mode="hard"))
+                                    engine.Options(cloud_mode="on"))
         self.assertEqual(out["text"], mock_cloud.TRANSCRIPT)
         self.assertFalse(out["local"])
         self.assertEqual(self.store.usage_today("groq"), 1)
@@ -454,13 +459,13 @@ class CatalogTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "n.toml"
             path.write_text(
-                '[cloud]\nmode = "hard"\nallow_paid = true\n'
+                '[cloud]\nmode = "on"\nallow_paid = true\n'
                 '[cloud.daily_limits]\ngroq = 7\n'
                 '[cloud.providers.gemini]\nbase_url = "http://x/v1"\n'
                 '[[cloud.models]]\nname = "m"\nprovider = "groq"\n'
                 '[speech]\nlocal_model = "base"\n')
             s = config.load_settings(path, Path(tmp) / "none.env")
-        self.assertEqual(s.cloud_mode, "hard")
+        self.assertEqual(s.cloud_mode, "on")
         self.assertTrue(s.allow_paid)
         self.assertFalse(s.allow_docs_to_cloud)
         self.assertEqual(s.daily_limits["groq"], 7)

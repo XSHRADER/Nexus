@@ -308,8 +308,8 @@ class TaskRouter:
         return bool(self._RAG_SIGNALS.search(query.lower()))
 
     def needs_strong(self, query: str) -> tuple[bool | None, float | None]:
-        """(is this a hard prompt for cloud purposes?, P(strong)) -- None when
-        no strong head is trained, which leaves the difficulty estimate in charge."""
+        """(is this a hard prompt?, P(strong)) -- None when no strong head is
+        trained. Only `[council] auto` reads it; cloud is the user's switch."""
         probs = (self._learned(query) or {}).get("strong")
         if not probs:
             return None, None
@@ -344,7 +344,7 @@ class TaskRouter:
             classification = dict(classification, auto_task=task, forced=True)
             task = force_task
         needs_rag = self._needs_rag(query) if rag_override is None else bool(rag_override)
-        hard, p_strong = self.needs_strong(query)
+        _hard, p_strong = self.needs_strong(query)
 
         if task == "system_agent":
             chain: list[dict[str, Any]] = [
@@ -361,7 +361,7 @@ class TaskRouter:
                  "score": round(c.score, 3), "reason": c.reason}
                 for c in providers.plan(
                     task, query, complexity, avail, needs_rag=needs_rag, policy=policy,
-                    needs_image=needs_image, hard=hard, bonuses=preference_bonuses(task),
+                    needs_image=needs_image, bonuses=preference_bonuses(task),
                 )
             ]
 

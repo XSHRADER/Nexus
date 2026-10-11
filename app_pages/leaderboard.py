@@ -79,7 +79,7 @@ if meta:
         versus = f"; the simple difficulty estimate scores {estimate}" if estimate is not None else ""
         st.caption(f"When is a cloud model worth it? Learned predictor: AUC {strong['auc']} on "
                    f"{strong['held_out']} comparisons it was not trained on (0.5 is a coin flip)"
-                   f"{versus}. {'In use.' if strong['passed'] else 'Not in use: the difficulty estimate stays in charge.'}")
+                   f"{versus}. For reference only: cloud is used when you switch it on, never by prediction.")
 else:
     st.caption("No router has been trained yet.")
 

@@ -4,6 +4,44 @@ Every released version of NEXUS, newest first. Planned versions are in
 [ROADMAP.md](ROADMAP.md). Each heading below is a git tag (`v0.4.0`) and a
 GitHub release.
 
+## [1.3.0] - 2026-10-12
+
+When is a cloud model worth it? Measured for the first time on the models
+NEXUS actually chooses between, instead of assumed.
+
+### Added
+- `train/judge_battles.py`: a local model and a cloud model answer the same
+  prompt, and two judge models grade each answer blind as acceptable or not.
+  Both judges must agree, or the prompt is recorded as disputed and not used.
+  The cloud was "needed" only when its answer was acceptable and the local
+  one was not. Resumable; never sends a held-out test prompt.
+- `train/data/judged_battles.jsonl`: 242 such comparisons, `llama3.1:8b`
+  against Groq's `openai/gpt-oss-120b`. These are models' judgements, not
+  your votes, and are labelled as such. Your own Arena votes between a local
+  and a cloud model still count five times as much.
+- The Leaderboard page shows the cloud-worth-it predictor's score next to
+  the difficulty estimate it would replace, and which of the two is in use.
+
+### Measured
+- On the 223 prompts the judges agreed about, the local answer was acceptable
+  for 184 (82.5%) and the cloud was needed for 39 (17.5%): mostly arithmetic,
+  logic puzzles, tracing what code prints, and exact facts. There was no
+  prompt where only the local answer was acceptable. 19 were disputed.
+- Predicting which prompts those 39 are (AUC, where 0.5 is a coin flip): the
+  learned predictor 0.610, the simple difficulty estimate 0.627. The learned
+  one is not better, so **it is not in use** and cloud decisions keep using
+  the difficulty estimate. With 39 cases the two scores are too close to
+  tell apart; both are weak.
+- Checked by hand: the judges' reasons for all 39. One reason was itself
+  wrong (a film's cast), so expect a few percent of mislabels.
+
+### Changed
+- The cloud-worth-it predictor is now kept only if it beats the difficulty
+  estimate on the same prompts, not merely a coin flip.
+- With fewer than 2,000 comparisons it is measured by five-fold
+  cross-validation (every prompt scored by a model that never saw it)
+  instead of one 80/20 split, which left too few to measure on.
+
 ## [1.2.0] - 2026-10-11
 
 Cloud models tried with real keys for the first time, on Groq, Gemini and

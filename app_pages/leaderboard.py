@@ -75,9 +75,11 @@ if meta:
                                               for src, n in trained_on.items()) + ".")
     strong = meta["metrics"].get("strong")
     if strong:
-        st.caption(f"Strong-or-weak head (when to use cloud): AUC {strong['auc']} on "
-                   f"{strong['held_out']} held-out votes — "
-                   f"{'in use' if strong['passed'] else 'not in use (no better than random)'}.")
+        estimate = strong.get("difficulty_estimate_auc")
+        versus = f"; the simple difficulty estimate scores {estimate}" if estimate is not None else ""
+        st.caption(f"When is a cloud model worth it? Learned predictor: AUC {strong['auc']} on "
+                   f"{strong['held_out']} comparisons it was not trained on (0.5 is a coin flip)"
+                   f"{versus}. {'In use.' if strong['passed'] else 'Not in use: the difficulty estimate stays in charge.'}")
 else:
     st.caption("No router has been trained yet.")
 

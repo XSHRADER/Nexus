@@ -40,6 +40,11 @@ from nexus import learned_router as lr  # noqa: E402
 from train import data_sources  # noqa: E402
 
 MIN_STRONG_ROWS = 50
+# Below this many rows one 80/20 split leaves too few to measure on, so every
+# row is scored by a model trained without it (5 folds) and the head that is
+# kept is trained on all of them.
+SMALL_STRONG_SET = 2000
+STRONG_FOLDS = 5
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +116,57 @@ def cross_validate(rows: list[dict], classes: list[str], use_embeddings: bool, f
     return round(hits / len(rows), 3)
 
 
+def measure_strong_head(rows: list[dict], use_embeddings: bool):
+    """Train the "needs a strong model" head and measure it on rows it never saw.
+
+    Returns (head, report). The report also scores the difficulty estimate
+    the head would replace (providers.estimate_complexity) on the same rows:
+    a learned head that cannot beat a few hand-written cues is not worth using.
+    """
+    from nexus import providers
+
+    classes = ["weak", "strong"]
+    fit = {"epochs": 8 if len(rows) > 5000 else 30, "batch_size": 256}
+    rng = np.random.default_rng(0)
+    order = rng.permutation(len(rows))
+    if len(rows) < SMALL_STRONG_SET:
+        scored, probs = [], []
+        for k in range(STRONG_FOLDS):
+            held = set(order[k::STRONG_FOLDS].tolist())
+            train = [r for i, r in enumerate(rows) if i not in held]
+            test = [rows[i] for i in sorted(held)]
+            if {r["label"] for r in train} != set(classes):
+                continue  # a fold with one label can't be trained; its rows go unscored
+            model = train_head(train, classes, use_embeddings, **fit)
+            probs += model.predict_proba(lr.featurize([r["prompt"] for r in test],
+                                                      use_embeddings))[:, 1].tolist()
+            scored += test
+        head = train_head(rows, classes, use_embeddings, **fit)
+        method = f"{STRONG_FOLDS}-fold cross-validation"
+    else:
+        cut = int(len(order) * 0.8)
+        train = [rows[i] for i in order[:cut]]
+        scored = [rows[i] for i in order[cut:]]
+        head = train_head(train, classes, use_embeddings, **fit)
+        probs = head.predict_proba(lr.featurize([r["prompt"] for r in scored],
+                                                use_embeddings))[:, 1].tolist()
+        method = "80/20 split"
+
+    truth = [r["label"] == "strong" for r in scored]
+    estimate = [providers.estimate_complexity(r["prompt"]) for r in scored]
+    report = {
+        "auc": round(auc(truth, probs), 4),
+        "difficulty_estimate_auc": round(auc(truth, estimate), 4),
+        "held_out": len(scored),
+        "method": method,
+        "strong_share": round(sum(truth) / max(len(truth), 1), 3),
+        **quality_curve([r.get("outcome", r["label"]) for r in scored], probs),
+    }
+    report["passed"] = bool(report["auc"] >= 0.55 and report["mean_gain_over_random"] > 0
+                            and report["auc"] >= report["difficulty_estimate_auc"])
+    return head, report
+
+
 def main(argv: list[str] | None = None) -> dict:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--embeddings", choices=["auto", "on", "off"], default="auto")
@@ -155,25 +211,12 @@ def main(argv: list[str] | None = None) -> dict:
         "metrics": {"task_cv_accuracy": cross_validate(task_rows, tasks, use_emb)},
     }
 
-    # Strong head: train on 80%, measure on the 20% it never saw.
+    # Strong head: measured only on rows it was not trained on, and kept only
+    # if it beats both chance and the difficulty estimate it would replace.
     strong_report = None
     labels = {r["label"] for r in strong_rows}
     if len(strong_rows) >= MIN_STRONG_ROWS and labels == {"strong", "weak"}:
-        rng = np.random.default_rng(0)
-        order = rng.permutation(len(strong_rows))
-        cut = int(len(order) * 0.8)
-        train = [strong_rows[i] for i in order[:cut]]
-        test = [strong_rows[i] for i in order[cut:]]
-        head = train_head(train, ["weak", "strong"], use_emb,
-                          epochs=8 if len(train) > 5000 else 30, batch_size=256)
-        probs = head.predict_proba(lr.featurize([r["prompt"] for r in test], use_emb))[:, 1]
-        strong_report = {
-            "auc": round(auc([r["label"] == "strong" for r in test], probs.tolist()), 4),
-            "held_out": len(test),
-            **quality_curve([r.get("outcome", r["label"]) for r in test], probs.tolist()),
-        }
-        strong_report["passed"] = bool(strong_report["auc"] >= 0.55
-                                       and strong_report["mean_gain_over_random"] > 0)
+        head, strong_report = measure_strong_head(strong_rows, use_emb)
         meta["metrics"]["strong"] = strong_report
         if strong_report["passed"]:
             heads["strong"] = head
@@ -259,8 +302,10 @@ def print_report(report: dict, previous_version: str | None) -> None:
         print(f"\nLarger held-out set (eval/router_set.json, task only): {line}")
     s = m.get("strong")
     if s:
-        print(f"\nStrong-vs-weak head on {s['held_out']} held-out votes: AUC {s['auc']}, "
-              f"{'kept' if s['passed'] else 'left out (no better than random)'}")
+        print(f"\nStrong-vs-weak head on {s['held_out']} held-out rows ({s.get('method', 'split')}): "
+              f"AUC {s['auc']}; the difficulty estimate it would replace: "
+              f"{s.get('difficulty_estimate_auc', 'n/a')} -> "
+              f"{'kept' if s['passed'] else 'left out'}")
         print(f"  all-weak quality {s['all_weak']}, all-strong {s['all_strong']}; "
               f"strong calls for 95% of the gap: {s['strong_calls_for_95pct']:.0%}")
         print("  strong calls  quality  random")

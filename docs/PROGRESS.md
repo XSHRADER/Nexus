@@ -166,7 +166,7 @@ Done:
 
 Remaining after 1.0.0:
 - Mistral and DeepSeek have only been exercised against
-  `demos/mock_cloud.py`. Try each with a real key (version 1.3.0).
+  `demos/mock_cloud.py`. Try each with a real key.
 - `data/router_logs.jsonl` still contains decisions from earlier test runs
   (model names `a`/`b`); safe to delete.
 
@@ -290,3 +290,25 @@ changed.
   through the engine in 1.2.0). Cosmetic: the duplicates report says "0.0 MB
   could be freed" for very small files.
 
+### Version 1.3.0 (2026-10-12)
+The roadmap item was "learns when cloud is worth it, from your Arena votes".
+There were no such votes, so the comparisons were produced by models instead
+and are stored as `source: "judged"`, separate from the user's votes.
+- `train/judge_battles.py`: `llama3.1:8b` vs `groq:openai/gpt-oss-120b`,
+  judged by `groq:qwen/qwen3.8-27b` and `groq:openai/gpt-oss-120b`.
+- First design asked the judge which answer it preferred: it picked the
+  cloud answer 6 times out of 6, for polish. Changed to grading each answer
+  as ok / not_ok on its own; cloud "needed" only when local not ok, cloud ok.
+- A single Gemini judge ran out of free quota after about 30 requests, so the
+  panel is two Groq models that must agree. Groq's limits (8,000 tokens a
+  minute, 1,000 requests a day per model) stopped the run at 174 of 242; it
+  resumed the next day.
+- 242 prompts: 90 written to be hard, 152 sampled from the training prompts;
+  none within 0.85 cosine of a held-out prompt. Result: 184 tie (one of them
+  neither acceptable), 39 strong, 0 weak, 19 disputed.
+- Strong head, 223 rows, 5-fold cross-validation: AUC 0.6099 with embeddings
+  (0.58 without, on the first 162); `providers.estimate_complexity` 0.6265;
+  mean gain over random routing 0.0137. Gate: left out. Router v3 has the
+  same task and documents scores as v2.
+- Gate now also requires the head to beat the difficulty estimate.
+- Tests 339 -> 347.

@@ -25,6 +25,11 @@ Where the router's training examples come from. Every row is
               two chatbots. Models are split into a strong and a weak tier by
               their win rate *in the data*; a battle between the tiers says
               whether the prompt needed the strong one.
+    judged    train/data/judged_battles.jsonl: a local and a cloud model
+              answered the same prompts and two judge models graded each
+              answer blind and had to agree (train/judge_battles.py). Not
+              human votes, but they are about the models NEXUS actually
+              chooses between.
     yours     your Arena battles between a local and a cloud model
               (weighted 5x): did the cloud model win for this prompt?
 """
@@ -47,6 +52,7 @@ TEACHER = DATA_DIR / "teacher_labels.jsonl"
 EXAMPLES = PROJECT_DIR / "nexus" / "router_examples.json"
 HELD_OUT = (PROJECT_DIR / "eval" / "router_set.json", PROJECT_DIR / "eval" / "router_golden.json")
 ARENA55K = DATA_DIR / "arena55k_strong.jsonl"
+JUDGED = DATA_DIR / "judged_battles.jsonl"
 ARENA55K_REPO = "lmarena-ai/arena-human-preference-55k"
 
 TASKS = ("general", "coding", "reasoning", "planning", "vision", "speech", "system_agent")
@@ -266,8 +272,20 @@ def task_and_docs_rows(store=None, include_own: bool = True) -> tuple[list[dict]
     return without_held_out(task), without_held_out(docs)
 
 
+def judged_rows(path: Path | None = None) -> list[dict]:
+    """Machine-judged local-versus-cloud comparisons (train/judge_battles.py)."""
+    rows = []
+    for r in iter_jsonl(path or JUDGED):
+        prompt = (r.get("prompt") or "").strip()
+        if prompt and r.get("label") in ("strong", "weak"):
+            row = _row(prompt, r["label"], float(r.get("weight", 1.0)), "judged")
+            row["outcome"] = r.get("outcome", r["label"])
+            rows.append(row)
+    return rows
+
+
 def strong_head_rows(store=None, include_own: bool = True) -> list[dict]:
-    rows = arena55k_rows()
+    rows = arena55k_rows() + judged_rows()
     if include_own:
         try:
             rows += own_strong_rows(store)

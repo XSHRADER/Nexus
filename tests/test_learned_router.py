@@ -28,7 +28,7 @@ from nexus import (
 from nexus import evaluate_learned_router as eval_router  # noqa: E402
 from nexus import learned_router as lr  # noqa: E402
 from nexus.router import TaskRouter, preference_bonuses  # noqa: E402
-from train import data_sources, teacher_label, train_router  # noqa: E402
+from train import data_sources, judge_battles, teacher_label, train_router  # noqa: E402
 
 
 class TempModels(unittest.TestCase):
@@ -42,6 +42,7 @@ class TempModels(unittest.TestCase):
             mock.patch.object(lr, "CURRENT", root / "models" / "current.json"),
             mock.patch.object(data_sources, "TEACHER", root / "teacher.jsonl"),
             mock.patch.object(data_sources, "ARENA55K", root / "arena.jsonl"),
+            mock.patch.object(data_sources, "JUDGED", root / "judged.jsonl"),
         ]
         for p in self.patches:
             p.start()
@@ -336,6 +337,110 @@ class TrainingDataTests(TempModels):
         self.assertIn("wide_set_not_worse_than_current", report["gate"])
         self.assertGreater(wide["new"], 0.5)
         self.assertIsNone(wide["previous"])
+
+
+class JudgedBattleTests(TempModels):
+    """Machine-judged local-versus-cloud comparisons (train/judge_battles.py)."""
+
+    def test_a_verdict_is_read_whatever_surrounds_the_json(self):
+        v = judge_battles.parse_verdict('Sure.\n{"A": "ok", "B": "not_ok", "reason": "B is wrong"} done')
+        self.assertEqual(v, {"a": True, "b": False, "reason": "B is wrong"})
+        self.assertIsNone(judge_battles.parse_verdict("A is better"))
+        self.assertIsNone(judge_battles.parse_verdict('{"A": "ok", "B": "maybe"}'))
+
+    def test_cloud_is_only_needed_when_it_alone_is_acceptable(self):
+        self.assertEqual(judge_battles.outcome_of(strong_ok=True, weak_ok=False), "strong")
+        self.assertEqual(judge_battles.outcome_of(strong_ok=False, weak_ok=True), "weak")
+        self.assertEqual(judge_battles.outcome_of(strong_ok=True, weak_ok=True), "tie")
+        self.assertEqual(judge_battles.outcome_of(strong_ok=False, weak_ok=False), "tie")
+
+    def test_the_panel_must_agree(self):
+        agree = [{"a": True, "b": False, "reason": "B wrong"}, {"a": True, "b": False, "reason": "B off"}]
+        self.assertEqual(judge_battles.combine(agree, strong_is_a=True)["label"], "strong")
+        self.assertEqual(judge_battles.combine(agree, strong_is_a=False)["outcome"], "weak")
+        split = [{"a": True, "b": False, "reason": "B wrong"}, {"a": True, "b": True, "reason": "fine"}]
+        disputed = judge_battles.combine(split, strong_is_a=True)
+        self.assertEqual((disputed["outcome"], disputed["label"]), ("disputed", None))
+
+    def test_answer_order_is_stable_and_mixed(self):
+        prompts = [f"question number {i}" for i in range(200)]
+        firsts = [judge_battles.strong_first(p) for p in prompts]
+        self.assertEqual(firsts, [judge_battles.strong_first(p) for p in prompts])
+        self.assertTrue(60 < sum(firsts) < 140)   # roughly half and half
+
+    def run_battles(self, prompts, replies, out):
+        """Run the script with a fake local model and fake cloud replies."""
+        prompt_file = Path(self.tmp.name) / "prompts.txt"
+        prompt_file.write_text("\n".join(prompts), encoding="utf-8")
+        calls = []
+
+        def fake_cloud(spec, messages, temperature):
+            calls.append(spec)
+            if messages[0]["content"] == judge_battles.JUDGE_INSTRUCTIONS:
+                question = messages[1]["content"].split("\n")[1]
+                strong_ok, weak_ok = replies[question]
+                a, b = (strong_ok, weak_ok) if judge_battles.strong_first(question) else (weak_ok, strong_ok)
+                return json.dumps({"A": "ok" if a else "not_ok", "B": "ok" if b else "not_ok",
+                                   "reason": "test"})
+            return "cloud answer"
+
+        with mock.patch.object(judge_battles, "_cloud", fake_cloud), \
+                mock.patch.object(judge_battles.ollama, "chat",
+                                  return_value=mock.Mock(text="local answer")), \
+                mock.patch("builtins.print"):
+            judge_battles.main([str(prompt_file), "--out", str(out)])
+        return calls
+
+    def test_script_writes_rows_skips_held_out_prompts_and_resumes(self):
+        held = eval_router.load_golden()[0]["prompt"]
+        replies = {"what is two plus two": (True, True), "a hard puzzle": (True, False),
+                   "a trick question": (False, True)}
+        out = data_sources.JUDGED
+        calls = self.run_battles([*replies, held], replies, out)
+        rows = list(lr.iter_jsonl(out))
+        self.assertEqual({r["prompt"]: r["outcome"] for r in rows},
+                         {"what is two plus two": "tie", "a hard puzzle": "strong",
+                          "a trick question": "weak"})       # the held-out prompt was never sent
+        self.assertEqual(len(calls), 3 * 3)                   # per prompt: one answer, two judges
+        self.assertEqual(self.run_battles([*replies], replies, out), [])   # nothing left to do
+
+    def test_judged_rows_feed_the_strong_head_and_disputed_ones_do_not(self):
+        with open(data_sources.JUDGED, "w", encoding="utf-8") as fh:
+            for row in ({"prompt": "easy one", "label": "weak", "outcome": "tie"},
+                        {"prompt": "hard one", "label": "strong", "outcome": "strong"},
+                        {"prompt": "unclear one", "label": None, "outcome": "disputed"}):
+                fh.write(json.dumps(row) + "\n")
+        rows = data_sources.strong_head_rows()
+        self.assertEqual([(r["prompt"], r["label"], r["outcome"], r["source"]) for r in rows],
+                         [("easy one", "weak", "tie", "judged"), ("hard one", "strong", "strong", "judged")])
+
+    def test_strong_head_is_measured_against_the_difficulty_estimate(self):
+        # Wording carries the signal here ("prove ..." needs the strong model),
+        # so the learned head should be kept; the report says what it beat.
+        with open(data_sources.JUDGED, "w", encoding="utf-8") as fh:
+            for i in range(60):
+                hard = i % 3 == 0
+                prompt = (f"prove lemma {i} about primes rigorously" if hard else f"say hello to friend {i}")
+                fh.write(json.dumps({"prompt": prompt, "label": "strong" if hard else "weak",
+                                     "outcome": "strong" if hard else "tie"}) + "\n")
+        strong = self.train("--no-own")["metrics"]["strong"]
+        self.assertEqual(strong["method"], "5-fold cross-validation")
+        self.assertEqual(strong["held_out"], 60)               # every row scored by a model that never saw it
+        self.assertIn("difficulty_estimate_auc", strong)
+        self.assertGreater(strong["auc"], 0.9)
+        self.assertEqual(strong["passed"], strong["auc"] >= strong["difficulty_estimate_auc"])
+
+    def test_a_head_no_better_than_the_estimate_is_left_out(self):
+        report = {"auc": 0.70, "difficulty_estimate_auc": 0.80, "mean_gain_over_random": 0.05}
+        with mock.patch.object(train_router, "auc", side_effect=[0.70, 0.80]), \
+                mock.patch.object(train_router, "quality_curve",
+                                  return_value={"mean_gain_over_random": 0.05}):
+            rows = [{"prompt": f"p{i}", "label": "strong" if i % 2 else "weak", "weight": 1.0,
+                     "source": "judged"} for i in range(60)]
+            _head, measured = train_router.measure_strong_head(rows, use_embeddings=False)
+        self.assertEqual((measured["auc"], measured["difficulty_estimate_auc"]),
+                         (report["auc"], report["difficulty_estimate_auc"]))
+        self.assertFalse(measured["passed"])
 
 
 class GoldenSetTests(unittest.TestCase):

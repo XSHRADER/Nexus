@@ -311,7 +311,7 @@ as a fallback:
 |---|---|
 | **Which task** is this (general, coding, reasoning, planning, PC action)? | 189 starter prompts, 173 curated prompts, the 276 labelled examples the rules use, prompts labelled by a cloud "teacher" model if you add any, and **your corrections** |
 | **Does it need your documents?** | the same, plus your document on/off overrides |
-| **Does it need a strong (cloud) model?** | 55k human votes from the public [Chatbot Arena dataset](https://huggingface.co/datasets/lmarena-ai/arena-human-preference-55k) (the RouteLLM approach), plus **your Arena votes** between a local and a cloud model |
+| **Does it need a strong (cloud) model?** | 242 judged comparisons between a local and a cloud model, **your Arena votes** between a local and a cloud model (each counts five times), and optionally 55k human votes from the public [Chatbot Arena dataset](https://huggingface.co/datasets/lmarena-ai/arena-human-preference-55k). Measured, and **not good enough to use yet**: see below |
 
 On top of that, your settled Arena results nudge each model's score for that
 task, so models you keep preferring rise.
@@ -374,23 +374,52 @@ python train/teacher_label.py my_prompts.txt --provider gemini --model gemini-3.
 python train/teacher_label.py --from-arena55k 2000 --provider groq --model openai/gpt-oss-120b
 # learn "needs a strong model" from the 55k public votes
 python train/train_router.py --arena55k
+# compare a local and a cloud model on your own prompts, graded by two judge models
+# (sends every prompt to the cloud provider)
+python train/judge_battles.py my_prompts.txt
 ```
 
 The *train-router* GitHub Actions workflow runs the last command in the cloud
 and uploads the trained router as an artifact.
 
-**The "needs a strong model" head did not work on public data — and the gate
-caught it.** Trained on 16,686 battles between the dataset's strongest and
-weakest models (tiers set by win rate; dataset licence confirmed Apache-2.0
-on its card), it scored **AUC 0.526** on 3,338 held-out votes, barely above
-the 0.5 of a coin flip; routing by it beat random routing by at most 1.3
-percentage points at any budget. So it was left out, and cloud decisions
-keep using the difficulty estimate. This matches the RouteLLM paper, where
-routers trained on raw Arena votes alone were also near random: a prompt's
-wording says little about whether a weaker model will do. The head is
-retrained whenever you have enough Arena votes between a local and a cloud
-model (weighted 5x) — votes about *your* prompts and *your* models, which is
-the signal the public data lacks.
+**When is a cloud model worth it? Measured, and the learned predictor is
+switched off.** `train/judge_battles.py` had `llama3.1:8b` and Groq's
+`openai/gpt-oss-120b` answer the same 242 prompts. Two judge models graded
+each answer blind as acceptable or not, and both had to agree. On the 223
+prompts they agreed about:
+
+| | prompts | share |
+|---|---|---|
+| the local answer was acceptable (cloud gained nothing) | 184 | 82.5% |
+| the cloud was needed (local answer wrong, cloud answer right) | 39 | 17.5% |
+| only the local answer was acceptable | 0 | 0% |
+
+The 39 were mostly arithmetic, logic puzzles, tracing what code prints, and
+exact facts. Then the question the router cares about: can those 39 be
+predicted from the wording of the prompt alone?
+
+| predictor | AUC (0.5 is a coin flip) |
+|---|---|
+| simple difficulty estimate (length, a few cue words) | 0.627 |
+| learned predictor, on prompts it was not trained on | 0.610 |
+
+The learned predictor is not better than the estimate it would replace, so
+the gate left it out and cloud decisions keep using the estimate. With 39
+cases the two scores cannot be told apart, and both are weak: routing by the
+learned one beat random routing by 1.4 percentage points on average.
+
+The same thing happened earlier on public data. Trained on 16,686 battles
+from the Chatbot Arena dataset it scored AUC 0.526 on 3,338 held-out votes.
+That matches the RouteLLM paper, where routers trained on raw Arena votes
+alone were also near random: a prompt's wording says little about whether
+a weaker model will do.
+
+What to keep in mind about these numbers: the grades come from models, not
+from you; one of the two judges is the cloud model itself, which is why a
+second, different model has to agree; and of the 39 reasons read by hand,
+one was itself wrong. The predictor is retrained whenever you train the
+router, and your own Arena votes between a local and a cloud model count
+five times as much as a judged comparison.
 
 ---
 

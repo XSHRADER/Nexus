@@ -1,0 +1,49 @@
+{
+  "corpus": "BEIR SciFact (test)",
+  "questions": 300,
+  "indexing": {
+    "files": 5183,
+    "chunks": 11464,
+    "files_indexed_this_run": 5183,
+    "seconds": 251.0,
+    "files_per_second": 20.7
+  },
+  "results": [
+    {
+      "config": "dense only (vector)",
+      "recall@1": 0.5067,
+      "recall@5": 0.7412,
+      "recall@10": 0.7804,
+      "mrr": 0.6226,
+      "ndcg@10": 0.6564,
+      "seconds_per_question": 0.012
+    },
+    {
+      "config": "BM25 only (keyword)",
+      "recall@1": 0.4808,
+      "recall@5": 0.7014,
+      "recall@10": 0.7458,
+      "mrr": 0.5967,
+      "ndcg@10": 0.6284,
+      "seconds_per_question": 0.031
+    },
+    {
+      "config": "hybrid, RRF fusion",
+      "recall@1": 0.549,
+      "recall@5": 0.7503,
+      "recall@10": 0.8063,
+      "mrr": 0.6633,
+      "ndcg@10": 0.691,
+      "seconds_per_question": 0.057
+    },
+    {
+      "config": "hybrid + cross-encoder",
+      "recall@1": 0.5719,
+      "recall@5": 0.7812,
+      "recall@10": 0.8098,
+      "mrr": 0.681,
+      "ndcg@10": 0.7043,
+      "seconds_per_question": 0.506
+    }
+  ]
+}

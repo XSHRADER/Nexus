@@ -4,6 +4,29 @@ Every released version of NEXUS, newest first. Planned versions are in
 [ROADMAP.md](ROADMAP.md). Each heading below is a git tag (`v0.4.0`) and a
 GitHub release.
 
+## [1.5.0] - 2026-11-08
+
+Retrieval measured on a real-sized library: 5,183 documents instead of a
+handful, so the configurations can finally be told apart.
+
+### Added
+- `python -m nexus.evaluate_corpus`: downloads SciFact from the public BEIR
+  benchmark (5,183 scientific abstracts, 300 test questions labelled with the
+  abstracts that answer them), indexes it with NEXUS's own ingest code, and
+  scores every retrieval configuration. Results are saved in
+  `eval/corpus_results.json`. Your documents and index are not touched.
+
+### Measured
+- nDCG@10 (the score BEIR reports; 1.0 is perfect): keyword search 0.628,
+  vector search 0.656, both fused 0.691, fused and re-ranked by the
+  cross-encoder 0.704. Each step adds something; on the 18-question demo set
+  the re-ranker had looked useless.
+- Recall@10 of the full pipeline: 0.810. Re-ranking costs about 0.5 s per
+  question; without it a search takes under 0.1 s.
+- Indexing: 5,183 files (11,464 chunks) in 251 s on this PC's CPU, about
+  20.7 files a second. The embedding model ran on the CPU because the
+  installed PyTorch has no GPU support.
+
 ## [1.4.0] - 2026-10-12
 
 Cloud is your decision. NEXUS no longer chooses between local and cloud.

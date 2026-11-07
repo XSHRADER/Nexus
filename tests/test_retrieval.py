@@ -1,3 +1,4 @@
+import math
 import shutil
 import tempfile
 import unittest
@@ -216,3 +217,24 @@ class RetrieverRefreshTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CorpusScoreTests(unittest.TestCase):
+    """nexus/evaluate_corpus.py: the per-question metrics on the big library."""
+
+    def test_recall_mrr_and_ndcg(self):
+        from nexus import evaluate_corpus
+
+        class Ranked:
+            def query(self, question, top_k, **kw):
+                order = {"q1": ["a.txt", "a.txt", "x.txt", "b.txt"], "q2": ["y.txt", "z.txt"]}[question]
+                return [{"meta": {"source": s}} for s in order]
+
+        questions = [{"question": "q1", "sources": ["a.txt", "b.txt"]},   # hits at ranks 1 and 3
+                     {"question": "q2", "sources": ["c.txt"]}]            # missed
+        r = evaluate_corpus.score(Ranked(), questions)
+        self.assertEqual(r["recall@1"], 0.25)      # (1/2 + 0) / 2; the repeated chunk counts once
+        self.assertEqual(r["recall@10"], 0.5)
+        self.assertEqual(r["mrr"], 0.5)
+        ideal = 1 + 1 / math.log2(3)
+        self.assertAlmostEqual(r["ndcg@10"], round((1 + 1 / math.log2(4)) / ideal / 2, 4))

@@ -560,7 +560,27 @@ adds nothing on top of fusion at five passages. At the app's default depth of
 ten passages, the full pipeline's context contains the answer for all 18
 questions.
 
-**What this corpus cannot tell you.** It is about 2,700 words in 28 chunks. At
+**On a real-sized library.** `python -m nexus.evaluate_corpus` runs the same
+pipeline on SciFact from the public [BEIR](https://github.com/beir-cellar/beir)
+benchmark: 5,183 scientific abstracts and 300 test questions, each labelled
+with the abstracts that answer it. The first run downloads about 4 MB and
+indexes it in its own folder; your documents are not touched.
+
+| configuration | nDCG@10 | recall@10 | MRR | time per question |
+|---|---|---|---|---|
+| BM25 only (keyword) | 0.628 | 0.746 | 0.597 | 0.03 s |
+| dense only (vector) | 0.656 | 0.780 | 0.623 | 0.01 s |
+| hybrid, RRF fusion | 0.691 | 0.806 | 0.663 | 0.06 s |
+| hybrid + cross-encoder | **0.704** | **0.810** | **0.681** | 0.51 s |
+
+At this size every stage earns its place: fusing keyword and vector search
+beats either alone, and the cross-encoder adds on top, which the small demo
+set below could not show. nDCG@10 is the score BEIR publishes; the BEIR paper
+reports 0.665 for its BM25 baseline on SciFact, a little above NEXUS's simpler
+keyword search. Indexing took 251 s for 5,183 files (11,464 chunks), about
+20.7 files a second, with the embedding model on the CPU.
+
+**What the demo corpus cannot tell you.** It is about 2,700 words in 28 chunks. At
 `top_k=5` a query hands back roughly a sixth of everything indexed, so recall@5
 saturates, and one question is one eighteenth of every score. Making these
 numbers discriminate needs a bigger corpus, not a better reranker. Run

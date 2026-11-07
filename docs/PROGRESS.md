@@ -327,3 +327,16 @@ limited, and 1.3.0 showed the choice cannot be predicted well.
   value -> local; on + an easy question -> `openai/gpt-oss-120b`, one attempt;
   on + a documents question -> local.
 - Tests 347 -> 346 (two mode tests rewritten, one for the removed flag dropped).
+
+### Version 1.5.0 (2026-11-08)
+- `nexus/evaluate_corpus.py`: BEIR SciFact (corpus and queries parquet from
+  `BeIR/scifact`, `test.tsv` from `BeIR/scifact-qrels`) via huggingface_hub;
+  one .txt per abstract (title + text) into `data/beir/scifact/docs`, indexed
+  by `ingest.run` into `data/beir/scifact_index`. Scored by file, a source
+  counted once however many of its chunks come back.
+- 300 questions: BM25 0.628, dense 0.656, RRF 0.691, RRF + cross-encoder
+  0.704 nDCG@10. A first 20-question run had put the cross-encoder below RRF
+  (0.753 vs 0.782): 20 questions were too few, as on the demo set.
+- Indexing 251 s for 5,183 files / 11,464 chunks on CPU (PyTorch here has
+  no CUDA, although the PC has an RTX 4060).
+- Tests 346 -> 347.
